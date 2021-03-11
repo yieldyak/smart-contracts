@@ -1,0 +1,14 @@
+.env
+package-lock.json
+
+abis
+dapp
+deploy
+deprecated
+node_modules
+scripts
+test
+
+#Hardhat files
+cache
+artifacts
