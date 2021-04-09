@@ -100,7 +100,7 @@ contract YakTimelockManagerV1 {
     }
 
     /**
-     * @notice Sweep tokens from the timelock to the manager address
+     * @notice Sweep tokens from the timelock to `feeCollector`
      * @dev The timelock contract may receive assets from both revenue and asset recovery.
      * @dev The sweep function is NOT timelocked, because recovered assets must go through separate timelock functions.
      * @param tokenAddress address
@@ -112,7 +112,7 @@ contract YakTimelockManagerV1 {
     }
 
     /**
-     * @notice Sweep AVAX from the timelock to the manager address
+     * @notice Sweep AVAX from the timelock to the `feeCollector` address
      * @dev The timelock contract may receive assets from both revenue and asset recovery.
      * @dev The sweep function is NOT timelocked, because recovered assets must go through separate timelock functions.
      * @param amount amount
@@ -194,17 +194,18 @@ contract YakTimelockManagerV1 {
     }
 
     /**
-     * @notice Calleb `recoverERC20` and reset timelock
+     * @notice Call `recoverERC20` and reset timelock
      * @dev This can be called by anyone
      * @dev Recoverd funds are collected to this timelock and may be swept
      */
-    function setRecoverERC20() external enforceTimelock(Functions.updateReinvestReward) {
+    function setRecoverERC20() external enforceTimelock(Functions.recoverERC20) {
         strategy.recoverERC20(pendingTokenAddressToRecover, pendingTokenAmountToRecover);
+        pendingTokenAddressToRecover = address(0);
         pendingReinvestReward = 0;
     }
 
     /**
-     * @notice Pass values for `recoverERC20` through timelock
+     * @notice Pass values for `recoverAVAX` through timelock
      * @dev Restricted to `manager` to avoid griefing
      * @dev Resets timelock duration through modifier
      * @param _pendingAVAXToRecover amount
@@ -237,6 +238,7 @@ contract YakTimelockManagerV1 {
     /**
      * @notice Rescues deployed assets to the strategy contract
      * @dev Restricted to `manager` to avoid griefing
+     * @dev In case of emergency, assets will be transferred to the timelock and may be swept
      */
     function emergencyWithdraw() external onlyManager {
         strategy.emergencyWithdraw();
