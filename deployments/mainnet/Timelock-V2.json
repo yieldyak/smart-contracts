@@ -1,0 +1,962 @@
+{
+  "address": "0x6FD41A93c2902B48D9dE81158389EF7B95c338f5",
+  "abi": [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        }
+      ],
+      "name": "EmergencyWithdraw",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "proposedValue",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "timelock",
+          "type": "uint256"
+        }
+      ],
+      "name": "ProposeAdminFee",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "proposedValue",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "timelock",
+          "type": "uint256"
+        }
+      ],
+      "name": "ProposeOwner",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "proposedToken",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "proposedValue",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "timelock",
+          "type": "uint256"
+        }
+      ],
+      "name": "ProposeRecovery",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "proposedValue",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "timelock",
+          "type": "uint256"
+        }
+      ],
+      "name": "ProposeReinvestReward",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "token",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "Recover",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "newValue",
+          "type": "uint256"
+        }
+      ],
+      "name": "SetAdminFee",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "newValue",
+          "type": "uint256"
+        }
+      ],
+      "name": "SetMinTokensToReinvest",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newValue",
+          "type": "address"
+        }
+      ],
+      "name": "SetOwner",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "newValue",
+          "type": "uint256"
+        }
+      ],
+      "name": "SetReinvestReward",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "token",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "Sweep",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        }
+      ],
+      "name": "emergencyWithdraw",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "feeCollector",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "manager",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "pendingAVAXToRecover",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "pendingAdminFees",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "pendingOwners",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "pendingReinvestRewards",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "pendingTokenAddressesToRecover",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "pendingTokenAmountsToRecover",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_pendingAdminFee",
+          "type": "uint256"
+        }
+      ],
+      "name": "proposeAdminFee",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_pendingOwner",
+          "type": "address"
+        }
+      ],
+      "name": "proposeOwner",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_pendingAVAXToRecover",
+          "type": "uint256"
+        }
+      ],
+      "name": "proposeRecoverAVAX",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_pendingTokenAddressToRecover",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_pendingTokenAmountToRecover",
+          "type": "uint256"
+        }
+      ],
+      "name": "proposeRecoverERC20",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_pendingReinvestReward",
+          "type": "uint256"
+        }
+      ],
+      "name": "proposeReinvestReward",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        }
+      ],
+      "name": "setAdminFee",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "minTokensToReinvest",
+          "type": "uint256"
+        }
+      ],
+      "name": "setMinTokensToReinvest",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        }
+      ],
+      "name": "setOwner",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        }
+      ],
+      "name": "setRecoverAVAX",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        }
+      ],
+      "name": "setRecoverERC20",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        }
+      ],
+      "name": "setReinvestReward",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "sweepAVAX",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "tokenAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "tokenAmount",
+          "type": "uint256"
+        }
+      ],
+      "name": "sweepTokens",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        },
+        {
+          "internalType": "enum YakTimelockForDexStrategyV2.Functions",
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "name": "timelock",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "timelockLengthForAssetRecovery",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "timelockLengthForFeeChanges",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "timelockLengthForOwnershipTransfer",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0x31d37161018276573aef489bed11cc09ae5c93f05d38503b06b68a6c4ed40dd6",
+  "receipt": {
+    "to": null,
+    "from": "0xDcEDF06Fd33E1D7b6eb4b309f779a0e9D3172e44",
+    "contractAddress": "0x6FD41A93c2902B48D9dE81158389EF7B95c338f5",
+    "transactionIndex": 0,
+    "gasUsed": "2554529",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "blockHash": "0x2bec132e235257f0e820e0185bb70fa6c81ccfa471ad761d6fa177bd6684e47b",
+    "transactionHash": "0x31d37161018276573aef489bed11cc09ae5c93f05d38503b06b68a6c4ed40dd6",
+    "logs": [],
+    "blockNumber": 1070370,
+    "cumulativeGasUsed": "2554529",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [],
+  "solcInputHash": "490e896b62e5823f8ed89b84619d2946",
+  "metadata": "{\"compiler\":{\"version\":\"0.7.3+commit.9bfce1f6\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"}],\"name\":\"EmergencyWithdraw\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"proposedValue\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timelock\",\"type\":\"uint256\"}],\"name\":\"ProposeAdminFee\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"proposedValue\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timelock\",\"type\":\"uint256\"}],\"name\":\"ProposeOwner\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"proposedToken\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"proposedValue\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timelock\",\"type\":\"uint256\"}],\"name\":\"ProposeRecovery\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"proposedValue\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timelock\",\"type\":\"uint256\"}],\"name\":\"ProposeReinvestReward\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"token\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"Recover\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"newValue\",\"type\":\"uint256\"}],\"name\":\"SetAdminFee\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"newValue\",\"type\":\"uint256\"}],\"name\":\"SetMinTokensToReinvest\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newValue\",\"type\":\"address\"}],\"name\":\"SetOwner\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"newValue\",\"type\":\"uint256\"}],\"name\":\"SetReinvestReward\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"token\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"Sweep\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"}],\"name\":\"emergencyWithdraw\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"feeCollector\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"manager\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"pendingAVAXToRecover\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"pendingAdminFees\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"pendingOwners\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"pendingReinvestRewards\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"pendingTokenAddressesToRecover\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"pendingTokenAmountsToRecover\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_pendingAdminFee\",\"type\":\"uint256\"}],\"name\":\"proposeAdminFee\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_pendingOwner\",\"type\":\"address\"}],\"name\":\"proposeOwner\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_pendingAVAXToRecover\",\"type\":\"uint256\"}],\"name\":\"proposeRecoverAVAX\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_pendingTokenAddressToRecover\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_pendingTokenAmountToRecover\",\"type\":\"uint256\"}],\"name\":\"proposeRecoverERC20\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_pendingReinvestReward\",\"type\":\"uint256\"}],\"name\":\"proposeReinvestReward\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"}],\"name\":\"setAdminFee\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"minTokensToReinvest\",\"type\":\"uint256\"}],\"name\":\"setMinTokensToReinvest\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"}],\"name\":\"setOwner\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"}],\"name\":\"setRecoverAVAX\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"}],\"name\":\"setRecoverERC20\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"}],\"name\":\"setReinvestReward\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"sweepAVAX\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"tokenAmount\",\"type\":\"uint256\"}],\"name\":\"sweepTokens\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"enum YakTimelockForDexStrategyV2.Functions\",\"name\":\"\",\"type\":\"uint8\"}],\"name\":\"timelock\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"timelockLengthForAssetRecovery\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"timelockLengthForFeeChanges\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"timelockLengthForOwnershipTransfer\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"emergencyWithdraw(address)\":{\"details\":\"Restricted to `manager` to avoid griefingIn case of emergency, assets will be transferred to the timelock and may be swept\",\"params\":{\"_strategy\":\"address\"}},\"proposeAdminFee(address,uint256)\":{\"details\":\"Restricted to `manager` to avoid griefingResets timelock duration through modifier\",\"params\":{\"_pendingAdminFee\":\"new value\",\"_strategy\":\"address\"}},\"proposeOwner(address,address)\":{\"details\":\"Restricted to `manager` to avoid griefingResets timelock duration through modifier\",\"params\":{\"_pendingOwner\":\"new value\",\"_strategy\":\"address\"}},\"proposeRecoverAVAX(address,uint256)\":{\"details\":\"Restricted to `manager` to avoid griefingResets timelock duration through modifier\",\"params\":{\"_pendingAVAXToRecover\":\"amount\",\"_strategy\":\"address\"}},\"proposeRecoverERC20(address,address,uint256)\":{\"details\":\"Restricted to `manager` to avoid griefingResets timelock duration through modifier\",\"params\":{\"_pendingTokenAddressToRecover\":\"address\",\"_pendingTokenAmountToRecover\":\"amount\",\"_strategy\":\"address\"}},\"proposeReinvestReward(address,uint256)\":{\"details\":\"Restricted to `manager` to avoid griefingResets timelock duration through modifier\",\"params\":{\"_pendingReinvestReward\":\"new value\",\"_strategy\":\"address\"}},\"setAdminFee(address)\":{\"details\":\"This can be called by anyone\",\"params\":{\"_strategy\":\"address\"}},\"setMinTokensToReinvest(address,uint256)\":{\"details\":\"Restricted to `manager` to avoid griefing\",\"params\":{\"_strategy\":\"address\",\"minTokensToReinvest\":\"new value\"}},\"setOwner(address)\":{\"details\":\"This can be called by anyone\",\"params\":{\"_strategy\":\"address\"}},\"setRecoverAVAX(address)\":{\"details\":\"This can be called by anyoneRecoverd funds are collected to this timelock and may be swept\",\"params\":{\"_strategy\":\"address\"}},\"setRecoverERC20(address)\":{\"details\":\"This can be called by anyoneRecoverd funds are collected to this timelock and may be swept\",\"params\":{\"_strategy\":\"address\"}},\"setReinvestReward(address)\":{\"details\":\"This can be called by anyone\",\"params\":{\"_strategy\":\"address\"}},\"sweepAVAX(uint256)\":{\"details\":\"The timelock contract may receive assets from both revenue and asset recovery.The sweep function is NOT timelocked, because recovered assets must go through separate timelock functions.\",\"params\":{\"amount\":\"amount\"}},\"sweepTokens(address,uint256)\":{\"details\":\"The timelock contract may receive assets from both revenue and asset recovery.The sweep function is NOT timelocked, because recovered assets must go through separate timelock functions.\",\"params\":{\"tokenAddress\":\"address\",\"tokenAmount\":\"amount\"}}},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"emergencyWithdraw(address)\":{\"notice\":\"Rescues deployed assets to the strategy contract\"},\"proposeAdminFee(address,uint256)\":{\"notice\":\"Pass new value of `adminFee` through timelock\"},\"proposeOwner(address,address)\":{\"notice\":\"Pass new value of `owner` through timelock\"},\"proposeRecoverAVAX(address,uint256)\":{\"notice\":\"Pass values for `recoverAVAX` through timelock\"},\"proposeRecoverERC20(address,address,uint256)\":{\"notice\":\"Pass values for `recoverERC20` through timelock\"},\"proposeReinvestReward(address,uint256)\":{\"notice\":\"Pass new value of `reinvestReward` through timelock\"},\"setAdminFee(address)\":{\"notice\":\"Set new value of `adminFee` and reset timelock\"},\"setMinTokensToReinvest(address,uint256)\":{\"notice\":\"Set new value of `minTokensToReinvest`\"},\"setOwner(address)\":{\"notice\":\"Set new value of `owner` and resets timelock\"},\"setRecoverAVAX(address)\":{\"notice\":\"Call `recoverAVAX` and reset timelock\"},\"setRecoverERC20(address)\":{\"notice\":\"Call `recoverERC20` and reset timelock\"},\"setReinvestReward(address)\":{\"notice\":\"Set new value of `reinvestReward` and reset timelock\"},\"sweepAVAX(uint256)\":{\"notice\":\"Sweep AVAX from the timelock to the `feeCollector` address\"},\"sweepTokens(address,uint256)\":{\"notice\":\"Sweep tokens from the timelock to `feeCollector`\"}},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/timelocks/YakTimelockForDexStrategyV2.sol\":\"YakTimelockForDexStrategyV2\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":false,\"runs\":200},\"remappings\":[]},\"sources\":{\"contracts/timelocks/YakTimelockForDexStrategyV2.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.7.0;\\n\\ninterface IERC20 {\\n    function transfer(address recipient, uint256 amount) external returns (bool);\\n}\\n\\ninterface IStrategy {\\n    function owner() external view returns (address);\\n    function renounceOwnership() external;\\n    function transferOwnership(address newOwner) external;\\n    function emergencyWithdraw() external;\\n    function updateMinTokensToReinvest(uint newValue) external;\\n    function updateAdminFee(uint newValue) external;\\n    function updateReinvestReward(uint newValue) external;\\n    function recoverERC20(address tokenAddress, uint tokenAmount) external;\\n    function recoverAVAX(uint amount) external;\\n}\\n\\ncontract YakTimelockForDexStrategyV2 {\\n\\n    uint public constant timelockLengthForAssetRecovery = 2 minutes;\\n    uint public constant timelockLengthForOwnershipTransfer = 5 minutes;\\n    uint public constant timelockLengthForFeeChanges = 1 minutes;\\n\\n    address public manager;\\n    address public feeCollector;\\n\\n    mapping(address => address) public pendingOwners;\\n    mapping(address => uint) public pendingAdminFees;\\n    mapping(address => uint) public pendingReinvestRewards;\\n    mapping(address => address) public pendingTokenAddressesToRecover;\\n    mapping(address => uint) public pendingTokenAmountsToRecover;\\n    mapping(address => uint) public pendingAVAXToRecover;\\n\\n    event ProposeOwner(address indexed strategy, address indexed proposedValue, uint timelock);\\n    event ProposeAdminFee(address indexed strategy, uint proposedValue, uint timelock);\\n    event ProposeReinvestReward(address indexed strategy, uint proposedValue, uint timelock);\\n    event ProposeRecovery(address indexed strategy, address indexed proposedToken, uint proposedValue, uint timelock);\\n\\n    event SetOwner(address indexed strategy, address indexed newValue);\\n    event SetAdminFee(address indexed strategy, uint newValue);\\n    event SetReinvestReward(address indexed strategy, uint newValue);\\n    event SetMinTokensToReinvest(address indexed strategy, uint newValue);\\n    event Sweep(address indexed token, uint amount);\\n    event Recover(address indexed strategy, address indexed token, uint amount);\\n    event EmergencyWithdraw(address indexed strategy);\\n\\n    enum Functions {\\n        renounceOwnership,\\n        transferOwnership,\\n        emergencyWithdraw,\\n        updateMinTokensToReinvest,\\n        updateAdminFee,\\n        updateReinvestReward,\\n        recoverERC20,\\n        recoverAVAX\\n    }\\n\\n    mapping(address => mapping(Functions => uint)) public timelock;\\n\\n    constructor() {\\n        manager = msg.sender;\\n        feeCollector = msg.sender;\\n    }\\n\\n    // Modifiers\\n\\n    /**\\n     * @notice Restrict to `manager`\\n     * @dev To change manager, deploy new timelock and transfer strategy ownership\\n     */\\n    modifier onlyManager {\\n        require(msg.sender == manager);\\n        _;\\n    }\\n\\n    /**\\n     * @notice Restrict to `feeCollector`\\n     * @dev To change feeCollector, deploy new timelock and transfer strategy ownership\\n     */\\n    modifier onlyFeeCollector {\\n        require(msg.sender == feeCollector);\\n        _;\\n    }\\n\\n    /**\\n     * @notice Set timelock when changing pending values\\n     * @param _strategy address\\n     * @param _fn Function enum value\\n     * @param timelockLength in seconds\\n     */\\n    modifier setTimelock(address _strategy, Functions _fn, uint timelockLength) {\\n        timelock[_strategy][_fn] = block.timestamp + timelockLength;\\n        _;\\n    }\\n\\n    /**\\n     * @notice Enforce timelock for a given function\\n     * @dev Ends execution by resetting timelock to avoid replay\\n     * @param _strategy address\\n     * @param _fn Function enum value\\n     */\\n    modifier enforceTimelock(address _strategy, Functions _fn) {\\n        require(timelock[_strategy][_fn] != 0 && timelock[_strategy][_fn] <= block.timestamp, \\\"YakTimelockManager::enforceTimelock\\\");\\n        _;\\n        timelock[_strategy][_fn] = 0;\\n    }\\n\\n    /**\\n     * @notice Sweep tokens from the timelock to `feeCollector`\\n     * @dev The timelock contract may receive assets from both revenue and asset recovery.\\n     * @dev The sweep function is NOT timelocked, because recovered assets must go through separate timelock functions.\\n     * @param tokenAddress address\\n     * @param tokenAmount amount\\n     */\\n    function sweepTokens(address tokenAddress, uint tokenAmount) external onlyFeeCollector {\\n        require(tokenAmount > 0, \\\"YakTimelockManager::sweepTokens, amount too low\\\");\\n        require(IERC20(tokenAddress).transfer(msg.sender, tokenAmount), \\\"YakTimelockManager::sweepTokens, transfer failed\\\");\\n        emit Sweep(tokenAddress, tokenAmount);\\n    }\\n\\n    /**\\n     * @notice Sweep AVAX from the timelock to the `feeCollector` address\\n     * @dev The timelock contract may receive assets from both revenue and asset recovery.\\n     * @dev The sweep function is NOT timelocked, because recovered assets must go through separate timelock functions.\\n     * @param amount amount\\n     */\\n    function sweepAVAX(uint amount) external onlyFeeCollector {\\n        require(amount > 0, 'YakTimelockManager::sweepAVAX, amount too low');\\n        msg.sender.transfer(amount);\\n        emit Sweep(address(0), amount);\\n    }\\n\\n    // Functions with timelocks\\n\\n    /**\\n     * @notice Pass new value of `owner` through timelock\\n     * @dev Restricted to `manager` to avoid griefing\\n     * @dev Resets timelock duration through modifier\\n     * @param _strategy address\\n     * @param _pendingOwner new value\\n     */\\n    function proposeOwner(address _strategy, address _pendingOwner) external onlyManager \\n    setTimelock(_strategy, Functions.transferOwnership, timelockLengthForOwnershipTransfer) {\\n        pendingOwners[_strategy] = _pendingOwner;\\n        emit ProposeOwner(_strategy, _pendingOwner, timelock[_strategy][Functions.transferOwnership]);\\n    }\\n\\n    /**\\n     * @notice Set new value of `owner` and resets timelock\\n     * @dev This can be called by anyone\\n     * @param _strategy address\\n     */\\n    function setOwner(address _strategy) external \\n    enforceTimelock(_strategy, Functions.transferOwnership) {\\n        IStrategy(_strategy).transferOwnership(pendingOwners[_strategy]);\\n        emit SetOwner(_strategy, pendingOwners[_strategy]);\\n        pendingOwners[_strategy] = address(0);\\n    }\\n\\n    /**\\n     * @notice Pass new value of `adminFee` through timelock\\n     * @dev Restricted to `manager` to avoid griefing\\n     * @dev Resets timelock duration through modifier\\n     * @param _strategy address\\n     * @param _pendingAdminFee new value\\n     */\\n    function proposeAdminFee(address _strategy, uint _pendingAdminFee) external onlyManager \\n    setTimelock(_strategy, Functions.updateAdminFee, timelockLengthForFeeChanges) {\\n        pendingAdminFees[_strategy] = _pendingAdminFee;\\n        emit ProposeAdminFee(_strategy, _pendingAdminFee, timelock[_strategy][Functions.updateAdminFee]);\\n    }\\n\\n    /**\\n     * @notice Set new value of `adminFee` and reset timelock\\n     * @dev This can be called by anyone\\n     * @param _strategy address\\n     */\\n    function setAdminFee(address _strategy) external \\n    enforceTimelock(_strategy, Functions.updateAdminFee) {\\n        IStrategy(_strategy).updateAdminFee(pendingAdminFees[_strategy]);\\n        emit SetAdminFee(_strategy, pendingAdminFees[_strategy]);\\n        pendingAdminFees[_strategy] = 0;\\n    }\\n\\n    /**\\n     * @notice Pass new value of `reinvestReward` through timelock\\n     * @dev Restricted to `manager` to avoid griefing\\n     * @dev Resets timelock duration through modifier\\n     * @param _strategy address\\n     * @param _pendingReinvestReward new value\\n     */\\n    function proposeReinvestReward(address _strategy, uint _pendingReinvestReward) external onlyManager \\n    setTimelock(_strategy, Functions.updateReinvestReward, timelockLengthForFeeChanges) {\\n        pendingReinvestRewards[_strategy] = _pendingReinvestReward;\\n        emit ProposeReinvestReward(_strategy, _pendingReinvestReward, timelock[_strategy][Functions.updateReinvestReward]);\\n    }\\n\\n    /**\\n     * @notice Set new value of `reinvestReward` and reset timelock\\n     * @dev This can be called by anyone\\n     * @param _strategy address\\n     */\\n    function setReinvestReward(address _strategy) external \\n    enforceTimelock(_strategy, Functions.updateReinvestReward) {\\n        IStrategy(_strategy).updateReinvestReward(pendingReinvestRewards[_strategy]);\\n        emit SetReinvestReward(_strategy, pendingReinvestRewards[_strategy]);\\n        pendingReinvestRewards[_strategy] = 0;\\n    }\\n\\n    /**\\n     * @notice Pass values for `recoverERC20` through timelock\\n     * @dev Restricted to `manager` to avoid griefing\\n     * @dev Resets timelock duration through modifier\\n     * @param _strategy address\\n     * @param _pendingTokenAddressToRecover address\\n     * @param _pendingTokenAmountToRecover amount\\n     */\\n    function proposeRecoverERC20(address _strategy, address _pendingTokenAddressToRecover, uint _pendingTokenAmountToRecover) external onlyManager \\n    setTimelock(_strategy, Functions.recoverERC20, timelockLengthForAssetRecovery) {\\n        pendingTokenAddressesToRecover[_strategy] = _pendingTokenAddressToRecover;\\n        pendingTokenAmountsToRecover[_strategy] = _pendingTokenAmountToRecover;\\n        emit ProposeRecovery(_strategy, _pendingTokenAddressToRecover, _pendingTokenAmountToRecover, timelock[_strategy][Functions.recoverERC20]);\\n    }\\n\\n    /**\\n     * @notice Call `recoverERC20` and reset timelock\\n     * @dev This can be called by anyone\\n     * @dev Recoverd funds are collected to this timelock and may be swept\\n     * @param _strategy address\\n     */\\n    function setRecoverERC20(address _strategy) external \\n    enforceTimelock(_strategy, Functions.recoverERC20) {\\n        IStrategy(_strategy).recoverERC20(pendingTokenAddressesToRecover[_strategy], pendingTokenAmountsToRecover[_strategy]);\\n        emit Recover(_strategy, pendingTokenAddressesToRecover[_strategy], pendingTokenAmountsToRecover[_strategy]);\\n        pendingTokenAddressesToRecover[_strategy] = address(0);\\n        pendingTokenAmountsToRecover[_strategy] = 0;\\n    }\\n\\n    /**\\n     * @notice Pass values for `recoverAVAX` through timelock\\n     * @dev Restricted to `manager` to avoid griefing\\n     * @dev Resets timelock duration through modifier\\n     * @param _strategy address\\n     * @param _pendingAVAXToRecover amount\\n     */\\n    function proposeRecoverAVAX(address _strategy, uint _pendingAVAXToRecover) external onlyManager \\n    setTimelock(_strategy, Functions.recoverAVAX, timelockLengthForAssetRecovery) {\\n        pendingAVAXToRecover[_strategy] = _pendingAVAXToRecover;\\n        emit ProposeRecovery(_strategy, address(0), _pendingAVAXToRecover, timelock[_strategy][Functions.recoverAVAX]);\\n    }\\n\\n    /**\\n     * @notice Call `recoverAVAX` and reset timelock\\n     * @dev This can be called by anyone\\n     * @dev Recoverd funds are collected to this timelock and may be swept\\n     * @param _strategy address\\n     */\\n    function setRecoverAVAX(address _strategy) external \\n    enforceTimelock(_strategy, Functions.recoverAVAX) {\\n        IStrategy(_strategy).recoverAVAX(pendingAVAXToRecover[_strategy]);\\n        emit Recover(_strategy, address(0), pendingAVAXToRecover[_strategy]);\\n        pendingAVAXToRecover[_strategy] = 0;\\n    }\\n\\n    // Functions without timelocks\\n\\n    /**\\n     * @notice Set new value of `minTokensToReinvest`\\n     * @dev Restricted to `manager` to avoid griefing\\n     * @param _strategy address\\n     * @param minTokensToReinvest new value\\n     */\\n    function setMinTokensToReinvest(address _strategy, uint minTokensToReinvest) external onlyManager {\\n        IStrategy(_strategy).updateMinTokensToReinvest(minTokensToReinvest);\\n        emit SetMinTokensToReinvest(_strategy, minTokensToReinvest);\\n    }\\n\\n    /**\\n     * @notice Rescues deployed assets to the strategy contract\\n     * @dev Restricted to `manager` to avoid griefing\\n     * @dev In case of emergency, assets will be transferred to the timelock and may be swept\\n     * @param _strategy address\\n     */\\n    function emergencyWithdraw(address _strategy) external onlyManager {\\n        IStrategy(_strategy).emergencyWithdraw();\\n        emit EmergencyWithdraw(_strategy);\\n    }\\n}\",\"keccak256\":\"0x3265c15479c89dba23bdde124280e1b4340725584b94f8e7e506b8ec290c653f\",\"license\":\"MIT\"}},\"version\":1}",
+  "bytecode": "0x608060405234801561001057600080fd5b50336000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555033600160006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550612c84806100a16000396000f3fe608060405234801561001057600080fd5b506004361061018e5760003560e01c80639017e465116100de578063bfe3c7de11610097578063e272864211610071578063e2728642146107de578063e912994814610836578063f0114c3614610864578063fcb2749a146108bc5761018e565b8063bfe3c7de14610718578063c415b95c1461075c578063dec66036146107905761018e565b80639017e4651461051457806391609e8114610578578063a5267786146105c6578063a75c7452146105e4578063ae2c5fab14610652578063b7666f3e146106c05761018e565b80633242a5661161014b5780636996d29a116101255780636996d29a146103f05780636ff1c9bc1461043e5780637042bcf81461048257806384f2c83f146104c65761018e565b80633242a566146102e9578063481c6a75146103575780635f3a08541461038b5761018e565b80630135002c146101935780630bb6f0ef146101d75780630fba7d62146101f5578063137a37e21461024357806313af40351461026157806327399d55146102a5575b600080fd5b6101d5600480360360208110156101a957600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050610914565b005b6101df610da8565b6040518082815260200191505060405180910390f35b6102416004803603604081101561020b57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919080359060200190929190505050610dae565b005b61024b610ec3565b6040518082815260200191505060405180910390f35b6102a36004803603602081101561027757600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050610ec8565b005b6102e7600480360360208110156102bb57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050611286565b005b610355600480360360608110156102ff57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190803573ffffffffffffffffffffffffffffffffffffffff169060200190929190803590602001909291905050506115c0565b005b61035f611828565b604051808273ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b6103da600480360360408110156103a157600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190803560ff16906020019092919050505061184c565b6040518082815260200191505060405180910390f35b61043c6004803603604081101561040657600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919080359060200190929190505050611871565b005b6104806004803603602081101561045457600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050611a43565b005b6104c46004803603602081101561049857600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050611b41565b005b610512600480360360408110156104dc57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919080359060200190929190505050611e63565b005b6105766004803603604081101561052a57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050612035565b005b6105c46004803603604081101561058e57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919080359060200190929190505050612251565b005b6105ce61243a565b6040518082815260200191505060405180910390f35b610626600480360360208110156105fa57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919050505061243f565b604051808273ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b6106946004803603602081101561066857600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050612472565b604051808273ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b610702600480360360208110156106d657600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff1690602001909291905050506124a5565b6040518082815260200191505060405180910390f35b61075a6004803603602081101561072e57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff1690602001909291905050506124bd565b005b6107646127df565b604051808273ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b6107dc600480360360408110156107a657600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919080359060200190929190505050612805565b005b610820600480360360208110156107f457600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050612a0b565b6040518082815260200191505060405180910390f35b6108626004803603602081101561084c57600080fd5b8101908080359060200190929190505050612a23565b005b6108a66004803603602081101561087a57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050612b6f565b6040518082815260200191505060405180910390f35b6108fe600480360360208110156108d257600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050612b87565b6040518082815260200191505060405180910390f35b8060066000600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600083600781111561096657fe5b600781111561097157fe5b815260200190815260200160002054141580156109f4575042600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008360078111156109d757fe5b60078111156109e257fe5b81526020019081526020016000205411155b610a49576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401808060200182810382526023815260200180612ba06023913960400191505060405180910390fd5b8273ffffffffffffffffffffffffffffffffffffffff16638980f11f600560008673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff16600660008773ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546040518363ffffffff1660e01b8152600401808373ffffffffffffffffffffffffffffffffffffffff16815260200182815260200192505050600060405180830381600087803b158015610b5857600080fd5b505af1158015610b6c573d6000803e3d6000fd5b50505050600560008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168373ffffffffffffffffffffffffffffffffffffffff167ff6891c84a6c6af32a6d052172a8acc4c631b1d5057ffa2bc1da268b6938ea2da600660008773ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546040518082815260200191505060405180910390a36000600560008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055506000600660008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020819055506000600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000836007811115610d8657fe5b6007811115610d9157fe5b815260200190815260200160002081905550505050565b61012c81565b60008054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614610e0657600080fd5b8173ffffffffffffffffffffffffffffffffffffffff166381837230826040518263ffffffff1660e01b815260040180828152602001915050600060405180830381600087803b158015610e5957600080fd5b505af1158015610e6d573d6000803e3d6000fd5b505050508173ffffffffffffffffffffffffffffffffffffffff167f33e6c9b106719003294f6819992332aa70728bcccd167ba6905cc7f94a5618ba826040518082815260200191505060405180910390a25050565b607881565b8060016000600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000836007811115610f1a57fe5b6007811115610f2557fe5b81526020019081526020016000205414158015610fa8575042600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000836007811115610f8b57fe5b6007811115610f9657fe5b81526020019081526020016000205411155b610ffd576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401808060200182810382526023815260200180612ba06023913960400191505060405180910390fd5b8273ffffffffffffffffffffffffffffffffffffffff1663f2fde38b600260008673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff166040518263ffffffff1660e01b8152600401808273ffffffffffffffffffffffffffffffffffffffff168152602001915050600060405180830381600087803b1580156110c557600080fd5b505af11580156110d9573d6000803e3d6000fd5b50505050600260008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168373ffffffffffffffffffffffffffffffffffffffff167fcbf985117192c8f614a58aaf97226bb80a754772f5f6edf06f87c675f2e6c66360405160405180910390a36000600260008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055506000600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600083600781111561126457fe5b600781111561126f57fe5b815260200190815260200160002081905550505050565b8060076000600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008360078111156112d857fe5b60078111156112e357fe5b81526020019081526020016000205414158015611366575042600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600083600781111561134957fe5b600781111561135457fe5b81526020019081526020016000205411155b6113bb576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401808060200182810382526023815260200180612ba06023913960400191505060405180910390fd5b8273ffffffffffffffffffffffffffffffffffffffff16634ebb7916600760008673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546040518263ffffffff1660e01b815260040180828152602001915050600060405180830381600087803b15801561144d57600080fd5b505af1158015611461573d6000803e3d6000fd5b50505050600073ffffffffffffffffffffffffffffffffffffffff168373ffffffffffffffffffffffffffffffffffffffff167ff6891c84a6c6af32a6d052172a8acc4c631b1d5057ffa2bc1da268b6938ea2da600760008773ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546040518082815260200191505060405180910390a36000600760008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020819055506000600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600083600781111561159e57fe5b60078111156115a957fe5b815260200190815260200160002081905550505050565b60008054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161461161857600080fd5b8260066078804201600860008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600084600781111561166d57fe5b600781111561167857fe5b81526020019081526020016000208190555084600560008873ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555083600660008873ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020819055508473ffffffffffffffffffffffffffffffffffffffff168673ffffffffffffffffffffffffffffffffffffffff167ff27444df37d5349d51b8293061b66a652317d627aee0c94a6fff790cb823f04e86600860008b73ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000600660078111156117ea57fe5b60078111156117f557fe5b815260200190815260200160002054604051808381526020018281526020019250505060405180910390a3505050505050565b60008054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b6008602052816000526040600020602052806000526040600020600091509150505481565b60008054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff16146118c957600080fd5b816005603c804201600860008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600084600781111561191e57fe5b600781111561192957fe5b81526020019081526020016000208190555083600460008773ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020819055508473ffffffffffffffffffffffffffffffffffffffff167f26091dbfedb73234a7c379b06e7f73d79767fcab1524c0a5e130ad91bc4e0bd885600860008973ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600060056007811115611a0657fe5b6007811115611a1157fe5b815260200190815260200160002054604051808381526020018281526020019250505060405180910390a25050505050565b60008054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614611a9b57600080fd5b8073ffffffffffffffffffffffffffffffffffffffff1663db2e21bc6040518163ffffffff1660e01b8152600401600060405180830381600087803b158015611ae357600080fd5b505af1158015611af7573d6000803e3d6000fd5b505050508073ffffffffffffffffffffffffffffffffffffffff167f5e7b34819cd91b239220bec92fcfd3c10da2214ba13e4e2b1f6c9cfdbd68a9a260405160405180910390a250565b8060046000600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000836007811115611b9357fe5b6007811115611b9e57fe5b81526020019081526020016000205414158015611c21575042600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000836007811115611c0457fe5b6007811115611c0f57fe5b81526020019081526020016000205411155b611c76576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401808060200182810382526023815260200180612ba06023913960400191505060405180910390fd5b8273ffffffffffffffffffffffffffffffffffffffff1663cff1b6ef600360008673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546040518263ffffffff1660e01b815260040180828152602001915050600060405180830381600087803b158015611d0857600080fd5b505af1158015611d1c573d6000803e3d6000fd5b505050508273ffffffffffffffffffffffffffffffffffffffff167f7f8a351eac453ab44e57102fbb7588c635a8214ff07ab920d9cfd15ce23f46cd600360008673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546040518082815260200191505060405180910390a26000600360008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020819055506000600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000836007811115611e4157fe5b6007811115611e4c57fe5b815260200190815260200160002081905550505050565b60008054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614611ebb57600080fd5b816004603c804201600860008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000846007811115611f1057fe5b6007811115611f1b57fe5b81526020019081526020016000208190555083600360008773ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020819055508473ffffffffffffffffffffffffffffffffffffffff167f9d1dc457a527cc45a7abe831576cbf01b0495cef69f000d13655ae3d1e5631f485600860008973ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600060046007811115611ff857fe5b600781111561200357fe5b815260200190815260200160002054604051808381526020018281526020019250505060405180910390a25050505050565b60008054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161461208d57600080fd5b81600161012c804201600860008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008460078111156120e357fe5b60078111156120ee57fe5b81526020019081526020016000208190555083600260008773ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055508373ffffffffffffffffffffffffffffffffffffffff168573ffffffffffffffffffffffffffffffffffffffff167fef95e1c78dd90414a6d134b297f1d212121c5a8ec70d1ac0c0381a9b09d709c1600860008973ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060006001600781111561221b57fe5b600781111561222657fe5b8152602001908152602001600020546040518082815260200191505060405180910390a35050505050565b60008054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff16146122a957600080fd5b8160076078804201600860008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008460078111156122fe57fe5b600781111561230957fe5b81526020019081526020016000208190555083600760008773ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002081905550600073ffffffffffffffffffffffffffffffffffffffff168573ffffffffffffffffffffffffffffffffffffffff167ff27444df37d5349d51b8293061b66a652317d627aee0c94a6fff790cb823f04e86600860008a73ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060006007808111156123fd57fe5b600781111561240857fe5b815260200190815260200160002054604051808381526020018281526020019250505060405180910390a35050505050565b603c81565b60026020528060005260406000206000915054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b60056020528060005260406000206000915054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b60076020528060005260406000206000915090505481565b8060056000600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600083600781111561250f57fe5b600781111561251a57fe5b8152602001908152602001600020541415801561259d575042600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600083600781111561258057fe5b600781111561258b57fe5b81526020019081526020016000205411155b6125f2576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401808060200182810382526023815260200180612ba06023913960400191505060405180910390fd5b8273ffffffffffffffffffffffffffffffffffffffff1663a8ae2b7c600460008673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546040518263ffffffff1660e01b815260040180828152602001915050600060405180830381600087803b15801561268457600080fd5b505af1158015612698573d6000803e3d6000fd5b505050508273ffffffffffffffffffffffffffffffffffffffff167f13a14ce9697f66fc8a63923473cae2383958adbf89c38ecbb9219d8d7b9f18c9600460008673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546040518082815260200191505060405180910390a26000600460008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020819055506000600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008360078111156127bd57fe5b60078111156127c857fe5b815260200190815260200160002081905550505050565b600160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b600160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161461285f57600080fd5b600081116128b8576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252602f815260200180612bc3602f913960400191505060405180910390fd5b8173ffffffffffffffffffffffffffffffffffffffff1663a9059cbb33836040518363ffffffff1660e01b8152600401808373ffffffffffffffffffffffffffffffffffffffff16815260200182815260200192505050602060405180830381600087803b15801561292957600080fd5b505af115801561293d573d6000803e3d6000fd5b505050506040513d602081101561295357600080fd5b81019080805190602001909291905050506129b9576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401808060200182810382526030815260200180612bf26030913960400191505060405180910390fd5b8173ffffffffffffffffffffffffffffffffffffffff167fab2246061d7b0dd3631d037e3f6da75782ae489eeb9f6af878a4b25df9b07c77826040518082815260200191505060405180910390a25050565b60066020528060005260406000206000915090505481565b600160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614612a7d57600080fd5b60008111612ad6576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252602d815260200180612c22602d913960400191505060405180910390fd5b3373ffffffffffffffffffffffffffffffffffffffff166108fc829081150290604051600060405180830381858888f19350505050158015612b1c573d6000803e3d6000fd5b50600073ffffffffffffffffffffffffffffffffffffffff167fab2246061d7b0dd3631d037e3f6da75782ae489eeb9f6af878a4b25df9b07c77826040518082815260200191505060405180910390a250565b60046020528060005260406000206000915090505481565b6003602052806000526040600020600091509050548156fe59616b54696d656c6f636b4d616e616765723a3a656e666f72636554696d656c6f636b59616b54696d656c6f636b4d616e616765723a3a7377656570546f6b656e732c20616d6f756e7420746f6f206c6f7759616b54696d656c6f636b4d616e616765723a3a7377656570546f6b656e732c207472616e73666572206661696c656459616b54696d656c6f636b4d616e616765723a3a7377656570415641582c20616d6f756e7420746f6f206c6f77a2646970667358221220cc320be57e4f8f11534d93824064749d5ae0855044081cbfa31b9e1ddc64c47e64736f6c63430007030033",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b506004361061018e5760003560e01c80639017e465116100de578063bfe3c7de11610097578063e272864211610071578063e2728642146107de578063e912994814610836578063f0114c3614610864578063fcb2749a146108bc5761018e565b8063bfe3c7de14610718578063c415b95c1461075c578063dec66036146107905761018e565b80639017e4651461051457806391609e8114610578578063a5267786146105c6578063a75c7452146105e4578063ae2c5fab14610652578063b7666f3e146106c05761018e565b80633242a5661161014b5780636996d29a116101255780636996d29a146103f05780636ff1c9bc1461043e5780637042bcf81461048257806384f2c83f146104c65761018e565b80633242a566146102e9578063481c6a75146103575780635f3a08541461038b5761018e565b80630135002c146101935780630bb6f0ef146101d75780630fba7d62146101f5578063137a37e21461024357806313af40351461026157806327399d55146102a5575b600080fd5b6101d5600480360360208110156101a957600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050610914565b005b6101df610da8565b6040518082815260200191505060405180910390f35b6102416004803603604081101561020b57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919080359060200190929190505050610dae565b005b61024b610ec3565b6040518082815260200191505060405180910390f35b6102a36004803603602081101561027757600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050610ec8565b005b6102e7600480360360208110156102bb57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050611286565b005b610355600480360360608110156102ff57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190803573ffffffffffffffffffffffffffffffffffffffff169060200190929190803590602001909291905050506115c0565b005b61035f611828565b604051808273ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b6103da600480360360408110156103a157600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190803560ff16906020019092919050505061184c565b6040518082815260200191505060405180910390f35b61043c6004803603604081101561040657600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919080359060200190929190505050611871565b005b6104806004803603602081101561045457600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050611a43565b005b6104c46004803603602081101561049857600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050611b41565b005b610512600480360360408110156104dc57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919080359060200190929190505050611e63565b005b6105766004803603604081101561052a57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050612035565b005b6105c46004803603604081101561058e57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919080359060200190929190505050612251565b005b6105ce61243a565b6040518082815260200191505060405180910390f35b610626600480360360208110156105fa57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919050505061243f565b604051808273ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b6106946004803603602081101561066857600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050612472565b604051808273ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b610702600480360360208110156106d657600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff1690602001909291905050506124a5565b6040518082815260200191505060405180910390f35b61075a6004803603602081101561072e57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff1690602001909291905050506124bd565b005b6107646127df565b604051808273ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b6107dc600480360360408110156107a657600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff16906020019092919080359060200190929190505050612805565b005b610820600480360360208110156107f457600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050612a0b565b6040518082815260200191505060405180910390f35b6108626004803603602081101561084c57600080fd5b8101908080359060200190929190505050612a23565b005b6108a66004803603602081101561087a57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050612b6f565b6040518082815260200191505060405180910390f35b6108fe600480360360208110156108d257600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff169060200190929190505050612b87565b6040518082815260200191505060405180910390f35b8060066000600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600083600781111561096657fe5b600781111561097157fe5b815260200190815260200160002054141580156109f4575042600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008360078111156109d757fe5b60078111156109e257fe5b81526020019081526020016000205411155b610a49576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401808060200182810382526023815260200180612ba06023913960400191505060405180910390fd5b8273ffffffffffffffffffffffffffffffffffffffff16638980f11f600560008673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff16600660008773ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546040518363ffffffff1660e01b8152600401808373ffffffffffffffffffffffffffffffffffffffff16815260200182815260200192505050600060405180830381600087803b158015610b5857600080fd5b505af1158015610b6c573d6000803e3d6000fd5b50505050600560008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168373ffffffffffffffffffffffffffffffffffffffff167ff6891c84a6c6af32a6d052172a8acc4c631b1d5057ffa2bc1da268b6938ea2da600660008773ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546040518082815260200191505060405180910390a36000600560008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055506000600660008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020819055506000600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000836007811115610d8657fe5b6007811115610d9157fe5b815260200190815260200160002081905550505050565b61012c81565b60008054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614610e0657600080fd5b8173ffffffffffffffffffffffffffffffffffffffff166381837230826040518263ffffffff1660e01b815260040180828152602001915050600060405180830381600087803b158015610e5957600080fd5b505af1158015610e6d573d6000803e3d6000fd5b505050508173ffffffffffffffffffffffffffffffffffffffff167f33e6c9b106719003294f6819992332aa70728bcccd167ba6905cc7f94a5618ba826040518082815260200191505060405180910390a25050565b607881565b8060016000600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000836007811115610f1a57fe5b6007811115610f2557fe5b81526020019081526020016000205414158015610fa8575042600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000836007811115610f8b57fe5b6007811115610f9657fe5b81526020019081526020016000205411155b610ffd576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401808060200182810382526023815260200180612ba06023913960400191505060405180910390fd5b8273ffffffffffffffffffffffffffffffffffffffff1663f2fde38b600260008673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff166040518263ffffffff1660e01b8152600401808273ffffffffffffffffffffffffffffffffffffffff168152602001915050600060405180830381600087803b1580156110c557600080fd5b505af11580156110d9573d6000803e3d6000fd5b50505050600260008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168373ffffffffffffffffffffffffffffffffffffffff167fcbf985117192c8f614a58aaf97226bb80a754772f5f6edf06f87c675f2e6c66360405160405180910390a36000600260008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055506000600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600083600781111561126457fe5b600781111561126f57fe5b815260200190815260200160002081905550505050565b8060076000600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008360078111156112d857fe5b60078111156112e357fe5b81526020019081526020016000205414158015611366575042600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600083600781111561134957fe5b600781111561135457fe5b81526020019081526020016000205411155b6113bb576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401808060200182810382526023815260200180612ba06023913960400191505060405180910390fd5b8273ffffffffffffffffffffffffffffffffffffffff16634ebb7916600760008673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546040518263ffffffff1660e01b815260040180828152602001915050600060405180830381600087803b15801561144d57600080fd5b505af1158015611461573d6000803e3d6000fd5b50505050600073ffffffffffffffffffffffffffffffffffffffff168373ffffffffffffffffffffffffffffffffffffffff167ff6891c84a6c6af32a6d052172a8acc4c631b1d5057ffa2bc1da268b6938ea2da600760008773ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546040518082815260200191505060405180910390a36000600760008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020819055506000600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600083600781111561159e57fe5b60078111156115a957fe5b815260200190815260200160002081905550505050565b60008054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161461161857600080fd5b8260066078804201600860008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600084600781111561166d57fe5b600781111561167857fe5b81526020019081526020016000208190555084600560008873ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555083600660008873ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020819055508473ffffffffffffffffffffffffffffffffffffffff168673ffffffffffffffffffffffffffffffffffffffff167ff27444df37d5349d51b8293061b66a652317d627aee0c94a6fff790cb823f04e86600860008b73ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000600660078111156117ea57fe5b60078111156117f557fe5b815260200190815260200160002054604051808381526020018281526020019250505060405180910390a3505050505050565b60008054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b6008602052816000526040600020602052806000526040600020600091509150505481565b60008054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff16146118c957600080fd5b816005603c804201600860008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600084600781111561191e57fe5b600781111561192957fe5b81526020019081526020016000208190555083600460008773ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020819055508473ffffffffffffffffffffffffffffffffffffffff167f26091dbfedb73234a7c379b06e7f73d79767fcab1524c0a5e130ad91bc4e0bd885600860008973ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600060056007811115611a0657fe5b6007811115611a1157fe5b815260200190815260200160002054604051808381526020018281526020019250505060405180910390a25050505050565b60008054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614611a9b57600080fd5b8073ffffffffffffffffffffffffffffffffffffffff1663db2e21bc6040518163ffffffff1660e01b8152600401600060405180830381600087803b158015611ae357600080fd5b505af1158015611af7573d6000803e3d6000fd5b505050508073ffffffffffffffffffffffffffffffffffffffff167f5e7b34819cd91b239220bec92fcfd3c10da2214ba13e4e2b1f6c9cfdbd68a9a260405160405180910390a250565b8060046000600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000836007811115611b9357fe5b6007811115611b9e57fe5b81526020019081526020016000205414158015611c21575042600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000836007811115611c0457fe5b6007811115611c0f57fe5b81526020019081526020016000205411155b611c76576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401808060200182810382526023815260200180612ba06023913960400191505060405180910390fd5b8273ffffffffffffffffffffffffffffffffffffffff1663cff1b6ef600360008673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546040518263ffffffff1660e01b815260040180828152602001915050600060405180830381600087803b158015611d0857600080fd5b505af1158015611d1c573d6000803e3d6000fd5b505050508273ffffffffffffffffffffffffffffffffffffffff167f7f8a351eac453ab44e57102fbb7588c635a8214ff07ab920d9cfd15ce23f46cd600360008673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546040518082815260200191505060405180910390a26000600360008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020819055506000600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000836007811115611e4157fe5b6007811115611e4c57fe5b815260200190815260200160002081905550505050565b60008054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614611ebb57600080fd5b816004603c804201600860008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000846007811115611f1057fe5b6007811115611f1b57fe5b81526020019081526020016000208190555083600360008773ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020819055508473ffffffffffffffffffffffffffffffffffffffff167f9d1dc457a527cc45a7abe831576cbf01b0495cef69f000d13655ae3d1e5631f485600860008973ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600060046007811115611ff857fe5b600781111561200357fe5b815260200190815260200160002054604051808381526020018281526020019250505060405180910390a25050505050565b60008054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161461208d57600080fd5b81600161012c804201600860008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008460078111156120e357fe5b60078111156120ee57fe5b81526020019081526020016000208190555083600260008773ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055508373ffffffffffffffffffffffffffffffffffffffff168573ffffffffffffffffffffffffffffffffffffffff167fef95e1c78dd90414a6d134b297f1d212121c5a8ec70d1ac0c0381a9b09d709c1600860008973ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060006001600781111561221b57fe5b600781111561222657fe5b8152602001908152602001600020546040518082815260200191505060405180910390a35050505050565b60008054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff16146122a957600080fd5b8160076078804201600860008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008460078111156122fe57fe5b600781111561230957fe5b81526020019081526020016000208190555083600760008773ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002081905550600073ffffffffffffffffffffffffffffffffffffffff168573ffffffffffffffffffffffffffffffffffffffff167ff27444df37d5349d51b8293061b66a652317d627aee0c94a6fff790cb823f04e86600860008a73ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060006007808111156123fd57fe5b600781111561240857fe5b815260200190815260200160002054604051808381526020018281526020019250505060405180910390a35050505050565b603c81565b60026020528060005260406000206000915054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b60056020528060005260406000206000915054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b60076020528060005260406000206000915090505481565b8060056000600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600083600781111561250f57fe5b600781111561251a57fe5b8152602001908152602001600020541415801561259d575042600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600083600781111561258057fe5b600781111561258b57fe5b81526020019081526020016000205411155b6125f2576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401808060200182810382526023815260200180612ba06023913960400191505060405180910390fd5b8273ffffffffffffffffffffffffffffffffffffffff1663a8ae2b7c600460008673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546040518263ffffffff1660e01b815260040180828152602001915050600060405180830381600087803b15801561268457600080fd5b505af1158015612698573d6000803e3d6000fd5b505050508273ffffffffffffffffffffffffffffffffffffffff167f13a14ce9697f66fc8a63923473cae2383958adbf89c38ecbb9219d8d7b9f18c9600460008673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020546040518082815260200191505060405180910390a26000600460008573ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020819055506000600860008473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008360078111156127bd57fe5b60078111156127c857fe5b815260200190815260200160002081905550505050565b600160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b600160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff161461285f57600080fd5b600081116128b8576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252602f815260200180612bc3602f913960400191505060405180910390fd5b8173ffffffffffffffffffffffffffffffffffffffff1663a9059cbb33836040518363ffffffff1660e01b8152600401808373ffffffffffffffffffffffffffffffffffffffff16815260200182815260200192505050602060405180830381600087803b15801561292957600080fd5b505af115801561293d573d6000803e3d6000fd5b505050506040513d602081101561295357600080fd5b81019080805190602001909291905050506129b9576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401808060200182810382526030815260200180612bf26030913960400191505060405180910390fd5b8173ffffffffffffffffffffffffffffffffffffffff167fab2246061d7b0dd3631d037e3f6da75782ae489eeb9f6af878a4b25df9b07c77826040518082815260200191505060405180910390a25050565b60066020528060005260406000206000915090505481565b600160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614612a7d57600080fd5b60008111612ad6576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252602d815260200180612c22602d913960400191505060405180910390fd5b3373ffffffffffffffffffffffffffffffffffffffff166108fc829081150290604051600060405180830381858888f19350505050158015612b1c573d6000803e3d6000fd5b50600073ffffffffffffffffffffffffffffffffffffffff167fab2246061d7b0dd3631d037e3f6da75782ae489eeb9f6af878a4b25df9b07c77826040518082815260200191505060405180910390a250565b60046020528060005260406000206000915090505481565b6003602052806000526040600020600091509050548156fe59616b54696d656c6f636b4d616e616765723a3a656e666f72636554696d656c6f636b59616b54696d656c6f636b4d616e616765723a3a7377656570546f6b656e732c20616d6f756e7420746f6f206c6f7759616b54696d656c6f636b4d616e616765723a3a7377656570546f6b656e732c207472616e73666572206661696c656459616b54696d656c6f636b4d616e616765723a3a7377656570415641582c20616d6f756e7420746f6f206c6f77a2646970667358221220cc320be57e4f8f11534d93824064749d5ae0855044081cbfa31b9e1ddc64c47e64736f6c63430007030033",
+  "devdoc": {
+    "kind": "dev",
+    "methods": {
+      "emergencyWithdraw(address)": {
+        "details": "Restricted to `manager` to avoid griefingIn case of emergency, assets will be transferred to the timelock and may be swept",
+        "params": {
+          "_strategy": "address"
+        }
+      },
+      "proposeAdminFee(address,uint256)": {
+        "details": "Restricted to `manager` to avoid griefingResets timelock duration through modifier",
+        "params": {
+          "_pendingAdminFee": "new value",
+          "_strategy": "address"
+        }
+      },
+      "proposeOwner(address,address)": {
+        "details": "Restricted to `manager` to avoid griefingResets timelock duration through modifier",
+        "params": {
+          "_pendingOwner": "new value",
+          "_strategy": "address"
+        }
+      },
+      "proposeRecoverAVAX(address,uint256)": {
+        "details": "Restricted to `manager` to avoid griefingResets timelock duration through modifier",
+        "params": {
+          "_pendingAVAXToRecover": "amount",
+          "_strategy": "address"
+        }
+      },
+      "proposeRecoverERC20(address,address,uint256)": {
+        "details": "Restricted to `manager` to avoid griefingResets timelock duration through modifier",
+        "params": {
+          "_pendingTokenAddressToRecover": "address",
+          "_pendingTokenAmountToRecover": "amount",
+          "_strategy": "address"
+        }
+      },
+      "proposeReinvestReward(address,uint256)": {
+        "details": "Restricted to `manager` to avoid griefingResets timelock duration through modifier",
+        "params": {
+          "_pendingReinvestReward": "new value",
+          "_strategy": "address"
+        }
+      },
+      "setAdminFee(address)": {
+        "details": "This can be called by anyone",
+        "params": {
+          "_strategy": "address"
+        }
+      },
+      "setMinTokensToReinvest(address,uint256)": {
+        "details": "Restricted to `manager` to avoid griefing",
+        "params": {
+          "_strategy": "address",
+          "minTokensToReinvest": "new value"
+        }
+      },
+      "setOwner(address)": {
+        "details": "This can be called by anyone",
+        "params": {
+          "_strategy": "address"
+        }
+      },
+      "setRecoverAVAX(address)": {
+        "details": "This can be called by anyoneRecoverd funds are collected to this timelock and may be swept",
+        "params": {
+          "_strategy": "address"
+        }
+      },
+      "setRecoverERC20(address)": {
+        "details": "This can be called by anyoneRecoverd funds are collected to this timelock and may be swept",
+        "params": {
+          "_strategy": "address"
+        }
+      },
+      "setReinvestReward(address)": {
+        "details": "This can be called by anyone",
+        "params": {
+          "_strategy": "address"
+        }
+      },
+      "sweepAVAX(uint256)": {
+        "details": "The timelock contract may receive assets from both revenue and asset recovery.The sweep function is NOT timelocked, because recovered assets must go through separate timelock functions.",
+        "params": {
+          "amount": "amount"
+        }
+      },
+      "sweepTokens(address,uint256)": {
+        "details": "The timelock contract may receive assets from both revenue and asset recovery.The sweep function is NOT timelocked, because recovered assets must go through separate timelock functions.",
+        "params": {
+          "tokenAddress": "address",
+          "tokenAmount": "amount"
+        }
+      }
+    },
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {
+      "emergencyWithdraw(address)": {
+        "notice": "Rescues deployed assets to the strategy contract"
+      },
+      "proposeAdminFee(address,uint256)": {
+        "notice": "Pass new value of `adminFee` through timelock"
+      },
+      "proposeOwner(address,address)": {
+        "notice": "Pass new value of `owner` through timelock"
+      },
+      "proposeRecoverAVAX(address,uint256)": {
+        "notice": "Pass values for `recoverAVAX` through timelock"
+      },
+      "proposeRecoverERC20(address,address,uint256)": {
+        "notice": "Pass values for `recoverERC20` through timelock"
+      },
+      "proposeReinvestReward(address,uint256)": {
+        "notice": "Pass new value of `reinvestReward` through timelock"
+      },
+      "setAdminFee(address)": {
+        "notice": "Set new value of `adminFee` and reset timelock"
+      },
+      "setMinTokensToReinvest(address,uint256)": {
+        "notice": "Set new value of `minTokensToReinvest`"
+      },
+      "setOwner(address)": {
+        "notice": "Set new value of `owner` and resets timelock"
+      },
+      "setRecoverAVAX(address)": {
+        "notice": "Call `recoverAVAX` and reset timelock"
+      },
+      "setRecoverERC20(address)": {
+        "notice": "Call `recoverERC20` and reset timelock"
+      },
+      "setReinvestReward(address)": {
+        "notice": "Set new value of `reinvestReward` and reset timelock"
+      },
+      "sweepAVAX(uint256)": {
+        "notice": "Sweep AVAX from the timelock to the `feeCollector` address"
+      },
+      "sweepTokens(address,uint256)": {
+        "notice": "Sweep tokens from the timelock to `feeCollector`"
+      }
+    },
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [
+      {
+        "astId": 66,
+        "contract": "contracts/timelocks/YakTimelockForDexStrategyV2.sol:YakTimelockForDexStrategyV2",
+        "label": "manager",
+        "offset": 0,
+        "slot": "0",
+        "type": "t_address"
+      },
+      {
+        "astId": 68,
+        "contract": "contracts/timelocks/YakTimelockForDexStrategyV2.sol:YakTimelockForDexStrategyV2",
+        "label": "feeCollector",
+        "offset": 0,
+        "slot": "1",
+        "type": "t_address"
+      },
+      {
+        "astId": 72,
+        "contract": "contracts/timelocks/YakTimelockForDexStrategyV2.sol:YakTimelockForDexStrategyV2",
+        "label": "pendingOwners",
+        "offset": 0,
+        "slot": "2",
+        "type": "t_mapping(t_address,t_address)"
+      },
+      {
+        "astId": 76,
+        "contract": "contracts/timelocks/YakTimelockForDexStrategyV2.sol:YakTimelockForDexStrategyV2",
+        "label": "pendingAdminFees",
+        "offset": 0,
+        "slot": "3",
+        "type": "t_mapping(t_address,t_uint256)"
+      },
+      {
+        "astId": 80,
+        "contract": "contracts/timelocks/YakTimelockForDexStrategyV2.sol:YakTimelockForDexStrategyV2",
+        "label": "pendingReinvestRewards",
+        "offset": 0,
+        "slot": "4",
+        "type": "t_mapping(t_address,t_uint256)"
+      },
+      {
+        "astId": 84,
+        "contract": "contracts/timelocks/YakTimelockForDexStrategyV2.sol:YakTimelockForDexStrategyV2",
+        "label": "pendingTokenAddressesToRecover",
+        "offset": 0,
+        "slot": "5",
+        "type": "t_mapping(t_address,t_address)"
+      },
+      {
+        "astId": 88,
+        "contract": "contracts/timelocks/YakTimelockForDexStrategyV2.sol:YakTimelockForDexStrategyV2",
+        "label": "pendingTokenAmountsToRecover",
+        "offset": 0,
+        "slot": "6",
+        "type": "t_mapping(t_address,t_uint256)"
+      },
+      {
+        "astId": 92,
+        "contract": "contracts/timelocks/YakTimelockForDexStrategyV2.sol:YakTimelockForDexStrategyV2",
+        "label": "pendingAVAXToRecover",
+        "offset": 0,
+        "slot": "7",
+        "type": "t_mapping(t_address,t_uint256)"
+      },
+      {
+        "astId": 183,
+        "contract": "contracts/timelocks/YakTimelockForDexStrategyV2.sol:YakTimelockForDexStrategyV2",
+        "label": "timelock",
+        "offset": 0,
+        "slot": "8",
+        "type": "t_mapping(t_address,t_mapping(t_enum(Functions)177,t_uint256))"
+      }
+    ],
+    "types": {
+      "t_address": {
+        "encoding": "inplace",
+        "label": "address",
+        "numberOfBytes": "20"
+      },
+      "t_enum(Functions)177": {
+        "encoding": "inplace",
+        "label": "enum YakTimelockForDexStrategyV2.Functions",
+        "numberOfBytes": "1"
+      },
+      "t_mapping(t_address,t_address)": {
+        "encoding": "mapping",
+        "key": "t_address",
+        "label": "mapping(address => address)",
+        "numberOfBytes": "32",
+        "value": "t_address"
+      },
+      "t_mapping(t_address,t_mapping(t_enum(Functions)177,t_uint256))": {
+        "encoding": "mapping",
+        "key": "t_address",
+        "label": "mapping(address => mapping(enum YakTimelockForDexStrategyV2.Functions => uint256))",
+        "numberOfBytes": "32",
+        "value": "t_mapping(t_enum(Functions)177,t_uint256)"
+      },
+      "t_mapping(t_address,t_uint256)": {
+        "encoding": "mapping",
+        "key": "t_address",
+        "label": "mapping(address => uint256)",
+        "numberOfBytes": "32",
+        "value": "t_uint256"
+      },
+      "t_mapping(t_enum(Functions)177,t_uint256)": {
+        "encoding": "mapping",
+        "key": "t_enum(Functions)177",
+        "label": "mapping(enum YakTimelockForDexStrategyV2.Functions => uint256)",
+        "numberOfBytes": "32",
+        "value": "t_uint256"
+      },
+      "t_uint256": {
+        "encoding": "inplace",
+        "label": "uint256",
+        "numberOfBytes": "32"
+      }
+    }
+  }
+}
