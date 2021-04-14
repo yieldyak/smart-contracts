@@ -39,6 +39,7 @@ abstract contract YakStrategy is YakERC20, Ownable {
     event UpdateReinvestReward(uint oldValue, uint newValue);
     event UpdateMinTokensToReinvest(uint oldValue, uint newValue);
     event UpdateMaxTokensToDepositWithoutReinvest(uint oldValue, uint newValue);
+    event UpdateDevAddr(address oldValue, address newValue);
     event DepositsEnabled(bool newValue);
 
     /**
@@ -162,7 +163,7 @@ abstract contract YakStrategy is YakERC20, Ownable {
      * @notice Update reinvest min threshold
      * @param newValue threshold
      */
-    function updateMinTokensToReinvest(uint newValue) external onlyOwner {
+    function updateMinTokensToReinvest(uint newValue) public onlyOwner {
         emit UpdateMinTokensToReinvest(MIN_TOKENS_TO_REINVEST, newValue);
         MIN_TOKENS_TO_REINVEST = newValue;
     }
@@ -171,7 +172,7 @@ abstract contract YakStrategy is YakERC20, Ownable {
      * @notice Update reinvest max threshold before a deposit
      * @param newValue threshold
      */
-    function updateMaxTokensToDepositWithoutReinvest(uint newValue) external onlyOwner {
+    function updateMaxTokensToDepositWithoutReinvest(uint newValue) public onlyOwner {
         emit UpdateMaxTokensToDepositWithoutReinvest(MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST, newValue);
         MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST = newValue;
     }
@@ -214,6 +215,16 @@ abstract contract YakStrategy is YakERC20, Ownable {
         require(DEPOSITS_ENABLED != newValue);
         DEPOSITS_ENABLED = newValue;
         emit DepositsEnabled(newValue);
+    }
+
+    /**
+     * @notice Update devAddr
+     * @param newValue address
+     */
+    function updateDevAddr(address newValue) public {
+        require(msg.sender == devAddr);
+        emit UpdateDevAddr(devAddr, newValue);
+        devAddr = newValue;
     }
 
     /**

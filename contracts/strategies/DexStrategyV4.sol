@@ -197,7 +197,7 @@ contract DexStrategyV4 is YakStrategy, Permissioned {
         return stakingContract.balanceOf(address(this));
     }
 
-    function rescueDeployedFunds(uint minReturnAmountAccepted, bool disableDeposits) external override {
+    function rescueDeployedFunds(uint minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
         uint balanceBefore = depositToken.balanceOf(address(this));
         stakingContract.exit();
         uint balanceAfter = depositToken.balanceOf(address(this));
