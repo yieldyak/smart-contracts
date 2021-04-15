@@ -1,0 +1,1323 @@
+{
+  "address": "0x8d36C5c6947ADCcd25Ef49Ea1aAC2ceACFff0bD7",
+  "abi": [
+    {
+      "inputs": [],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "depositor",
+          "type": "address"
+        }
+      ],
+      "name": "AllowDepositor",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        }
+      ],
+      "name": "EmergencyWithdraw",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "proposedValue",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "timelock",
+          "type": "uint256"
+        }
+      ],
+      "name": "ProposeAdminFee",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "proposedValue",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "timelock",
+          "type": "uint256"
+        }
+      ],
+      "name": "ProposeDevFee",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "proposedValue",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "timelock",
+          "type": "uint256"
+        }
+      ],
+      "name": "ProposeOwner",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "proposedToken",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "proposedValue",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "timelock",
+          "type": "uint256"
+        }
+      ],
+      "name": "ProposeRecovery",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "proposedValue",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "timelock",
+          "type": "uint256"
+        }
+      ],
+      "name": "ProposeReinvestReward",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "token",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "Recover",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "depositor",
+          "type": "address"
+        }
+      ],
+      "name": "RemoveDepositor",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "newValue",
+          "type": "uint256"
+        }
+      ],
+      "name": "SetAdminFee",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        }
+      ],
+      "name": "SetAllowances",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "newValue",
+          "type": "bool"
+        }
+      ],
+      "name": "SetDepositsEnabled",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "newValue",
+          "type": "uint256"
+        }
+      ],
+      "name": "SetDevFee",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "newValue",
+          "type": "uint256"
+        }
+      ],
+      "name": "SetMaxTokensToDepositWithoutReinvest",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "newValue",
+          "type": "uint256"
+        }
+      ],
+      "name": "SetMinTokensToReinvest",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newValue",
+          "type": "address"
+        }
+      ],
+      "name": "SetOwner",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "strategy",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "newValue",
+          "type": "uint256"
+        }
+      ],
+      "name": "SetReinvestReward",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "token",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "Sweep",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "depositor",
+          "type": "address"
+        }
+      ],
+      "name": "allowDepositor",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        }
+      ],
+      "name": "emergencyWithdraw",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "feeCollector",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "manager",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "pendingAVAXToRecover",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "pendingAdminFees",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "pendingDevFees",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "pendingOwners",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "pendingReinvestRewards",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "pendingTokenAddressesToRecover",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "pendingTokenAmountsToRecover",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_pendingAdminFee",
+          "type": "uint256"
+        }
+      ],
+      "name": "proposeAdminFee",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_pendingDevFee",
+          "type": "uint256"
+        }
+      ],
+      "name": "proposeDevFee",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_pendingOwner",
+          "type": "address"
+        }
+      ],
+      "name": "proposeOwner",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_pendingAVAXToRecover",
+          "type": "uint256"
+        }
+      ],
+      "name": "proposeRecoverAVAX",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_pendingTokenAddressToRecover",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_pendingTokenAmountToRecover",
+          "type": "uint256"
+        }
+      ],
+      "name": "proposeRecoverERC20",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_pendingReinvestReward",
+          "type": "uint256"
+        }
+      ],
+      "name": "proposeReinvestReward",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "depositor",
+          "type": "address"
+        }
+      ],
+      "name": "removeDepositor",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "minReturnAmountAccepted",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bool",
+          "name": "disableDeposits",
+          "type": "bool"
+        }
+      ],
+      "name": "rescueDeployedFunds",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        }
+      ],
+      "name": "setAdminFee",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        }
+      ],
+      "name": "setAllowances",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        },
+        {
+          "internalType": "bool",
+          "name": "newValue",
+          "type": "bool"
+        }
+      ],
+      "name": "setDepositsEnabled",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        }
+      ],
+      "name": "setDevFee",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "newValue",
+          "type": "uint256"
+        }
+      ],
+      "name": "setMaxTokensToDepositWithoutReinvest",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "newValue",
+          "type": "uint256"
+        }
+      ],
+      "name": "setMinTokensToReinvest",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        }
+      ],
+      "name": "setOwner",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        }
+      ],
+      "name": "setRecoverAVAX",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        }
+      ],
+      "name": "setRecoverERC20",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_strategy",
+          "type": "address"
+        }
+      ],
+      "name": "setReinvestReward",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "sweepAVAX",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "tokenAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "tokenAmount",
+          "type": "uint256"
+        }
+      ],
+      "name": "sweepTokens",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        },
+        {
+          "internalType": "enum YakTimelockForDexStrategyV3.Functions",
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "name": "timelock",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "timelockLengthForAssetRecovery",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "timelockLengthForFeeChanges",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "timelockLengthForOwnershipTransfer",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0xa4bee7669eb0d517c2e18a6d7b7551415d816a6614213c8a9309a993c93a408b",
+  "receipt": {
+    "to": null,
+    "from": "0xDcEDF06Fd33E1D7b6eb4b309f779a0e9D3172e44",
+    "contractAddress": "0x8d36C5c6947ADCcd25Ef49Ea1aAC2ceACFff0bD7",
+    "transactionIndex": 0,
+    "gasUsed": "1857802",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "blockHash": "0x7e0a109f8fc22f37545d0d068f062834e13438eb69ae59505f53d384d6c68f9a",
+    "transactionHash": "0xa4bee7669eb0d517c2e18a6d7b7551415d816a6614213c8a9309a993c93a408b",
+    "logs": [],
+    "blockNumber": 1099246,
+    "cumulativeGasUsed": "1857802",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [],
+  "solcInputHash": "85c95b53099c0d444057947c109e85d4",
+  "metadata": "{\"compiler\":{\"version\":\"0.7.3+commit.9bfce1f6\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"depositor\",\"type\":\"address\"}],\"name\":\"AllowDepositor\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"}],\"name\":\"EmergencyWithdraw\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"proposedValue\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timelock\",\"type\":\"uint256\"}],\"name\":\"ProposeAdminFee\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"proposedValue\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timelock\",\"type\":\"uint256\"}],\"name\":\"ProposeDevFee\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"proposedValue\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timelock\",\"type\":\"uint256\"}],\"name\":\"ProposeOwner\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"proposedToken\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"proposedValue\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timelock\",\"type\":\"uint256\"}],\"name\":\"ProposeRecovery\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"proposedValue\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"timelock\",\"type\":\"uint256\"}],\"name\":\"ProposeReinvestReward\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"token\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"Recover\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"depositor\",\"type\":\"address\"}],\"name\":\"RemoveDepositor\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"newValue\",\"type\":\"uint256\"}],\"name\":\"SetAdminFee\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"}],\"name\":\"SetAllowances\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"bool\",\"name\":\"newValue\",\"type\":\"bool\"}],\"name\":\"SetDepositsEnabled\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"newValue\",\"type\":\"uint256\"}],\"name\":\"SetDevFee\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"newValue\",\"type\":\"uint256\"}],\"name\":\"SetMaxTokensToDepositWithoutReinvest\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"newValue\",\"type\":\"uint256\"}],\"name\":\"SetMinTokensToReinvest\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newValue\",\"type\":\"address\"}],\"name\":\"SetOwner\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"strategy\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"newValue\",\"type\":\"uint256\"}],\"name\":\"SetReinvestReward\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"token\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"Sweep\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"depositor\",\"type\":\"address\"}],\"name\":\"allowDepositor\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"}],\"name\":\"emergencyWithdraw\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"feeCollector\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"manager\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"pendingAVAXToRecover\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"pendingAdminFees\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"pendingDevFees\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"pendingOwners\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"pendingReinvestRewards\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"pendingTokenAddressesToRecover\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"pendingTokenAmountsToRecover\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_pendingAdminFee\",\"type\":\"uint256\"}],\"name\":\"proposeAdminFee\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_pendingDevFee\",\"type\":\"uint256\"}],\"name\":\"proposeDevFee\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_pendingOwner\",\"type\":\"address\"}],\"name\":\"proposeOwner\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_pendingAVAXToRecover\",\"type\":\"uint256\"}],\"name\":\"proposeRecoverAVAX\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_pendingTokenAddressToRecover\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_pendingTokenAmountToRecover\",\"type\":\"uint256\"}],\"name\":\"proposeRecoverERC20\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_pendingReinvestReward\",\"type\":\"uint256\"}],\"name\":\"proposeReinvestReward\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"depositor\",\"type\":\"address\"}],\"name\":\"removeDepositor\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"minReturnAmountAccepted\",\"type\":\"uint256\"},{\"internalType\":\"bool\",\"name\":\"disableDeposits\",\"type\":\"bool\"}],\"name\":\"rescueDeployedFunds\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"}],\"name\":\"setAdminFee\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"}],\"name\":\"setAllowances\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"},{\"internalType\":\"bool\",\"name\":\"newValue\",\"type\":\"bool\"}],\"name\":\"setDepositsEnabled\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"}],\"name\":\"setDevFee\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"newValue\",\"type\":\"uint256\"}],\"name\":\"setMaxTokensToDepositWithoutReinvest\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"newValue\",\"type\":\"uint256\"}],\"name\":\"setMinTokensToReinvest\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"}],\"name\":\"setOwner\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"}],\"name\":\"setRecoverAVAX\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"}],\"name\":\"setRecoverERC20\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_strategy\",\"type\":\"address\"}],\"name\":\"setReinvestReward\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"sweepAVAX\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"tokenAmount\",\"type\":\"uint256\"}],\"name\":\"sweepTokens\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"enum YakTimelockForDexStrategyV3.Functions\",\"name\":\"\",\"type\":\"uint8\"}],\"name\":\"timelock\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"timelockLengthForAssetRecovery\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"timelockLengthForFeeChanges\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"timelockLengthForOwnershipTransfer\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"Ensure function is supported by strategy\",\"kind\":\"dev\",\"methods\":{\"allowDepositor(address,address)\":{\"params\":{\"_strategy\":\"address\",\"depositor\":\"address\"}},\"emergencyWithdraw(address)\":{\"details\":\"Restricted to `manager` to avoid griefing\",\"params\":{\"_strategy\":\"address\"}},\"proposeAdminFee(address,uint256)\":{\"details\":\"Restricted to `manager` to avoid griefingResets timelock duration through modifier\",\"params\":{\"_pendingAdminFee\":\"new value\",\"_strategy\":\"address\"}},\"proposeDevFee(address,uint256)\":{\"details\":\"Restricted to `manager` to avoid griefingResets timelock duration through modifier\",\"params\":{\"_pendingDevFee\":\"new value\",\"_strategy\":\"address\"}},\"proposeOwner(address,address)\":{\"details\":\"Restricted to `manager` to avoid griefingResets timelock duration through modifier\",\"params\":{\"_pendingOwner\":\"new value\",\"_strategy\":\"address\"}},\"proposeRecoverAVAX(address,uint256)\":{\"details\":\"Restricted to `manager` to avoid griefingResets timelock duration through modifier\",\"params\":{\"_pendingAVAXToRecover\":\"amount\",\"_strategy\":\"address\"}},\"proposeRecoverERC20(address,address,uint256)\":{\"details\":\"Restricted to `manager` to avoid griefingResets timelock duration through modifier\",\"params\":{\"_pendingTokenAddressToRecover\":\"address\",\"_pendingTokenAmountToRecover\":\"amount\",\"_strategy\":\"address\"}},\"proposeReinvestReward(address,uint256)\":{\"details\":\"Restricted to `manager` to avoid griefingResets timelock duration through modifier\",\"params\":{\"_pendingReinvestReward\":\"new value\",\"_strategy\":\"address\"}},\"removeDepositor(address,address)\":{\"params\":{\"_strategy\":\"address\",\"depositor\":\"address\"}},\"rescueDeployedFunds(address,uint256,bool)\":{\"details\":\"Restricted to `manager` to avoid griefing\",\"params\":{\"_strategy\":\"address\",\"disableDeposits\":\"bool\",\"minReturnAmountAccepted\":\"amount\"}},\"setAdminFee(address)\":{\"details\":\"This can be called by anyone\",\"params\":{\"_strategy\":\"address\"}},\"setAllowances(address)\":{\"details\":\"Restricted to `manager` to avoid griefing\",\"params\":{\"_strategy\":\"address\"}},\"setDepositsEnabled(address,bool)\":{\"params\":{\"_strategy\":\"address\",\"newValue\":\"bool\"}},\"setDevFee(address)\":{\"details\":\"This can be called by anyone\",\"params\":{\"_strategy\":\"address\"}},\"setMaxTokensToDepositWithoutReinvest(address,uint256)\":{\"details\":\"Restricted to `manager` to avoid griefing\",\"params\":{\"_strategy\":\"address\",\"newValue\":\"max tokens\"}},\"setMinTokensToReinvest(address,uint256)\":{\"details\":\"Restricted to `manager` to avoid griefing\",\"params\":{\"_strategy\":\"address\",\"newValue\":\"min tokens\"}},\"setOwner(address)\":{\"details\":\"This can be called by anyone\",\"params\":{\"_strategy\":\"address\"}},\"setRecoverAVAX(address)\":{\"details\":\"This can be called by anyoneRecoverd funds are collected to this timelock and may be swept\",\"params\":{\"_strategy\":\"address\"}},\"setRecoverERC20(address)\":{\"details\":\"This can be called by anyoneRecoverd funds are collected to this timelock and may be swept\",\"params\":{\"_strategy\":\"address\"}},\"setReinvestReward(address)\":{\"details\":\"This can be called by anyone\",\"params\":{\"_strategy\":\"address\"}},\"sweepAVAX(uint256)\":{\"details\":\"The timelock contract may receive assets from both revenue and asset recovery.The sweep function is NOT timelocked, because recovered assets must go through separate timelock functions.\",\"params\":{\"amount\":\"amount\"}},\"sweepTokens(address,uint256)\":{\"details\":\"The timelock contract may receive assets from both revenue and asset recovery.The sweep function is NOT timelocked, because recovered assets must go through separate timelock functions.\",\"params\":{\"tokenAddress\":\"address\",\"tokenAmount\":\"amount\"}}},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"allowDepositor(address,address)\":{\"notice\":\"Add to list of allowed depositors\"},\"emergencyWithdraw(address)\":{\"notice\":\"Rescues deployed assets to the strategy contract (Before YakStrategy)\"},\"proposeAdminFee(address,uint256)\":{\"notice\":\"Pass new value of `adminFee` through timelock\"},\"proposeDevFee(address,uint256)\":{\"notice\":\"Pass new value of `devFee` through timelock\"},\"proposeOwner(address,address)\":{\"notice\":\"Pass new value of `owner` through timelock\"},\"proposeRecoverAVAX(address,uint256)\":{\"notice\":\"Pass values for `recoverAVAX` through timelock\"},\"proposeRecoverERC20(address,address,uint256)\":{\"notice\":\"Pass values for `recoverERC20` through timelock\"},\"proposeReinvestReward(address,uint256)\":{\"notice\":\"Pass new value of `reinvestReward` through timelock\"},\"removeDepositor(address,address)\":{\"notice\":\"Remove from list of allowed depositors\"},\"rescueDeployedFunds(address,uint256,bool)\":{\"notice\":\"Rescues deployed assets to the strategy contract (After YakStrategy)\"},\"setAdminFee(address)\":{\"notice\":\"Set new value of `adminFee` and reset timelock\"},\"setAllowances(address)\":{\"notice\":\"Sets token approvals\"},\"setDepositsEnabled(address,bool)\":{\"notice\":\"Enable/disable deposits (After YakStrategy)\"},\"setDevFee(address)\":{\"notice\":\"Set new value of `devFee` and reset timelock\"},\"setMaxTokensToDepositWithoutReinvest(address,uint256)\":{\"notice\":\"Set new value of `maxTokensToDepositWithoutReinvest`\"},\"setMinTokensToReinvest(address,uint256)\":{\"notice\":\"Set new value of `minTokensToReinvest`\"},\"setOwner(address)\":{\"notice\":\"Set new value of `owner` and resets timelock\"},\"setRecoverAVAX(address)\":{\"notice\":\"Call `recoverAVAX` and reset timelock\"},\"setRecoverERC20(address)\":{\"notice\":\"Call `recoverERC20` and reset timelock\"},\"setReinvestReward(address)\":{\"notice\":\"Set new value of `reinvestReward` and reset timelock\"},\"sweepAVAX(uint256)\":{\"notice\":\"Sweep AVAX from the timelock to the `feeCollector` address\"},\"sweepTokens(address,uint256)\":{\"notice\":\"Sweep tokens from the timelock to `feeCollector`\"}},\"notice\":\"A generic timelock for YakStrategies\",\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/timelocks/YakTimelockForDexStrategyV3.sol\":\"YakTimelockForDexStrategyV3\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"contracts/timelocks/YakTimelockForDexStrategyV3.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.7.0;\\n\\ninterface IERC20 {\\n    function transfer(address recipient, uint256 amount) external returns (bool);\\n}\\n\\ninterface IStrategy {\\n    function owner() external view returns (address);\\n    function renounceOwnership() external;\\n    function transferOwnership(address newOwner) external;\\n    function emergencyWithdraw() external;\\n    function updateMinTokensToReinvest(uint newValue) external;\\n    function updateAdminFee(uint newValue) external;\\n    function updateDevFee(uint newValue) external;\\n    function updateDepositsEnabled(bool newValue) external;\\n    function updateMaxTokensToDepositWithoutReinvest(uint newValue) external;\\n    function rescueDeployedFunds(uint minReturnAmountAccepted, bool disableDeposits) external;\\n    function updateReinvestReward(uint newValue) external;\\n    function recoverERC20(address tokenAddress, uint tokenAmount) external;\\n    function recoverAVAX(uint amount) external;\\n    function setAllowances() external;\\n    function allowDepositor(address depositor) external;\\n    function removeDepositor(address depositor) external;\\n}\\n\\n/**\\n * @notice A generic timelock for YakStrategies\\n * @dev Ensure function is supported by strategy\\n */\\ncontract YakTimelockForDexStrategyV3 {\\n\\n    uint public constant timelockLengthForAssetRecovery = 2 days;\\n    uint public constant timelockLengthForOwnershipTransfer = 4 days;\\n    uint public constant timelockLengthForFeeChanges = 8 hours;\\n\\n    address public immutable manager;\\n    address public immutable feeCollector;\\n\\n    mapping(address => address) public pendingOwners;\\n    mapping(address => uint) public pendingAdminFees;\\n    mapping(address => uint) public pendingDevFees;\\n    mapping(address => uint) public pendingReinvestRewards;\\n    mapping(address => address) public pendingTokenAddressesToRecover;\\n    mapping(address => uint) public pendingTokenAmountsToRecover;\\n    mapping(address => uint) public pendingAVAXToRecover;\\n\\n    event ProposeOwner(address indexed strategy, address indexed proposedValue, uint timelock);\\n    event ProposeAdminFee(address indexed strategy, uint proposedValue, uint timelock);\\n    event ProposeDevFee(address indexed strategy, uint proposedValue, uint timelock);\\n    event ProposeReinvestReward(address indexed strategy, uint proposedValue, uint timelock);\\n    event ProposeRecovery(address indexed strategy, address indexed proposedToken, uint proposedValue, uint timelock);\\n\\n    event SetOwner(address indexed strategy, address indexed newValue);\\n    event SetAdminFee(address indexed strategy, uint newValue);\\n    event SetDevFee(address indexed strategy, uint newValue);\\n    event SetReinvestReward(address indexed strategy, uint newValue);\\n    event SetMinTokensToReinvest(address indexed strategy, uint newValue);\\n    event SetDepositsEnabled(address indexed strategy, bool newValue);\\n    event Sweep(address indexed token, uint amount);\\n    event Recover(address indexed strategy, address indexed token, uint amount);\\n    event EmergencyWithdraw(address indexed strategy);\\n    event SetAllowances(address indexed strategy);\\n    event SetMaxTokensToDepositWithoutReinvest(address indexed strategy, uint newValue);\\n    event AllowDepositor(address indexed strategy, address indexed depositor);\\n    event RemoveDepositor(address indexed strategy, address indexed depositor);\\n\\n    enum Functions {\\n        renounceOwnership,\\n        transferOwnership,\\n        emergencyWithdraw,\\n        updateMinTokensToReinvest,\\n        updateAdminFee,\\n        updateDevFee,\\n        updateReinvestReward,\\n        recoverERC20,\\n        recoverAVAX\\n    }\\n\\n    mapping(address => mapping(Functions => uint)) public timelock;\\n\\n    constructor() {\\n        manager = msg.sender;\\n        feeCollector = msg.sender;\\n    }\\n\\n    // Modifiers\\n\\n    /**\\n     * @notice Restrict to `manager`\\n     * @dev To change manager, deploy new timelock and transfer strategy ownership\\n     */\\n    modifier onlyManager {\\n        require(msg.sender == manager);\\n        _;\\n    }\\n\\n    /**\\n     * @notice Restrict to `feeCollector`\\n     * @dev To change feeCollector, deploy new timelock and transfer strategy ownership\\n     */\\n    modifier onlyFeeCollector {\\n        require(msg.sender == feeCollector);\\n        _;\\n    }\\n\\n    /**\\n     * @notice Set timelock when changing pending values\\n     * @param _strategy address\\n     * @param _fn Function enum value\\n     * @param timelockLength in seconds\\n     */\\n    modifier setTimelock(address _strategy, Functions _fn, uint timelockLength) {\\n        timelock[_strategy][_fn] = block.timestamp + timelockLength;\\n        _;\\n    }\\n\\n    /**\\n     * @notice Enforce timelock for a given function\\n     * @dev Ends execution by resetting timelock to avoid replay\\n     * @param _strategy address\\n     * @param _fn Function enum value\\n     */\\n    modifier enforceTimelock(address _strategy, Functions _fn) {\\n        require(timelock[_strategy][_fn] != 0 && timelock[_strategy][_fn] <= block.timestamp, \\\"YakTimelockManager::enforceTimelock\\\");\\n        _;\\n        timelock[_strategy][_fn] = 0;\\n    }\\n\\n    /**\\n     * @notice Sweep tokens from the timelock to `feeCollector`\\n     * @dev The timelock contract may receive assets from both revenue and asset recovery.\\n     * @dev The sweep function is NOT timelocked, because recovered assets must go through separate timelock functions.\\n     * @param tokenAddress address\\n     * @param tokenAmount amount\\n     */\\n    function sweepTokens(address tokenAddress, uint tokenAmount) external onlyFeeCollector {\\n        require(tokenAmount > 0, \\\"YakTimelockManager::sweepTokens, amount too low\\\");\\n        require(IERC20(tokenAddress).transfer(msg.sender, tokenAmount), \\\"YakTimelockManager::sweepTokens, transfer failed\\\");\\n        emit Sweep(tokenAddress, tokenAmount);\\n    }\\n\\n    /**\\n     * @notice Sweep AVAX from the timelock to the `feeCollector` address\\n     * @dev The timelock contract may receive assets from both revenue and asset recovery.\\n     * @dev The sweep function is NOT timelocked, because recovered assets must go through separate timelock functions.\\n     * @param amount amount\\n     */\\n    function sweepAVAX(uint amount) external onlyFeeCollector {\\n        require(amount > 0, 'YakTimelockManager::sweepAVAX, amount too low');\\n        msg.sender.transfer(amount);\\n        emit Sweep(address(0), amount);\\n    }\\n\\n    // Functions with timelocks\\n\\n    /**\\n     * @notice Pass new value of `owner` through timelock\\n     * @dev Restricted to `manager` to avoid griefing\\n     * @dev Resets timelock duration through modifier\\n     * @param _strategy address\\n     * @param _pendingOwner new value\\n     */\\n    function proposeOwner(address _strategy, address _pendingOwner) external onlyManager \\n    setTimelock(_strategy, Functions.transferOwnership, timelockLengthForOwnershipTransfer) {\\n        pendingOwners[_strategy] = _pendingOwner;\\n        emit ProposeOwner(_strategy, _pendingOwner, timelock[_strategy][Functions.transferOwnership]);\\n    }\\n\\n    /**\\n     * @notice Set new value of `owner` and resets timelock\\n     * @dev This can be called by anyone\\n     * @param _strategy address\\n     */\\n    function setOwner(address _strategy) external \\n    enforceTimelock(_strategy, Functions.transferOwnership) {\\n        IStrategy(_strategy).transferOwnership(pendingOwners[_strategy]);\\n        emit SetOwner(_strategy, pendingOwners[_strategy]);\\n        pendingOwners[_strategy] = address(0);\\n    }\\n\\n    /**\\n     * @notice Pass new value of `adminFee` through timelock\\n     * @dev Restricted to `manager` to avoid griefing\\n     * @dev Resets timelock duration through modifier\\n     * @param _strategy address\\n     * @param _pendingAdminFee new value\\n     */\\n    function proposeAdminFee(address _strategy, uint _pendingAdminFee) external onlyManager \\n    setTimelock(_strategy, Functions.updateAdminFee, timelockLengthForFeeChanges) {\\n        pendingAdminFees[_strategy] = _pendingAdminFee;\\n        emit ProposeAdminFee(_strategy, _pendingAdminFee, timelock[_strategy][Functions.updateAdminFee]);\\n    }\\n\\n    /**\\n     * @notice Set new value of `adminFee` and reset timelock\\n     * @dev This can be called by anyone\\n     * @param _strategy address\\n     */\\n    function setAdminFee(address _strategy) external \\n    enforceTimelock(_strategy, Functions.updateAdminFee) {\\n        IStrategy(_strategy).updateAdminFee(pendingAdminFees[_strategy]);\\n        emit SetAdminFee(_strategy, pendingAdminFees[_strategy]);\\n        pendingAdminFees[_strategy] = 0;\\n    }\\n\\n    /**\\n     * @notice Pass new value of `devFee` through timelock\\n     * @dev Restricted to `manager` to avoid griefing\\n     * @dev Resets timelock duration through modifier\\n     * @param _strategy address\\n     * @param _pendingDevFee new value\\n     */\\n    function proposeDevFee(address _strategy, uint _pendingDevFee) external onlyManager \\n    setTimelock(_strategy, Functions.updateDevFee, timelockLengthForFeeChanges) {\\n        pendingDevFees[_strategy] = _pendingDevFee;\\n        emit ProposeDevFee(_strategy, _pendingDevFee, timelock[_strategy][Functions.updateDevFee]);\\n    }\\n\\n    /**\\n     * @notice Set new value of `devFee` and reset timelock\\n     * @dev This can be called by anyone\\n     * @param _strategy address\\n     */\\n    function setDevFee(address _strategy) external \\n    enforceTimelock(_strategy, Functions.updateDevFee) {\\n        IStrategy(_strategy).updateDevFee(pendingDevFees[_strategy]);\\n        emit SetDevFee(_strategy, pendingDevFees[_strategy]);\\n        pendingDevFees[_strategy] = 0;\\n    }\\n\\n    /**\\n     * @notice Pass new value of `reinvestReward` through timelock\\n     * @dev Restricted to `manager` to avoid griefing\\n     * @dev Resets timelock duration through modifier\\n     * @param _strategy address\\n     * @param _pendingReinvestReward new value\\n     */\\n    function proposeReinvestReward(address _strategy, uint _pendingReinvestReward) external onlyManager \\n    setTimelock(_strategy, Functions.updateReinvestReward, timelockLengthForFeeChanges) {\\n        pendingReinvestRewards[_strategy] = _pendingReinvestReward;\\n        emit ProposeReinvestReward(_strategy, _pendingReinvestReward, timelock[_strategy][Functions.updateReinvestReward]);\\n    }\\n\\n    /**\\n     * @notice Set new value of `reinvestReward` and reset timelock\\n     * @dev This can be called by anyone\\n     * @param _strategy address\\n     */\\n    function setReinvestReward(address _strategy) external \\n    enforceTimelock(_strategy, Functions.updateReinvestReward) {\\n        IStrategy(_strategy).updateReinvestReward(pendingReinvestRewards[_strategy]);\\n        emit SetReinvestReward(_strategy, pendingReinvestRewards[_strategy]);\\n        pendingReinvestRewards[_strategy] = 0;\\n    }\\n\\n    /**\\n     * @notice Pass values for `recoverERC20` through timelock\\n     * @dev Restricted to `manager` to avoid griefing\\n     * @dev Resets timelock duration through modifier\\n     * @param _strategy address\\n     * @param _pendingTokenAddressToRecover address\\n     * @param _pendingTokenAmountToRecover amount\\n     */\\n    function proposeRecoverERC20(address _strategy, address _pendingTokenAddressToRecover, uint _pendingTokenAmountToRecover) external onlyManager \\n    setTimelock(_strategy, Functions.recoverERC20, timelockLengthForAssetRecovery) {\\n        pendingTokenAddressesToRecover[_strategy] = _pendingTokenAddressToRecover;\\n        pendingTokenAmountsToRecover[_strategy] = _pendingTokenAmountToRecover;\\n        emit ProposeRecovery(_strategy, _pendingTokenAddressToRecover, _pendingTokenAmountToRecover, timelock[_strategy][Functions.recoverERC20]);\\n    }\\n\\n    /**\\n     * @notice Call `recoverERC20` and reset timelock\\n     * @dev This can be called by anyone\\n     * @dev Recoverd funds are collected to this timelock and may be swept\\n     * @param _strategy address\\n     */\\n    function setRecoverERC20(address _strategy) external \\n    enforceTimelock(_strategy, Functions.recoverERC20) {\\n        IStrategy(_strategy).recoverERC20(pendingTokenAddressesToRecover[_strategy], pendingTokenAmountsToRecover[_strategy]);\\n        emit Recover(_strategy, pendingTokenAddressesToRecover[_strategy], pendingTokenAmountsToRecover[_strategy]);\\n        pendingTokenAddressesToRecover[_strategy] = address(0);\\n        pendingTokenAmountsToRecover[_strategy] = 0;\\n    }\\n\\n    /**\\n     * @notice Pass values for `recoverAVAX` through timelock\\n     * @dev Restricted to `manager` to avoid griefing\\n     * @dev Resets timelock duration through modifier\\n     * @param _strategy address\\n     * @param _pendingAVAXToRecover amount\\n     */\\n    function proposeRecoverAVAX(address _strategy, uint _pendingAVAXToRecover) external onlyManager \\n    setTimelock(_strategy, Functions.recoverAVAX, timelockLengthForAssetRecovery) {\\n        pendingAVAXToRecover[_strategy] = _pendingAVAXToRecover;\\n        emit ProposeRecovery(_strategy, address(0), _pendingAVAXToRecover, timelock[_strategy][Functions.recoverAVAX]);\\n    }\\n\\n    /**\\n     * @notice Call `recoverAVAX` and reset timelock\\n     * @dev This can be called by anyone\\n     * @dev Recoverd funds are collected to this timelock and may be swept\\n     * @param _strategy address\\n     */\\n    function setRecoverAVAX(address _strategy) external \\n    enforceTimelock(_strategy, Functions.recoverAVAX) {\\n        IStrategy(_strategy).recoverAVAX(pendingAVAXToRecover[_strategy]);\\n        emit Recover(_strategy, address(0), pendingAVAXToRecover[_strategy]);\\n        pendingAVAXToRecover[_strategy] = 0;\\n    }\\n\\n    // Functions without timelocks\\n\\n    /**\\n     * @notice Set new value of `minTokensToReinvest`\\n     * @dev Restricted to `manager` to avoid griefing\\n     * @param _strategy address\\n     * @param newValue min tokens\\n     */\\n    function setMinTokensToReinvest(address _strategy, uint newValue) external onlyManager {\\n        IStrategy(_strategy).updateMinTokensToReinvest(newValue);\\n        emit SetMinTokensToReinvest(_strategy, newValue);\\n    }\\n\\n    /**\\n     * @notice Set new value of `maxTokensToDepositWithoutReinvest`\\n     * @dev Restricted to `manager` to avoid griefing\\n     * @param _strategy address\\n     * @param newValue max tokens\\n     */\\n    function setMaxTokensToDepositWithoutReinvest(address _strategy, uint newValue) external onlyManager {\\n        IStrategy(_strategy).updateMaxTokensToDepositWithoutReinvest(newValue);\\n        emit SetMaxTokensToDepositWithoutReinvest(_strategy, newValue);\\n    }\\n\\n    /**\\n     * @notice Enable/disable deposits (After YakStrategy)\\n     * @param _strategy address\\n     * @param newValue bool\\n     */\\n    function setDepositsEnabled(address _strategy, bool newValue) external onlyManager {\\n        IStrategy(_strategy).updateDepositsEnabled(newValue);\\n        emit SetDepositsEnabled(_strategy, newValue);\\n    }\\n\\n    /**\\n     * @notice Rescues deployed assets to the strategy contract (Before YakStrategy)\\n     * @dev Restricted to `manager` to avoid griefing\\n     * @param _strategy address\\n     */\\n    function emergencyWithdraw(address _strategy) external onlyManager {\\n        IStrategy(_strategy).emergencyWithdraw();\\n        emit EmergencyWithdraw(_strategy);\\n    }\\n\\n    /**\\n     * @notice Rescues deployed assets to the strategy contract (After YakStrategy)\\n     * @dev Restricted to `manager` to avoid griefing\\n     * @param _strategy address\\n     * @param minReturnAmountAccepted amount\\n     * @param disableDeposits bool\\n     */\\n    function rescueDeployedFunds(address _strategy, uint minReturnAmountAccepted, bool disableDeposits) external onlyManager {\\n        IStrategy(_strategy).rescueDeployedFunds(minReturnAmountAccepted, disableDeposits);\\n        emit EmergencyWithdraw(_strategy);\\n    }\\n\\n    /**\\n     * @notice Sets token approvals\\n     * @dev Restricted to `manager` to avoid griefing\\n     * @param _strategy address\\n     */\\n    function setAllowances(address _strategy) external onlyManager {\\n        IStrategy(_strategy).setAllowances();\\n        emit SetAllowances(_strategy);\\n    }\\n\\n    /**\\n     * @notice Add to list of allowed depositors\\n     * @param _strategy address\\n     * @param depositor address\\n     */\\n    function allowDepositor(address _strategy, address depositor) external onlyManager {\\n        IStrategy(_strategy).allowDepositor(depositor);\\n        emit AllowDepositor(_strategy, depositor);\\n    }\\n\\n    /**\\n     * @notice Remove from list of allowed depositors\\n     * @param _strategy address\\n     * @param depositor address\\n     */\\n    function removeDepositor(address _strategy, address depositor) external onlyManager {\\n        IStrategy(_strategy).removeDepositor(depositor);\\n        emit RemoveDepositor(_strategy, depositor);\\n    }\\n}\",\"keccak256\":\"0x943186cdd89f542c777c40cc55be2f112e90dc2a4fc93ff8a1c925fa415784e5\",\"license\":\"MIT\"}},\"version\":1}",
+  "bytecode": "0x60c060405234801561001057600080fd5b5033606081901b608081905260a052806120bb61008d600039806119e35280611c8a5280611e095250806109585280610d7a5280610e4e5280610f2e5280610fe4528061102e528061110452806111ab528061140c52806114b3528061158d528061165752806117145280611a105280611ee552506120bb6000f3fe608060405234801561001057600080fd5b50600436106102115760003560e01c80639017e46511610125578063c415b95c116100ad578063e27286421161007c578063e27286421461068d578063e9129948146106b3578063ef8cb903146106d0578063f0114c36146106fe578063fcb2749a1461072457610211565b8063c415b95c14610605578063c8cb96e51461060d578063d4a1fd931461063b578063dec660361461066157610211565b8063a5267786116100f4578063a526778614610565578063a75c74521461056d578063ae2c5fab14610593578063b7666f3e146105b9578063bfe3c7de146105df57610211565b80639017e465146104b957806391609e81146104e757806391e6e9681461051357806395e2fbf01461053f57610211565b80633c059027116101a85780636996d29a116101775780636996d29a146103e75780636ff1c9bc146104135780637042bcf81461043957806384f2c83f1461045f57806389bc3d9f1461048b57610211565b80633c0590271461033a578063481c6a75146103605780635f3a085414610384578063614b75ba146103b357610211565b806313af4035116101e457806313af40351461028c57806327399d55146102b25780633242a566146102d85780633809f3fe1461030e57610211565b80630135002c146102165780630bb6f0ef1461023e5780630fba7d6214610258578063137a37e214610284575b600080fd5b61023c6004803603602081101561022c57600080fd5b50356001600160a01b031661074a565b005b610246610946565b60408051918252519081900360200190f35b61023c6004803603604081101561026e57600080fd5b506001600160a01b03813516906020013561094d565b610246610a23565b61023c600480360360208110156102a257600080fd5b50356001600160a01b0316610a2a565b61023c600480360360208110156102c857600080fd5b50356001600160a01b0316610bca565b61023c600480360360608110156102ee57600080fd5b506001600160a01b03813581169160208101359091169060400135610d6f565b61023c6004803603604081101561032457600080fd5b506001600160a01b038135169060200135610e43565b61023c6004803603602081101561035057600080fd5b50356001600160a01b0316610f23565b610368610fe2565b604080516001600160a01b039092168252519081900360200190f35b6102466004803603604081101561039a57600080fd5b5080356001600160a01b0316906020013560ff16611006565b61023c600480360360608110156103c957600080fd5b506001600160a01b0381351690602081013590604001351515611023565b61023c600480360360408110156103fd57600080fd5b506001600160a01b0381351690602001356110f9565b61023c6004803603602081101561042957600080fd5b50356001600160a01b03166111a0565b61023c6004803603602081101561044f57600080fd5b50356001600160a01b031661125f565b61023c6004803603604081101561047557600080fd5b506001600160a01b038135169060200135611401565b61023c600480360360408110156104a157600080fd5b506001600160a01b03813516906020013515156114a8565b61023c600480360360408110156104cf57600080fd5b506001600160a01b0381358116916020013516611582565b61023c600480360360408110156104fd57600080fd5b506001600160a01b03813516906020013561164c565b61023c6004803603604081101561052957600080fd5b506001600160a01b038135169060200135611709565b6102466004803603602081101561055557600080fd5b50356001600160a01b03166117df565b6102466117f1565b6103686004803603602081101561058357600080fd5b50356001600160a01b03166117f7565b610368600480360360208110156105a957600080fd5b50356001600160a01b0316611812565b610246600480360360208110156105cf57600080fd5b50356001600160a01b031661182d565b61023c600480360360208110156105f557600080fd5b50356001600160a01b031661183f565b6103686119e1565b61023c6004803603604081101561062357600080fd5b506001600160a01b0381358116916020013516611a05565b61023c6004803603602081101561065157600080fd5b50356001600160a01b0316611add565b61023c6004803603604081101561067757600080fd5b506001600160a01b038135169060200135611c7f565b610246600480360360208110156106a357600080fd5b50356001600160a01b0316611dec565b61023c600480360360208110156106c957600080fd5b5035611dfe565b61023c600480360360408110156106e657600080fd5b506001600160a01b0381358116916020013516611eda565b6102466004803603602081101561071457600080fd5b50356001600160a01b0316611fb2565b6102466004803603602081101561073a57600080fd5b50356001600160a01b0316611fc4565b6001600160a01b038116600090815260076020818152604080842083855290915290912054829190158015906107be57506001600160a01b038216600090815260076020526040812042918360088111156107a157fe5b60088111156107ac57fe5b81526020019081526020016000205411155b6107f95760405162461bcd60e51b8152600401808060200182810382526023815260200180611fd76023913960400191505060405180910390fd5b6001600160a01b038084166000818152600460208181526040808420546005909252808420548151638980f11f60e01b815292909616928201929092526024810194909452519192638980f11f926044808301939282900301818387803b15801561086357600080fd5b505af1158015610877573d6000803e3d6000fd5b5050506001600160a01b038085166000818152600460209081526040808320546005835292819020548151908152905192909416945091927ff6891c84a6c6af32a6d052172a8acc4c631b1d5057ffa2bc1da268b6938ea2da92908290030190a36001600160a01b03808416600090815260046020908152604080832080546001600160a01b0319169055600582528083208390559285168252600790529081208183600881111561092557fe5b600881111561093057fe5b8152602081019190915260400160002055505050565b6205460081565b336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161461098257600080fd5b816001600160a01b03166381837230826040518263ffffffff1660e01b815260040180828152602001915050600060405180830381600087803b1580156109c857600080fd5b505af11580156109dc573d6000803e3d6000fd5b50506040805184815290516001600160a01b03861693507f33e6c9b106719003294f6819992332aa70728bcccd167ba6905cc7f94a5618ba92509081900360200190a25050565b6202a30081565b6001600160a01b0381166000908152600760209081526040808320600180855292529091205482919015801590610a9f57506001600160a01b03821660009081526007602052604081204291836008811115610a8257fe5b6008811115610a8d57fe5b81526020019081526020016000205411155b610ada5760405162461bcd60e51b8152600401808060200182810382526023815260200180611fd76023913960400191505060405180910390fd5b6001600160a01b0380841660008181526020819052604080822054815163f2fde38b60e01b81529416600485015251919263f2fde38b926024808301939282900301818387803b158015610b2d57600080fd5b505af1158015610b41573d6000803e3d6000fd5b505050506001600160a01b038381166000818152602081905260408082205490519316927fcbf985117192c8f614a58aaf97226bb80a754772f5f6edf06f87c675f2e6c6639190a36001600160a01b0380841660009081526020818152604080832080546001600160a01b03191690559285168252600790529081208183600881111561092557fe5b6001600160a01b0381166000908152600760209081526040808320600880855292529091205482919015801590610c3f57506001600160a01b03821660009081526007602052604081204291836008811115610c2257fe5b6008811115610c2d57fe5b81526020019081526020016000205411155b610c7a5760405162461bcd60e51b8152600401808060200182810382526023815260200180611fd76023913960400191505060405180910390fd5b6001600160a01b03831660008181526006602052604080822054815163275dbc8b60e11b815260048101919091529051634ebb79169260248084019391929182900301818387803b158015610cce57600080fd5b505af1158015610ce2573d6000803e3d6000fd5b505050506001600160a01b038316600081815260066020908152604080832054815190815290519293927ff6891c84a6c6af32a6d052172a8acc4c631b1d5057ffa2bc1da268b6938ea2da929181900390910190a36001600160a01b0380841660009081526006602090815260408083208390559285168252600790529081208183600881111561092557fe5b336001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001614610da457600080fd5b6001600160a01b0383811660008181526007602081815260408084208385528083528185206202a30042810182558787526004855283872080546001600160a01b031916998c16998a179055600585528387208a90559585905290835254815188815292830152805189969395927ff27444df37d5349d51b8293061b66a652317d627aee0c94a6fff790cb823f04e92908290030190a3505050505050565b336001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001614610e7857600080fd5b6001600160a01b038216600081815260076020818152604080842060058086528184528286206170804281019091558787526002855292862088905593909252869492939092917f202841c20acb756c03af55c523c8e77bd04837b8cdbf3b8c7887df137646cb2691879190865b6008811115610ef157fe5b815260200190815260200160002054604051808381526020018281526020019250505060405180910390a25050505050565b336001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001614610f5857600080fd5b806001600160a01b031663dbd9a4d46040518163ffffffff1660e01b8152600401600060405180830381600087803b158015610f9357600080fd5b505af1158015610fa7573d6000803e3d6000fd5b50506040516001600160a01b03841692507fbe661787fd881a4d9c6746c8328471bbf49b92f2a73a744f65b1f41f6db98e849150600090a250565b7f000000000000000000000000000000000000000000000000000000000000000081565b600760209081526000928352604080842090915290825290205481565b336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161461105857600080fd5b826001600160a01b031663ac0d31ff83836040518363ffffffff1660e01b815260040180838152602001821515815260200192505050600060405180830381600087803b1580156110a857600080fd5b505af11580156110bc573d6000803e3d6000fd5b50506040516001600160a01b03861692507f5e7b34819cd91b239220bec92fcfd3c10da2214ba13e4e2b1f6c9cfdbd68a9a29150600090a2505050565b336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161461112e57600080fd5b6001600160a01b038216600081815260076020818152604080842060068086528184528286206170804281019091558787526003855292862088905593909252869492939092917f26091dbfedb73234a7c379b06e7f73d79767fcab1524c0a5e130ad91bc4e0bd89187919086610ee6565b336001600160a01b037f000000000000000000000000000000000000000000000000000000000000000016146111d557600080fd5b806001600160a01b031663db2e21bc6040518163ffffffff1660e01b8152600401600060405180830381600087803b15801561121057600080fd5b505af1158015611224573d6000803e3d6000fd5b50506040516001600160a01b03841692507f5e7b34819cd91b239220bec92fcfd3c10da2214ba13e4e2b1f6c9cfdbd68a9a29150600090a250565b6001600160a01b03811660009081526007602090815260408083206004808552925290912054829190158015906112d457506001600160a01b038216600090815260076020526040812042918360088111156112b757fe5b60088111156112c257fe5b81526020019081526020016000205411155b61130f5760405162461bcd60e51b8152600401808060200182810382526023815260200180611fd76023913960400191505060405180910390fd5b6001600160a01b03831660008181526001602052604080822054815163cff1b6ef60e01b81526004810191909152905163cff1b6ef9260248084019391929182900301818387803b15801561136357600080fd5b505af1158015611377573d6000803e3d6000fd5b505050506001600160a01b03831660008181526001602090815260409182902054825190815291517f7f8a351eac453ab44e57102fbb7588c635a8214ff07ab920d9cfd15ce23f46cd9281900390910190a26001600160a01b0380841660009081526001602090815260408083208390559285168252600790529081208183600881111561092557fe5b336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161461143657600080fd5b6001600160a01b038216600081815260076020818152604080842060048086528184528286206170804281019091558787526001855292862088905593909252869492939092917f9d1dc457a527cc45a7abe831576cbf01b0495cef69f000d13655ae3d1e5631f49187919086610ee6565b336001600160a01b037f000000000000000000000000000000000000000000000000000000000000000016146114dd57600080fd5b816001600160a01b0316634e77ace5826040518263ffffffff1660e01b8152600401808215158152602001915050600060405180830381600087803b15801561152557600080fd5b505af1158015611539573d6000803e3d6000fd5b505060408051841515815290516001600160a01b03861693507feafd77c9fa26ce797aa519fcee932a662cc58f6d55ced547c1db42b90b6f3e4992509081900360200190a25050565b336001600160a01b037f000000000000000000000000000000000000000000000000000000000000000016146115b757600080fd5b6001600160a01b038281166000818152600760209081526040808320600180855281845282852062054600428101825587875286865284872080546001600160a01b031916998b16998a1790559582905291845290548251908152915188969195919391927fef95e1c78dd90414a6d134b297f1d212121c5a8ec70d1ac0c0381a9b09d709c192908290030190a35050505050565b336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161461168157600080fd5b6001600160a01b038216600081815260076020908152604080832060088085528184528285206202a300428101825587875260068652848720899055828752928552548351888152948501528251889691959294929391927ff27444df37d5349d51b8293061b66a652317d627aee0c94a6fff790cb823f04e92908290030190a35050505050565b336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161461173e57600080fd5b816001600160a01b031663e21ac825826040518263ffffffff1660e01b815260040180828152602001915050600060405180830381600087803b15801561178457600080fd5b505af1158015611798573d6000803e3d6000fd5b50506040805184815290516001600160a01b03861693507fdbb580f99e1235e40743f9ee026ca30950dc2f7576b7fd13d9e3b39200afd70692509081900360200190a25050565b60026020526000908152604090205481565b61708081565b6000602081905290815260409020546001600160a01b031681565b6004602052600090815260409020546001600160a01b031681565b60066020526000908152604090205481565b6001600160a01b03811660009081526007602090815260408083206006808552925290912054829190158015906118b457506001600160a01b0382166000908152600760205260408120429183600881111561189757fe5b60088111156118a257fe5b81526020019081526020016000205411155b6118ef5760405162461bcd60e51b8152600401808060200182810382526023815260200180611fd76023913960400191505060405180910390fd5b6001600160a01b038316600081815260036020526040808220548151632a2b8adf60e21b81526004810191909152905163a8ae2b7c9260248084019391929182900301818387803b15801561194357600080fd5b505af1158015611957573d6000803e3d6000fd5b505050506001600160a01b03831660008181526003602090815260409182902054825190815291517f13a14ce9697f66fc8a63923473cae2383958adbf89c38ecbb9219d8d7b9f18c99281900390910190a26001600160a01b0380841660009081526003602090815260408083208390559285168252600790529081208183600881111561092557fe5b7f000000000000000000000000000000000000000000000000000000000000000081565b336001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001614611a3a57600080fd5b816001600160a01b0316634bebd1e7826040518263ffffffff1660e01b815260040180826001600160a01b03168152602001915050600060405180830381600087803b158015611a8957600080fd5b505af1158015611a9d573d6000803e3d6000fd5b50506040516001600160a01b038085169350851691507f5d0ea6134a0c9e3dea7acd11f1eb64a68d5e199d709b8e7533bf4ef4244362c290600090a35050565b6001600160a01b0381166000908152600760209081526040808320600580855292529091205482919015801590611b5257506001600160a01b03821660009081526007602052604081204291836008811115611b3557fe5b6008811115611b4057fe5b81526020019081526020016000205411155b611b8d5760405162461bcd60e51b8152600401808060200182810382526023815260200180611fd76023913960400191505060405180910390fd5b6001600160a01b0383166000818152600260205260408082205481516399729ec160e01b8152600481019190915290516399729ec19260248084019391929182900301818387803b158015611be157600080fd5b505af1158015611bf5573d6000803e3d6000fd5b505050506001600160a01b03831660008181526002602090815260409182902054825190815291517f106f0c971c7bbfcae7d85a22adc8064f1a5eb3bc8300c7cae1812d75a71f4b579281900390910190a26001600160a01b0380841660009081526002602090815260408083208390559285168252600790529081208183600881111561092557fe5b336001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001614611cb457600080fd5b60008111611cf35760405162461bcd60e51b815260040180806020018281038252602f815260200180611ffa602f913960400191505060405180910390fd5b6040805163a9059cbb60e01b81523360048201526024810183905290516001600160a01b0384169163a9059cbb9160448083019260209291908290030181600087803b158015611d4257600080fd5b505af1158015611d56573d6000803e3d6000fd5b505050506040513d6020811015611d6c57600080fd5b5051611da95760405162461bcd60e51b81526004018080602001828103825260308152602001806120296030913960400191505060405180910390fd5b6040805182815290516001600160a01b038416917fab2246061d7b0dd3631d037e3f6da75782ae489eeb9f6af878a4b25df9b07c77919081900360200190a25050565b60056020526000908152604090205481565b336001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001614611e3357600080fd5b60008111611e725760405162461bcd60e51b815260040180806020018281038252602d815260200180612059602d913960400191505060405180910390fd5b604051339082156108fc029083906000818181858888f19350505050158015611e9f573d6000803e3d6000fd5b506040805182815290516000917fab2246061d7b0dd3631d037e3f6da75782ae489eeb9f6af878a4b25df9b07c77919081900360200190a250565b336001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001614611f0f57600080fd5b816001600160a01b0316638b73e606826040518263ffffffff1660e01b815260040180826001600160a01b03168152602001915050600060405180830381600087803b158015611f5e57600080fd5b505af1158015611f72573d6000803e3d6000fd5b50506040516001600160a01b038085169350851691507fa692de2ad9f500cf34fa95397026ae7a5ccc57cb2d1528b6aaed6104b63008f090600090a35050565b60036020526000908152604090205481565b6001602052600090815260409020548156fe59616b54696d656c6f636b4d616e616765723a3a656e666f72636554696d656c6f636b59616b54696d656c6f636b4d616e616765723a3a7377656570546f6b656e732c20616d6f756e7420746f6f206c6f7759616b54696d656c6f636b4d616e616765723a3a7377656570546f6b656e732c207472616e73666572206661696c656459616b54696d656c6f636b4d616e616765723a3a7377656570415641582c20616d6f756e7420746f6f206c6f77a26469706673582212208246162bdd7335527818a907e90334d9aff833bd6e8e5e1b2aee8f5293350f3d64736f6c63430007030033",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b50600436106102115760003560e01c80639017e46511610125578063c415b95c116100ad578063e27286421161007c578063e27286421461068d578063e9129948146106b3578063ef8cb903146106d0578063f0114c36146106fe578063fcb2749a1461072457610211565b8063c415b95c14610605578063c8cb96e51461060d578063d4a1fd931461063b578063dec660361461066157610211565b8063a5267786116100f4578063a526778614610565578063a75c74521461056d578063ae2c5fab14610593578063b7666f3e146105b9578063bfe3c7de146105df57610211565b80639017e465146104b957806391609e81146104e757806391e6e9681461051357806395e2fbf01461053f57610211565b80633c059027116101a85780636996d29a116101775780636996d29a146103e75780636ff1c9bc146104135780637042bcf81461043957806384f2c83f1461045f57806389bc3d9f1461048b57610211565b80633c0590271461033a578063481c6a75146103605780635f3a085414610384578063614b75ba146103b357610211565b806313af4035116101e457806313af40351461028c57806327399d55146102b25780633242a566146102d85780633809f3fe1461030e57610211565b80630135002c146102165780630bb6f0ef1461023e5780630fba7d6214610258578063137a37e214610284575b600080fd5b61023c6004803603602081101561022c57600080fd5b50356001600160a01b031661074a565b005b610246610946565b60408051918252519081900360200190f35b61023c6004803603604081101561026e57600080fd5b506001600160a01b03813516906020013561094d565b610246610a23565b61023c600480360360208110156102a257600080fd5b50356001600160a01b0316610a2a565b61023c600480360360208110156102c857600080fd5b50356001600160a01b0316610bca565b61023c600480360360608110156102ee57600080fd5b506001600160a01b03813581169160208101359091169060400135610d6f565b61023c6004803603604081101561032457600080fd5b506001600160a01b038135169060200135610e43565b61023c6004803603602081101561035057600080fd5b50356001600160a01b0316610f23565b610368610fe2565b604080516001600160a01b039092168252519081900360200190f35b6102466004803603604081101561039a57600080fd5b5080356001600160a01b0316906020013560ff16611006565b61023c600480360360608110156103c957600080fd5b506001600160a01b0381351690602081013590604001351515611023565b61023c600480360360408110156103fd57600080fd5b506001600160a01b0381351690602001356110f9565b61023c6004803603602081101561042957600080fd5b50356001600160a01b03166111a0565b61023c6004803603602081101561044f57600080fd5b50356001600160a01b031661125f565b61023c6004803603604081101561047557600080fd5b506001600160a01b038135169060200135611401565b61023c600480360360408110156104a157600080fd5b506001600160a01b03813516906020013515156114a8565b61023c600480360360408110156104cf57600080fd5b506001600160a01b0381358116916020013516611582565b61023c600480360360408110156104fd57600080fd5b506001600160a01b03813516906020013561164c565b61023c6004803603604081101561052957600080fd5b506001600160a01b038135169060200135611709565b6102466004803603602081101561055557600080fd5b50356001600160a01b03166117df565b6102466117f1565b6103686004803603602081101561058357600080fd5b50356001600160a01b03166117f7565b610368600480360360208110156105a957600080fd5b50356001600160a01b0316611812565b610246600480360360208110156105cf57600080fd5b50356001600160a01b031661182d565b61023c600480360360208110156105f557600080fd5b50356001600160a01b031661183f565b6103686119e1565b61023c6004803603604081101561062357600080fd5b506001600160a01b0381358116916020013516611a05565b61023c6004803603602081101561065157600080fd5b50356001600160a01b0316611add565b61023c6004803603604081101561067757600080fd5b506001600160a01b038135169060200135611c7f565b610246600480360360208110156106a357600080fd5b50356001600160a01b0316611dec565b61023c600480360360208110156106c957600080fd5b5035611dfe565b61023c600480360360408110156106e657600080fd5b506001600160a01b0381358116916020013516611eda565b6102466004803603602081101561071457600080fd5b50356001600160a01b0316611fb2565b6102466004803603602081101561073a57600080fd5b50356001600160a01b0316611fc4565b6001600160a01b038116600090815260076020818152604080842083855290915290912054829190158015906107be57506001600160a01b038216600090815260076020526040812042918360088111156107a157fe5b60088111156107ac57fe5b81526020019081526020016000205411155b6107f95760405162461bcd60e51b8152600401808060200182810382526023815260200180611fd76023913960400191505060405180910390fd5b6001600160a01b038084166000818152600460208181526040808420546005909252808420548151638980f11f60e01b815292909616928201929092526024810194909452519192638980f11f926044808301939282900301818387803b15801561086357600080fd5b505af1158015610877573d6000803e3d6000fd5b5050506001600160a01b038085166000818152600460209081526040808320546005835292819020548151908152905192909416945091927ff6891c84a6c6af32a6d052172a8acc4c631b1d5057ffa2bc1da268b6938ea2da92908290030190a36001600160a01b03808416600090815260046020908152604080832080546001600160a01b0319169055600582528083208390559285168252600790529081208183600881111561092557fe5b600881111561093057fe5b8152602081019190915260400160002055505050565b6205460081565b336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161461098257600080fd5b816001600160a01b03166381837230826040518263ffffffff1660e01b815260040180828152602001915050600060405180830381600087803b1580156109c857600080fd5b505af11580156109dc573d6000803e3d6000fd5b50506040805184815290516001600160a01b03861693507f33e6c9b106719003294f6819992332aa70728bcccd167ba6905cc7f94a5618ba92509081900360200190a25050565b6202a30081565b6001600160a01b0381166000908152600760209081526040808320600180855292529091205482919015801590610a9f57506001600160a01b03821660009081526007602052604081204291836008811115610a8257fe5b6008811115610a8d57fe5b81526020019081526020016000205411155b610ada5760405162461bcd60e51b8152600401808060200182810382526023815260200180611fd76023913960400191505060405180910390fd5b6001600160a01b0380841660008181526020819052604080822054815163f2fde38b60e01b81529416600485015251919263f2fde38b926024808301939282900301818387803b158015610b2d57600080fd5b505af1158015610b41573d6000803e3d6000fd5b505050506001600160a01b038381166000818152602081905260408082205490519316927fcbf985117192c8f614a58aaf97226bb80a754772f5f6edf06f87c675f2e6c6639190a36001600160a01b0380841660009081526020818152604080832080546001600160a01b03191690559285168252600790529081208183600881111561092557fe5b6001600160a01b0381166000908152600760209081526040808320600880855292529091205482919015801590610c3f57506001600160a01b03821660009081526007602052604081204291836008811115610c2257fe5b6008811115610c2d57fe5b81526020019081526020016000205411155b610c7a5760405162461bcd60e51b8152600401808060200182810382526023815260200180611fd76023913960400191505060405180910390fd5b6001600160a01b03831660008181526006602052604080822054815163275dbc8b60e11b815260048101919091529051634ebb79169260248084019391929182900301818387803b158015610cce57600080fd5b505af1158015610ce2573d6000803e3d6000fd5b505050506001600160a01b038316600081815260066020908152604080832054815190815290519293927ff6891c84a6c6af32a6d052172a8acc4c631b1d5057ffa2bc1da268b6938ea2da929181900390910190a36001600160a01b0380841660009081526006602090815260408083208390559285168252600790529081208183600881111561092557fe5b336001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001614610da457600080fd5b6001600160a01b0383811660008181526007602081815260408084208385528083528185206202a30042810182558787526004855283872080546001600160a01b031916998c16998a179055600585528387208a90559585905290835254815188815292830152805189969395927ff27444df37d5349d51b8293061b66a652317d627aee0c94a6fff790cb823f04e92908290030190a3505050505050565b336001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001614610e7857600080fd5b6001600160a01b038216600081815260076020818152604080842060058086528184528286206170804281019091558787526002855292862088905593909252869492939092917f202841c20acb756c03af55c523c8e77bd04837b8cdbf3b8c7887df137646cb2691879190865b6008811115610ef157fe5b815260200190815260200160002054604051808381526020018281526020019250505060405180910390a25050505050565b336001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001614610f5857600080fd5b806001600160a01b031663dbd9a4d46040518163ffffffff1660e01b8152600401600060405180830381600087803b158015610f9357600080fd5b505af1158015610fa7573d6000803e3d6000fd5b50506040516001600160a01b03841692507fbe661787fd881a4d9c6746c8328471bbf49b92f2a73a744f65b1f41f6db98e849150600090a250565b7f000000000000000000000000000000000000000000000000000000000000000081565b600760209081526000928352604080842090915290825290205481565b336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161461105857600080fd5b826001600160a01b031663ac0d31ff83836040518363ffffffff1660e01b815260040180838152602001821515815260200192505050600060405180830381600087803b1580156110a857600080fd5b505af11580156110bc573d6000803e3d6000fd5b50506040516001600160a01b03861692507f5e7b34819cd91b239220bec92fcfd3c10da2214ba13e4e2b1f6c9cfdbd68a9a29150600090a2505050565b336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161461112e57600080fd5b6001600160a01b038216600081815260076020818152604080842060068086528184528286206170804281019091558787526003855292862088905593909252869492939092917f26091dbfedb73234a7c379b06e7f73d79767fcab1524c0a5e130ad91bc4e0bd89187919086610ee6565b336001600160a01b037f000000000000000000000000000000000000000000000000000000000000000016146111d557600080fd5b806001600160a01b031663db2e21bc6040518163ffffffff1660e01b8152600401600060405180830381600087803b15801561121057600080fd5b505af1158015611224573d6000803e3d6000fd5b50506040516001600160a01b03841692507f5e7b34819cd91b239220bec92fcfd3c10da2214ba13e4e2b1f6c9cfdbd68a9a29150600090a250565b6001600160a01b03811660009081526007602090815260408083206004808552925290912054829190158015906112d457506001600160a01b038216600090815260076020526040812042918360088111156112b757fe5b60088111156112c257fe5b81526020019081526020016000205411155b61130f5760405162461bcd60e51b8152600401808060200182810382526023815260200180611fd76023913960400191505060405180910390fd5b6001600160a01b03831660008181526001602052604080822054815163cff1b6ef60e01b81526004810191909152905163cff1b6ef9260248084019391929182900301818387803b15801561136357600080fd5b505af1158015611377573d6000803e3d6000fd5b505050506001600160a01b03831660008181526001602090815260409182902054825190815291517f7f8a351eac453ab44e57102fbb7588c635a8214ff07ab920d9cfd15ce23f46cd9281900390910190a26001600160a01b0380841660009081526001602090815260408083208390559285168252600790529081208183600881111561092557fe5b336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161461143657600080fd5b6001600160a01b038216600081815260076020818152604080842060048086528184528286206170804281019091558787526001855292862088905593909252869492939092917f9d1dc457a527cc45a7abe831576cbf01b0495cef69f000d13655ae3d1e5631f49187919086610ee6565b336001600160a01b037f000000000000000000000000000000000000000000000000000000000000000016146114dd57600080fd5b816001600160a01b0316634e77ace5826040518263ffffffff1660e01b8152600401808215158152602001915050600060405180830381600087803b15801561152557600080fd5b505af1158015611539573d6000803e3d6000fd5b505060408051841515815290516001600160a01b03861693507feafd77c9fa26ce797aa519fcee932a662cc58f6d55ced547c1db42b90b6f3e4992509081900360200190a25050565b336001600160a01b037f000000000000000000000000000000000000000000000000000000000000000016146115b757600080fd5b6001600160a01b038281166000818152600760209081526040808320600180855281845282852062054600428101825587875286865284872080546001600160a01b031916998b16998a1790559582905291845290548251908152915188969195919391927fef95e1c78dd90414a6d134b297f1d212121c5a8ec70d1ac0c0381a9b09d709c192908290030190a35050505050565b336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161461168157600080fd5b6001600160a01b038216600081815260076020908152604080832060088085528184528285206202a300428101825587875260068652848720899055828752928552548351888152948501528251889691959294929391927ff27444df37d5349d51b8293061b66a652317d627aee0c94a6fff790cb823f04e92908290030190a35050505050565b336001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000161461173e57600080fd5b816001600160a01b031663e21ac825826040518263ffffffff1660e01b815260040180828152602001915050600060405180830381600087803b15801561178457600080fd5b505af1158015611798573d6000803e3d6000fd5b50506040805184815290516001600160a01b03861693507fdbb580f99e1235e40743f9ee026ca30950dc2f7576b7fd13d9e3b39200afd70692509081900360200190a25050565b60026020526000908152604090205481565b61708081565b6000602081905290815260409020546001600160a01b031681565b6004602052600090815260409020546001600160a01b031681565b60066020526000908152604090205481565b6001600160a01b03811660009081526007602090815260408083206006808552925290912054829190158015906118b457506001600160a01b0382166000908152600760205260408120429183600881111561189757fe5b60088111156118a257fe5b81526020019081526020016000205411155b6118ef5760405162461bcd60e51b8152600401808060200182810382526023815260200180611fd76023913960400191505060405180910390fd5b6001600160a01b038316600081815260036020526040808220548151632a2b8adf60e21b81526004810191909152905163a8ae2b7c9260248084019391929182900301818387803b15801561194357600080fd5b505af1158015611957573d6000803e3d6000fd5b505050506001600160a01b03831660008181526003602090815260409182902054825190815291517f13a14ce9697f66fc8a63923473cae2383958adbf89c38ecbb9219d8d7b9f18c99281900390910190a26001600160a01b0380841660009081526003602090815260408083208390559285168252600790529081208183600881111561092557fe5b7f000000000000000000000000000000000000000000000000000000000000000081565b336001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001614611a3a57600080fd5b816001600160a01b0316634bebd1e7826040518263ffffffff1660e01b815260040180826001600160a01b03168152602001915050600060405180830381600087803b158015611a8957600080fd5b505af1158015611a9d573d6000803e3d6000fd5b50506040516001600160a01b038085169350851691507f5d0ea6134a0c9e3dea7acd11f1eb64a68d5e199d709b8e7533bf4ef4244362c290600090a35050565b6001600160a01b0381166000908152600760209081526040808320600580855292529091205482919015801590611b5257506001600160a01b03821660009081526007602052604081204291836008811115611b3557fe5b6008811115611b4057fe5b81526020019081526020016000205411155b611b8d5760405162461bcd60e51b8152600401808060200182810382526023815260200180611fd76023913960400191505060405180910390fd5b6001600160a01b0383166000818152600260205260408082205481516399729ec160e01b8152600481019190915290516399729ec19260248084019391929182900301818387803b158015611be157600080fd5b505af1158015611bf5573d6000803e3d6000fd5b505050506001600160a01b03831660008181526002602090815260409182902054825190815291517f106f0c971c7bbfcae7d85a22adc8064f1a5eb3bc8300c7cae1812d75a71f4b579281900390910190a26001600160a01b0380841660009081526002602090815260408083208390559285168252600790529081208183600881111561092557fe5b336001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001614611cb457600080fd5b60008111611cf35760405162461bcd60e51b815260040180806020018281038252602f815260200180611ffa602f913960400191505060405180910390fd5b6040805163a9059cbb60e01b81523360048201526024810183905290516001600160a01b0384169163a9059cbb9160448083019260209291908290030181600087803b158015611d4257600080fd5b505af1158015611d56573d6000803e3d6000fd5b505050506040513d6020811015611d6c57600080fd5b5051611da95760405162461bcd60e51b81526004018080602001828103825260308152602001806120296030913960400191505060405180910390fd5b6040805182815290516001600160a01b038416917fab2246061d7b0dd3631d037e3f6da75782ae489eeb9f6af878a4b25df9b07c77919081900360200190a25050565b60056020526000908152604090205481565b336001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001614611e3357600080fd5b60008111611e725760405162461bcd60e51b815260040180806020018281038252602d815260200180612059602d913960400191505060405180910390fd5b604051339082156108fc029083906000818181858888f19350505050158015611e9f573d6000803e3d6000fd5b506040805182815290516000917fab2246061d7b0dd3631d037e3f6da75782ae489eeb9f6af878a4b25df9b07c77919081900360200190a250565b336001600160a01b037f00000000000000000000000000000000000000000000000000000000000000001614611f0f57600080fd5b816001600160a01b0316638b73e606826040518263ffffffff1660e01b815260040180826001600160a01b03168152602001915050600060405180830381600087803b158015611f5e57600080fd5b505af1158015611f72573d6000803e3d6000fd5b50506040516001600160a01b038085169350851691507fa692de2ad9f500cf34fa95397026ae7a5ccc57cb2d1528b6aaed6104b63008f090600090a35050565b60036020526000908152604090205481565b6001602052600090815260409020548156fe59616b54696d656c6f636b4d616e616765723a3a656e666f72636554696d656c6f636b59616b54696d656c6f636b4d616e616765723a3a7377656570546f6b656e732c20616d6f756e7420746f6f206c6f7759616b54696d656c6f636b4d616e616765723a3a7377656570546f6b656e732c207472616e73666572206661696c656459616b54696d656c6f636b4d616e616765723a3a7377656570415641582c20616d6f756e7420746f6f206c6f77a26469706673582212208246162bdd7335527818a907e90334d9aff833bd6e8e5e1b2aee8f5293350f3d64736f6c63430007030033",
+  "devdoc": {
+    "details": "Ensure function is supported by strategy",
+    "kind": "dev",
+    "methods": {
+      "allowDepositor(address,address)": {
+        "params": {
+          "_strategy": "address",
+          "depositor": "address"
+        }
+      },
+      "emergencyWithdraw(address)": {
+        "details": "Restricted to `manager` to avoid griefing",
+        "params": {
+          "_strategy": "address"
+        }
+      },
+      "proposeAdminFee(address,uint256)": {
+        "details": "Restricted to `manager` to avoid griefingResets timelock duration through modifier",
+        "params": {
+          "_pendingAdminFee": "new value",
+          "_strategy": "address"
+        }
+      },
+      "proposeDevFee(address,uint256)": {
+        "details": "Restricted to `manager` to avoid griefingResets timelock duration through modifier",
+        "params": {
+          "_pendingDevFee": "new value",
+          "_strategy": "address"
+        }
+      },
+      "proposeOwner(address,address)": {
+        "details": "Restricted to `manager` to avoid griefingResets timelock duration through modifier",
+        "params": {
+          "_pendingOwner": "new value",
+          "_strategy": "address"
+        }
+      },
+      "proposeRecoverAVAX(address,uint256)": {
+        "details": "Restricted to `manager` to avoid griefingResets timelock duration through modifier",
+        "params": {
+          "_pendingAVAXToRecover": "amount",
+          "_strategy": "address"
+        }
+      },
+      "proposeRecoverERC20(address,address,uint256)": {
+        "details": "Restricted to `manager` to avoid griefingResets timelock duration through modifier",
+        "params": {
+          "_pendingTokenAddressToRecover": "address",
+          "_pendingTokenAmountToRecover": "amount",
+          "_strategy": "address"
+        }
+      },
+      "proposeReinvestReward(address,uint256)": {
+        "details": "Restricted to `manager` to avoid griefingResets timelock duration through modifier",
+        "params": {
+          "_pendingReinvestReward": "new value",
+          "_strategy": "address"
+        }
+      },
+      "removeDepositor(address,address)": {
+        "params": {
+          "_strategy": "address",
+          "depositor": "address"
+        }
+      },
+      "rescueDeployedFunds(address,uint256,bool)": {
+        "details": "Restricted to `manager` to avoid griefing",
+        "params": {
+          "_strategy": "address",
+          "disableDeposits": "bool",
+          "minReturnAmountAccepted": "amount"
+        }
+      },
+      "setAdminFee(address)": {
+        "details": "This can be called by anyone",
+        "params": {
+          "_strategy": "address"
+        }
+      },
+      "setAllowances(address)": {
+        "details": "Restricted to `manager` to avoid griefing",
+        "params": {
+          "_strategy": "address"
+        }
+      },
+      "setDepositsEnabled(address,bool)": {
+        "params": {
+          "_strategy": "address",
+          "newValue": "bool"
+        }
+      },
+      "setDevFee(address)": {
+        "details": "This can be called by anyone",
+        "params": {
+          "_strategy": "address"
+        }
+      },
+      "setMaxTokensToDepositWithoutReinvest(address,uint256)": {
+        "details": "Restricted to `manager` to avoid griefing",
+        "params": {
+          "_strategy": "address",
+          "newValue": "max tokens"
+        }
+      },
+      "setMinTokensToReinvest(address,uint256)": {
+        "details": "Restricted to `manager` to avoid griefing",
+        "params": {
+          "_strategy": "address",
+          "newValue": "min tokens"
+        }
+      },
+      "setOwner(address)": {
+        "details": "This can be called by anyone",
+        "params": {
+          "_strategy": "address"
+        }
+      },
+      "setRecoverAVAX(address)": {
+        "details": "This can be called by anyoneRecoverd funds are collected to this timelock and may be swept",
+        "params": {
+          "_strategy": "address"
+        }
+      },
+      "setRecoverERC20(address)": {
+        "details": "This can be called by anyoneRecoverd funds are collected to this timelock and may be swept",
+        "params": {
+          "_strategy": "address"
+        }
+      },
+      "setReinvestReward(address)": {
+        "details": "This can be called by anyone",
+        "params": {
+          "_strategy": "address"
+        }
+      },
+      "sweepAVAX(uint256)": {
+        "details": "The timelock contract may receive assets from both revenue and asset recovery.The sweep function is NOT timelocked, because recovered assets must go through separate timelock functions.",
+        "params": {
+          "amount": "amount"
+        }
+      },
+      "sweepTokens(address,uint256)": {
+        "details": "The timelock contract may receive assets from both revenue and asset recovery.The sweep function is NOT timelocked, because recovered assets must go through separate timelock functions.",
+        "params": {
+          "tokenAddress": "address",
+          "tokenAmount": "amount"
+        }
+      }
+    },
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {
+      "allowDepositor(address,address)": {
+        "notice": "Add to list of allowed depositors"
+      },
+      "emergencyWithdraw(address)": {
+        "notice": "Rescues deployed assets to the strategy contract (Before YakStrategy)"
+      },
+      "proposeAdminFee(address,uint256)": {
+        "notice": "Pass new value of `adminFee` through timelock"
+      },
+      "proposeDevFee(address,uint256)": {
+        "notice": "Pass new value of `devFee` through timelock"
+      },
+      "proposeOwner(address,address)": {
+        "notice": "Pass new value of `owner` through timelock"
+      },
+      "proposeRecoverAVAX(address,uint256)": {
+        "notice": "Pass values for `recoverAVAX` through timelock"
+      },
+      "proposeRecoverERC20(address,address,uint256)": {
+        "notice": "Pass values for `recoverERC20` through timelock"
+      },
+      "proposeReinvestReward(address,uint256)": {
+        "notice": "Pass new value of `reinvestReward` through timelock"
+      },
+      "removeDepositor(address,address)": {
+        "notice": "Remove from list of allowed depositors"
+      },
+      "rescueDeployedFunds(address,uint256,bool)": {
+        "notice": "Rescues deployed assets to the strategy contract (After YakStrategy)"
+      },
+      "setAdminFee(address)": {
+        "notice": "Set new value of `adminFee` and reset timelock"
+      },
+      "setAllowances(address)": {
+        "notice": "Sets token approvals"
+      },
+      "setDepositsEnabled(address,bool)": {
+        "notice": "Enable/disable deposits (After YakStrategy)"
+      },
+      "setDevFee(address)": {
+        "notice": "Set new value of `devFee` and reset timelock"
+      },
+      "setMaxTokensToDepositWithoutReinvest(address,uint256)": {
+        "notice": "Set new value of `maxTokensToDepositWithoutReinvest`"
+      },
+      "setMinTokensToReinvest(address,uint256)": {
+        "notice": "Set new value of `minTokensToReinvest`"
+      },
+      "setOwner(address)": {
+        "notice": "Set new value of `owner` and resets timelock"
+      },
+      "setRecoverAVAX(address)": {
+        "notice": "Call `recoverAVAX` and reset timelock"
+      },
+      "setRecoverERC20(address)": {
+        "notice": "Call `recoverERC20` and reset timelock"
+      },
+      "setReinvestReward(address)": {
+        "notice": "Set new value of `reinvestReward` and reset timelock"
+      },
+      "sweepAVAX(uint256)": {
+        "notice": "Sweep AVAX from the timelock to the `feeCollector` address"
+      },
+      "sweepTokens(address,uint256)": {
+        "notice": "Sweep tokens from the timelock to `feeCollector`"
+      }
+    },
+    "notice": "A generic timelock for YakStrategies",
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [
+      {
+        "astId": 108,
+        "contract": "contracts/timelocks/YakTimelockForDexStrategyV3.sol:YakTimelockForDexStrategyV3",
+        "label": "pendingOwners",
+        "offset": 0,
+        "slot": "0",
+        "type": "t_mapping(t_address,t_address)"
+      },
+      {
+        "astId": 112,
+        "contract": "contracts/timelocks/YakTimelockForDexStrategyV3.sol:YakTimelockForDexStrategyV3",
+        "label": "pendingAdminFees",
+        "offset": 0,
+        "slot": "1",
+        "type": "t_mapping(t_address,t_uint256)"
+      },
+      {
+        "astId": 116,
+        "contract": "contracts/timelocks/YakTimelockForDexStrategyV3.sol:YakTimelockForDexStrategyV3",
+        "label": "pendingDevFees",
+        "offset": 0,
+        "slot": "2",
+        "type": "t_mapping(t_address,t_uint256)"
+      },
+      {
+        "astId": 120,
+        "contract": "contracts/timelocks/YakTimelockForDexStrategyV3.sol:YakTimelockForDexStrategyV3",
+        "label": "pendingReinvestRewards",
+        "offset": 0,
+        "slot": "3",
+        "type": "t_mapping(t_address,t_uint256)"
+      },
+      {
+        "astId": 124,
+        "contract": "contracts/timelocks/YakTimelockForDexStrategyV3.sol:YakTimelockForDexStrategyV3",
+        "label": "pendingTokenAddressesToRecover",
+        "offset": 0,
+        "slot": "4",
+        "type": "t_mapping(t_address,t_address)"
+      },
+      {
+        "astId": 128,
+        "contract": "contracts/timelocks/YakTimelockForDexStrategyV3.sol:YakTimelockForDexStrategyV3",
+        "label": "pendingTokenAmountsToRecover",
+        "offset": 0,
+        "slot": "5",
+        "type": "t_mapping(t_address,t_uint256)"
+      },
+      {
+        "astId": 132,
+        "contract": "contracts/timelocks/YakTimelockForDexStrategyV3.sol:YakTimelockForDexStrategyV3",
+        "label": "pendingAVAXToRecover",
+        "offset": 0,
+        "slot": "6",
+        "type": "t_mapping(t_address,t_uint256)"
+      },
+      {
+        "astId": 266,
+        "contract": "contracts/timelocks/YakTimelockForDexStrategyV3.sol:YakTimelockForDexStrategyV3",
+        "label": "timelock",
+        "offset": 0,
+        "slot": "7",
+        "type": "t_mapping(t_address,t_mapping(t_enum(Functions)260,t_uint256))"
+      }
+    ],
+    "types": {
+      "t_address": {
+        "encoding": "inplace",
+        "label": "address",
+        "numberOfBytes": "20"
+      },
+      "t_enum(Functions)260": {
+        "encoding": "inplace",
+        "label": "enum YakTimelockForDexStrategyV3.Functions",
+        "numberOfBytes": "1"
+      },
+      "t_mapping(t_address,t_address)": {
+        "encoding": "mapping",
+        "key": "t_address",
+        "label": "mapping(address => address)",
+        "numberOfBytes": "32",
+        "value": "t_address"
+      },
+      "t_mapping(t_address,t_mapping(t_enum(Functions)260,t_uint256))": {
+        "encoding": "mapping",
+        "key": "t_address",
+        "label": "mapping(address => mapping(enum YakTimelockForDexStrategyV3.Functions => uint256))",
+        "numberOfBytes": "32",
+        "value": "t_mapping(t_enum(Functions)260,t_uint256)"
+      },
+      "t_mapping(t_address,t_uint256)": {
+        "encoding": "mapping",
+        "key": "t_address",
+        "label": "mapping(address => uint256)",
+        "numberOfBytes": "32",
+        "value": "t_uint256"
+      },
+      "t_mapping(t_enum(Functions)260,t_uint256)": {
+        "encoding": "mapping",
+        "key": "t_enum(Functions)260",
+        "label": "mapping(enum YakTimelockForDexStrategyV3.Functions => uint256)",
+        "numberOfBytes": "32",
+        "value": "t_uint256"
+      },
+      "t_uint256": {
+        "encoding": "inplace",
+        "label": "uint256",
+        "numberOfBytes": "32"
+      }
+    }
+  }
+}
