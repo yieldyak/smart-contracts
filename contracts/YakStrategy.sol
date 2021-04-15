@@ -3,14 +3,14 @@ pragma solidity ^0.7.0;
 
 import "./lib/SafeMath.sol";
 import "./lib/Ownable.sol";
+import "./lib/Permissioned.sol";
 import "./interfaces/IERC20.sol";
 import "./YakERC20.sol";
 
 /**
  * @notice YakStrategy should be inherited by new strategies
- * @dev DRAFT
  */
-abstract contract YakStrategy is YakERC20, Ownable {
+abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
     using SafeMath for uint;
 
     uint public totalDeposits;

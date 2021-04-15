@@ -2,16 +2,14 @@
 pragma solidity ^0.7.0;
 
 import "../YakStrategy.sol";
-import "../lib/Permissioned.sol";
 import "../interfaces/IStakingRewards.sol";
 import "../interfaces/IRouter.sol";
 import "../interfaces/IPair.sol";
 
 /**
- * @notice Example YakStrategy implementation
- * @dev DRAFT
+ * @notice Pool2 strategy for StakingRewards
  */
-contract DexStrategyV4 is YakStrategy, Permissioned {
+contract DexStrategyV4 is YakStrategy {
     using SafeMath for uint;
 
     IStakingRewards public stakingContract;
