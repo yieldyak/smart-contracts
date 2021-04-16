@@ -2,6 +2,7 @@ require("@nomiclabs/hardhat-waffle");
 require("hardhat-deploy");
 require("hardhat-deploy-ethers");
 require('hardhat-abi-exporter');
+require('hardhat-contract-sizer');
 const dotenv = require("dotenv");
 dotenv.config();
 
@@ -17,12 +18,25 @@ const PK_OWNER = process.env.PK_OWNER;
  */
 
 module.exports = {
-  solidity: "0.7.3",
+  solidity: {
+    version: "0.7.3",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200
+      }
+    }
+  },
   defaultNetwork: "mainnet",
   namedAccounts: {
     deployer: {
       default: 1,
     }
+  },
+  contractSizer: {
+    alphaSort: false,
+    runOnCompile: true,
+    disambiguatePaths: false,
   },
   paths: {
     deploy: 'deploy',

@@ -2,9 +2,9 @@
 
 Automated yield farming strategies for Avalanche.
 
-*  Web: https://yieldyak.com/
-*  Twitter: https://twitter.com/yieldyak_
-*  Telegram: https://t.me/yieldyak
+*  [Web](https://yieldyak.com/)
+*  [Twitter](https://twitter.com/yieldyak_)
+*  [Telegram](https://t.me/yieldyak)
 
 ## YakStrategies
 
