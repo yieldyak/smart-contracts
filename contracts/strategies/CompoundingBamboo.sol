@@ -150,7 +150,7 @@ contract CompoundingBamboo is YakStrategy {
    */
   function _withdrawDepositTokens(uint amount) private {
     require(amount > 0, "CompoundingBamboo::_withdrawDepositTokens");
-    uint sBambooAmount = _getBambooForSBamboo(amount);
+    uint sBambooAmount = _getSBambooForBamboo(amount);
     stakingContract.withdraw(PID, sBambooAmount);
     conversionContract.leave(sBambooAmount);
   }
@@ -239,7 +239,7 @@ contract CompoundingBamboo is YakStrategy {
    * @param amount Bamboo tokens
    * @return sBamboo shares
    */
-  function _getBambooForSBamboo(uint amount) private view returns (uint) {
+  function _getSBambooForBamboo(uint amount) private view returns (uint) {
     uint bambooBalance = depositToken.balanceOf(address(conversionContract));
     uint sBambooShares = sBamboo.totalSupply();
     if (bambooBalance.mul(sBambooShares) == 0) {
@@ -253,7 +253,7 @@ contract CompoundingBamboo is YakStrategy {
    * @param amount sBamboo shares
    * @return Bamboo tokens
    */
-  function _getSBambooForBamboo(uint amount) private view returns (uint) {
+  function _getBambooForSBamboo(uint amount) private view returns (uint) {
     uint bambooBalance = depositToken.balanceOf(address(conversionContract));
     uint sBambooShares = sBamboo.totalSupply();
     if (bambooBalance.mul(sBambooShares) == 0) {
