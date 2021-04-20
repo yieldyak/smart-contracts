@@ -67,7 +67,7 @@ contract CompoundingBamboo is YakStrategy {
    * @param amount Amount of tokens to deposit
    */
   function deposit(uint amount) external override {
-    _deposit(msg.sender, amount);
+    _deposit(depositToken, msg.sender, amount);
   }
 
   /**
@@ -80,26 +80,57 @@ contract CompoundingBamboo is YakStrategy {
    */
   function depositWithPermit(uint amount, uint deadline, uint8 v, bytes32 r, bytes32 s) external override {
     depositToken.permit(msg.sender, address(this), amount, deadline, v, r, s);
-    _deposit(msg.sender, amount);
+    _deposit(depositToken, msg.sender, amount);
   }
 
   function depositFor(address account, uint amount) external override {
-      _deposit(account, amount);
+      _deposit(depositToken, account, amount);
   }
 
-  function _deposit(address account, uint amount) internal {
+  function depositSBamboo(uint amount) external {
+    _deposit(sBamboo, msg.sender, amount);
+  }
+
+  function depositSBambooWithPermit(uint amount, uint deadline, uint8 v, bytes32 r, bytes32 s) external {
+    sBamboo.permit(msg.sender, address(this), amount, deadline, v, r, s);
+    _deposit(sBamboo, msg.sender, amount);
+  }
+
+  function depositSBambooFor(address account, uint amount) external {
+      _deposit(sBamboo, account, amount);
+  }
+
+  /**
+   * @notice Deposit Bamboo or sBamboo
+   * @param token address
+   * @param account address
+   * @param amount token amount
+   */
+  function _deposit(address token, address account, uint amount) internal {
     require(DEPOSITS_ENABLED == true, "CompoundingBamboo::_deposit");
+    require(token == address(depositToken) || token == address(sBamboo), "CompoundingBamboo::_deposit, token not accepted");
     if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
         uint unclaimedRewards = checkReward();
         if (unclaimedRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
             _reinvest(unclaimedRewards);
         }
     }
-    require(depositToken.transferFrom(msg.sender, address(this), amount));
-    _stakeDepositTokens(amount);
-    _mint(account, getSharesForDepositTokens(amount));
-    totalDeposits = totalDeposits.add(amount);
-    emit Deposit(account, amount);
+
+    uint depositTokenAmount;
+    if (token == address(depositToken)) {
+      require(depositToken.transferFrom(msg.sender, address(this), amount));
+      depositTokenAmount = amount;
+      _stakeDepositTokens(amount);
+    }
+    else if (token == address(sBamboo)) {
+      require(sBamboo.transferFrom(msg.sender, address(this), amount));
+      depositTokenAmount = _getBambooForSBamboo(amount);
+      _stakeSBamboo(amount);
+    }
+
+    _mint(account, getSharesForDepositTokens(depositTokenAmount));
+    totalDeposits = totalDeposits.add(depositTokenAmount);
+    emit Deposit(account, depositTokenAmount);
   }
 
   function withdraw(uint amount) external override {
@@ -113,10 +144,15 @@ contract CompoundingBamboo is YakStrategy {
     }
   }
 
+  /**
+   * @notice Withdraw Bamboo
+   * @param amount deposit tokens
+   */
   function _withdrawDepositTokens(uint amount) private {
     require(amount > 0, "CompoundingBamboo::_withdrawDepositTokens");
     uint sBambooAmount = _getBambooForSBamboo(amount);
     stakingContract.withdraw(PID, sBambooAmount);
+    conversionContract.leave(sBambooAmount);
   }
 
   function reinvest() external override onlyEOA {
@@ -155,12 +191,32 @@ contract CompoundingBamboo is YakStrategy {
     emit Reinvest(totalDeposits, totalSupply);
   }
   
+  /**
+   * @notice Convert and stake Bamboo
+   * @param amount deposit tokens
+   */
   function _stakeDepositTokens(uint amount) private {
-    require(amount > 0, "CompoundingBamboo::_stakeDepositTokens");
     uint sBambooAmount = _getSBambooForBamboo(amount);
-    require(sBambooAmount > 0, "CompoundingBamboo::_stakeDepositTokens");
+    _convertBambooToSBamboo(amount);
+    _stakeSBamboo(sBambooAmount);
+  }
+
+  /**
+   * @notice Convert bamboo to sBamboo
+   * @param amount deposit token
+   */
+  function _convertBambooToSBamboo(uint amount) private {
+    require(amount > 0, "CompoundingBamboo::_convertBambooToSBamboo");
     conversionContract.enter(amount);
-    stakingContract.deposit(PID, sBambooAmount);
+  }
+
+  /**
+   * @notice Stake sBamboo
+   * @param amount sBamboo
+   */
+  function _stakeSBamboo(uint amount) private {
+    require(amount > 0, "CompoundingBamboo::_stakeSBamboo");
+    stakingContract.deposit(PID, amount);
   }
 
   function checkReward() public override view returns (uint) {
