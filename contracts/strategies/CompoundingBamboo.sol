@@ -22,6 +22,7 @@ contract CompoundingBamboo is YakStrategy {
 
   constructor(
     string memory _name,
+    string memory _symbol,
     address _depositToken, 
     address _rewardToken, 
     address _stakingContract,
@@ -34,6 +35,7 @@ contract CompoundingBamboo is YakStrategy {
     uint _reinvestRewardBips
   ) {
     name = _name;
+    symbol = _symbol;
     depositToken = IPair(_depositToken);
     rewardToken = IERC20(_rewardToken);
     stakingContract = IBambooChef(_stakingContract);
@@ -67,7 +69,7 @@ contract CompoundingBamboo is YakStrategy {
    * @param amount Amount of tokens to deposit
    */
   function deposit(uint amount) external override {
-    _deposit(depositToken, msg.sender, amount);
+    _deposit(address(depositToken), msg.sender, amount);
   }
 
   /**
@@ -80,24 +82,24 @@ contract CompoundingBamboo is YakStrategy {
    */
   function depositWithPermit(uint amount, uint deadline, uint8 v, bytes32 r, bytes32 s) external override {
     depositToken.permit(msg.sender, address(this), amount, deadline, v, r, s);
-    _deposit(depositToken, msg.sender, amount);
+    _deposit(address(depositToken), msg.sender, amount);
   }
 
   function depositFor(address account, uint amount) external override {
-      _deposit(depositToken, account, amount);
+      _deposit(address(depositToken), account, amount);
   }
 
   function depositSBamboo(uint amount) external {
-    _deposit(sBamboo, msg.sender, amount);
+    _deposit(address(sBamboo), msg.sender, amount);
   }
 
   function depositSBambooWithPermit(uint amount, uint deadline, uint8 v, bytes32 r, bytes32 s) external {
     sBamboo.permit(msg.sender, address(this), amount, deadline, v, r, s);
-    _deposit(sBamboo, msg.sender, amount);
+    _deposit(address(sBamboo), msg.sender, amount);
   }
 
   function depositSBambooFor(address account, uint amount) external {
-      _deposit(sBamboo, account, amount);
+      _deposit(address(sBamboo), account, amount);
   }
 
   /**
