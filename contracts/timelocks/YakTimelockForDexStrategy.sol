@@ -39,7 +39,7 @@ contract YakTimelockForDexStrategy {
     event ProposeReinvestReward(uint proposedValue, uint timelock);
     event ProposeRecovery(address indexed proposedToken, uint proposedValue, uint timelock);
 
-    event SetOwner(uint newOwner);
+    event SetOwner(address indexed newOwner);
     event SetAdminFee(uint newValue);
     event SetReinvestReward(uint newValue);
     event SetMinTokensToReinvest(uint newValue);
@@ -130,8 +130,7 @@ contract YakTimelockForDexStrategy {
      */
     function sweepAVAX(uint amount) external onlyFeeCollector {
         require(amount > 0, 'YakTimelockManagerV1::sweepAVAX, amount too low');
-        (bool success, ) = msg.sender.transfer(amount);
-        require(success, 'YakTimelockManagerV1::sweepAVAX, transfer failed');
+        msg.sender.transfer(amount);
         emit Sweep(address(0), amount);
     }
 
