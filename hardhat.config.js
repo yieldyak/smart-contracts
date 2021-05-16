@@ -35,7 +35,7 @@ module.exports = {
   },
   contractSizer: {
     alphaSort: false,
-    runOnCompile: true,
+    runOnCompile: false,
     disambiguatePaths: false,
   },
   paths: {
@@ -50,7 +50,7 @@ module.exports = {
   networks: {
     hardhat: {
       chainId: 43114,
-      gasPrice: 470000000000,
+      gasPrice: 225000000000,
       throwOnTransactionFailures: false,
       loggingEnabled: true,
       forking: {
@@ -60,7 +60,7 @@ module.exports = {
     },
     mainnet: {
       chainId: 43114,
-      gasPrice: 470000000000,
+      gasPrice: 225000000000,
       url: AVALANCHE_URL,
       accounts: [
         PRIVATE_KEY_5,

@@ -1,5 +1,6 @@
 .env
 package-lock.json
+yarn.lock
 
 abis
 dapp
