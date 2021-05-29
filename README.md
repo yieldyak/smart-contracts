@@ -6,6 +6,16 @@ Automated yield farming strategies for Avalanche.
 *  [Twitter](https://twitter.com/yieldyak_)
 *  [Telegram](https://t.me/yieldyak)
 
+# Getting Started
+
+```
+npm install
+cp .env.sample .env
+npx hardhat compile
+```
+
+# Architecture
+
 ## YakStrategies
 
 YakStrategies are an autocompounding primitive. They are designed to be platform-neutral and maximize returns to users from compounding strategies.

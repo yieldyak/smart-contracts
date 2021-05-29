@@ -6,9 +6,12 @@ require('hardhat-contract-sizer');
 const dotenv = require("dotenv");
 dotenv.config();
 
-const AVALANCHE_URL = process.env.AVALANCHE_URL;
-const PRIVATE_KEY_5 = process.env.PRIVATE_KEY_5;
+const AVALANCHE_MAINNET_URL = process.env.AVALANCHE_MAINNET_URL;
+const AVALANCHE_FUJI_URL = process.env.AVALANCHE_FUJI_URL;
+
+const PK_USER = process.env.PK_USER;
 const PK_OWNER = process.env.PK_OWNER;
+const PK_TEST = process.env.PK_TEST;
 
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
@@ -23,7 +26,7 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 200
+        runs: 999
       }
     }
   },
@@ -54,17 +57,25 @@ module.exports = {
       throwOnTransactionFailures: false,
       loggingEnabled: true,
       forking: {
-        url: AVALANCHE_URL,
+        url: AVALANCHE_MAINNET_URL,
         enabled: true,
       },
     },
     mainnet: {
       chainId: 43114,
       gasPrice: 225000000000,
-      url: AVALANCHE_URL,
+      url: AVALANCHE_MAINNET_URL,
       accounts: [
-        PRIVATE_KEY_5,
+        PK_USER,
         PK_OWNER
+      ]
+    },
+    fuji: {
+      chainId: 43113,
+      gasPrice: 225000000000,
+      url: AVALANCHE_FUJI_URL,
+      accounts: [
+        PK_TEST
       ]
     },
   },
