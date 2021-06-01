@@ -16,3 +16,6 @@ artifacts
 
 .DS_Store
 .vscode
+
+#Localfiles
+deployments/localhost/
