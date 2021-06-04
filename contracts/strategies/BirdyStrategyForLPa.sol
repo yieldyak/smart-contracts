@@ -9,7 +9,7 @@ import "../interfaces/IPair.sol";
 /**
  * @notice Pool2 strategy for Birdy Farms
  */
-contract BirdyStrategyForLP is YakStrategy {
+contract BirdyStrategyForLPa is YakStrategy {
   using SafeMath for uint;
 
   IRouter public router;
