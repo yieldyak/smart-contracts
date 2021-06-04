@@ -79,7 +79,7 @@ contract CompoundingXava is YakStrategy {
   }
 
   function _deposit(address account, uint amount) internal {
-    require(DEPOSITS_ENABLED == true, "XavaStrategyForSA::_deposit");
+    require(DEPOSITS_ENABLED == true, "CompoundingXava::_deposit");
     if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
         uint unclaimedRewards = checkReward();
         if (unclaimedRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
@@ -97,7 +97,7 @@ contract CompoundingXava is YakStrategy {
     uint depositTokenAmount = getDepositTokensForShares(amount);
     if (depositTokenAmount > 0) {
       _withdrawDepositTokens(depositTokenAmount);
-      require(depositToken.transfer(msg.sender, depositTokenAmount), "XavaStrategyForSA::withdraw");
+      require(depositToken.transfer(msg.sender, depositTokenAmount), "CompoundingXava::withdraw");
       _burn(msg.sender, amount);
       totalDeposits = totalDeposits.sub(depositTokenAmount);
       emit Withdraw(msg.sender, depositTokenAmount);
@@ -105,13 +105,13 @@ contract CompoundingXava is YakStrategy {
   }
 
   function _withdrawDepositTokens(uint amount) private {
-    require(amount > 0, "XavaStrategyForSA::_withdrawDepositTokens");
+    require(amount > 0, "CompoundingXava::_withdrawDepositTokens");
     stakingContract.withdraw(PID, amount);
   }
 
   function reinvest() external override onlyEOA {
     uint unclaimedRewards = checkReward();
-    require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "XavaStrategyForSA::reinvest");
+    require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "CompoundingXava::reinvest");
     _reinvest(unclaimedRewards);
   }
 
@@ -125,17 +125,17 @@ contract CompoundingXava is YakStrategy {
 
     uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
     if (devFee > 0) {
-      require(rewardToken.transfer(devAddr, devFee), "XavaStrategyForSA::_reinvest, dev");
+      require(rewardToken.transfer(devAddr, devFee), "CompoundingXava::_reinvest, dev");
     }
 
     uint adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
     if (adminFee > 0) {
-      require(rewardToken.transfer(owner(), adminFee), "XavaStrategyForSA::_reinvest, admin");
+      require(rewardToken.transfer(owner(), adminFee), "CompoundingXava::_reinvest, admin");
     }
 
     uint reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
     if (reinvestFee > 0) {
-      require(rewardToken.transfer(msg.sender, reinvestFee), "XavaStrategyForSA::_reinvest, reward");
+      require(rewardToken.transfer(msg.sender, reinvestFee), "CompoundingXava::_reinvest, reward");
     }
 
     uint depositTokenAmount = amount.sub(devFee).sub(adminFee).sub(reinvestFee);
@@ -146,7 +146,7 @@ contract CompoundingXava is YakStrategy {
   }
     
   function _stakeDepositTokens(uint amount) private {
-    require(amount > 0, "XavaStrategyForSA::_stakeDepositTokens");
+    require(amount > 0, "CompoundingXava::_stakeDepositTokens");
     stakingContract.deposit(PID, amount);
   }
 
@@ -169,7 +169,7 @@ contract CompoundingXava is YakStrategy {
     uint balanceBefore = depositToken.balanceOf(address(this));
     stakingContract.emergencyWithdraw(PID);
     uint balanceAfter = depositToken.balanceOf(address(this));
-    require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "XavaStrategyForSA::rescueDeployedFunds");
+    require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "CompoundingXava::rescueDeployedFunds");
     totalDeposits = balanceAfter;
     emit Reinvest(totalDeposits, totalSupply);
     if (DEPOSITS_ENABLED == true && disableDeposits == true) {
