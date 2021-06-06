@@ -8,13 +8,15 @@ import "../interfaces/IPair.sol";
 /**
  * @notice Pool2 strategy for StakingRewards
  */
-contract DexStrategyV5 is YakStrategy {
+contract DexStrategyV5Reflection is YakStrategy {
     using SafeMath for uint;
 
     IStakingRewards public stakingContract;
-    IPair private swapPairToken0;
-    IPair private swapPairToken1;
-    bytes private zeroBytes;
+    IPair public swapPairToken0;
+    IPair public swapPairToken1;
+    bytes zeroBytes;
+    uint public burnFeeBips;
+    address public reflectionToken;
 
     constructor (
         string memory _name,
@@ -23,11 +25,13 @@ contract DexStrategyV5 is YakStrategy {
         address _stakingContract,
         address _swapPairToken0,
         address _swapPairToken1,
+        address _reflectionToken,
         address _timelock,
         uint _minTokensToReinvest,
         uint _adminFeeBips,
         uint _devFeeBips,
-        uint _reinvestRewardBips
+        uint _reinvestRewardBips,
+        uint _burnFeeBips
     ) {
         name = _name;
         depositToken = IERC20(_depositToken);
@@ -35,6 +39,7 @@ contract DexStrategyV5 is YakStrategy {
         stakingContract = IStakingRewards(_stakingContract);
         devAddr = msg.sender;
 
+        reflectionToken = _reflectionToken;
         assignSwapPairSafely(_swapPairToken0, _swapPairToken1, _rewardToken);
         setAllowances();
         updateMinTokensToReinvest(_minTokensToReinvest);
@@ -42,6 +47,7 @@ contract DexStrategyV5 is YakStrategy {
         updateDevFee(_devFeeBips);
         updateReinvestReward(_reinvestRewardBips);
         updateDepositsEnabled(true);
+        updateBurnFee(_burnFeeBips);
         transferOwnership(_timelock);
 
         zeroBytes = new bytes(0);
@@ -49,19 +55,19 @@ contract DexStrategyV5 is YakStrategy {
         emit Reinvest(0, 0);
     }
 
-    /**
-     * @notice Initialization helper for Pair deposit tokens
-     * @dev Checks that selected Pairs are valid for trading reward tokens
-     * @dev Assigns values to swapPairToken0 and swapPairToken1
-     */
-    function assignSwapPairSafely(address _swapPairToken0, address _swapPairToken1, address _rewardToken) private {
+    function assignSwapPairSafely(address _swapPairToken0, address _swapPairToken1, address _rewardToken) internal {
         if (_rewardToken != IPair(address(depositToken)).token0() && _rewardToken != IPair(address(depositToken)).token1()) {
             // deployment checks for non-pool2
             require(_swapPairToken0 > address(0), "Swap pair 0 is necessary but not supplied");
             require(_swapPairToken1 > address(0), "Swap pair 1 is necessary but not supplied");
+            // should match pairToken.token0()
             swapPairToken0 = IPair(_swapPairToken0);
+            // should match pairToken.token1()
             swapPairToken1 = IPair(_swapPairToken1);
-            require(swapPairToken0.token0() == _rewardToken || swapPairToken0.token1() == _rewardToken, "Swap pair supplied does not have the reward token as one of it's pair");
+            require(
+                swapPairToken0.token0() == _rewardToken || swapPairToken0.token1() == _rewardToken,
+                "Swap pair supplied does not have the reward token as one of it's pair"
+            );
             require(
                 swapPairToken0.token0() == IPair(address(depositToken)).token0() || swapPairToken0.token1() == IPair(address(depositToken)).token0(),
                 "Swap pair 0 supplied does not match the pair in question"
@@ -71,8 +77,10 @@ contract DexStrategyV5 is YakStrategy {
                 "Swap pair 1 supplied does not match the pair in question"
             );
         } else if (_rewardToken == IPair(address(depositToken)).token0()) {
+            // pool2 case
             swapPairToken1 = IPair(address(depositToken));
         } else if (_rewardToken == IPair(address(depositToken)).token1()) {
+            // pool2 case
             swapPairToken0 = IPair(address(depositToken));
         }
     }
@@ -113,7 +121,7 @@ contract DexStrategyV5 is YakStrategy {
         uint depositTokenAmount = getDepositTokensForShares(amount);
         if (depositTokenAmount > 0) {
             _withdrawDepositTokens(depositTokenAmount);
-            _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
+            require(depositToken.transfer(msg.sender, depositTokenAmount), "DexStrategyV5::withdraw");
             _burn(msg.sender, amount);
             totalDeposits = totalDeposits.sub(depositTokenAmount);
             emit Withdraw(msg.sender, depositTokenAmount);
@@ -134,24 +142,23 @@ contract DexStrategyV5 is YakStrategy {
     /**
      * @notice Reinvest rewards from staking contract to deposit tokens
      * @dev Reverts if the expected amount of tokens are not returned from `stakingContract`
-     * @param amount deposit tokens to reinvest
      */
     function _reinvest(uint amount) private {
         stakingContract.getReward();
 
         uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
-            _safeTransfer(address(rewardToken), devAddr, devFee);
+            require(rewardToken.transfer(devAddr, devFee), "DexStrategyV5::_reinvest, dev");
         }
 
         uint adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
         if (adminFee > 0) {
-            _safeTransfer(address(rewardToken), owner(), adminFee);
+            require(rewardToken.transfer(owner(), adminFee), "DexStrategyV5::_reinvest, admin");
         }
 
         uint reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
-            _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
+            require(rewardToken.transfer(msg.sender, reinvestFee), "DexStrategyV5::_reinvest, reward");
         }
 
         uint depositTokenAmount = _convertRewardTokensToDepositTokens(
@@ -172,12 +179,9 @@ contract DexStrategyV5 is YakStrategy {
     /** 
      * @notice Given two tokens, it'll return the tokens in the right order for the tokens pair
      * @dev TokenA must be different from TokenB, and both shouldn't be address(0), no validations
-     * @param tokenA address
-     * @param tokenB address
-     * @return sorted tokens
      */
-    function _sortTokens(address tokenA, address tokenB) private pure returns (address, address) {
-        return tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
+    function sortTokens(address tokenA, address tokenB) internal pure returns (address token0, address token1) {
+        (token0, token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
     }
 
     /**
@@ -186,24 +190,25 @@ contract DexStrategyV5 is YakStrategy {
      * @param amountIn input asset
      * @param reserveIn size of input asset reserve
      * @param reserveOut size of output asset reserve
-     * @return maximum output amount
-     */  
-    function _getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) private pure returns (uint) {
+     * @return amountOut maximum output amount
+     */
+    function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) internal pure returns (uint amountOut) {
+        // this is trusting that reserveIn > 0 and reserveOut > 0
         uint amountInWithFee = amountIn.mul(997);
         uint numerator = amountInWithFee.mul(reserveOut);
         uint denominator = reserveIn.mul(1000).add(amountInWithFee);
-        return numerator.div(denominator);
+        amountOut = numerator / denominator;
     }
 
     /**
-     * @notice Safely transfer using an anonymosu ERC20 token
+     * @notice Safely transfer using an anonymous ERC20 token
      * @dev Requires token to return true on transfer
      * @param token address
      * @param to recipient address
      * @param value amount
      */
-    function _safeTransfer(address token, address to, uint256 value) private {
-        require(IERC20(token).transfer(to, value), 'TransferHelper: TRANSFER_FROM_FAILED');
+    function _safeTransfer(address token, address to, uint256 value) internal {
+        require(IERC20(token).transfer(address(to), value), 'TransferHelper: TRANSFER_FROM_FAILED');
     }
 
     /**
@@ -213,7 +218,7 @@ contract DexStrategyV5 is YakStrategy {
      * @param reserve1 size of output asset reserve
      * @return liquidity tokens
      */
-    function _quoteLiquidityAmountOut(uint amountIn, uint reserve0, uint reserve1) private pure returns (uint) {
+    function _quoteLiquidityAmountOut(uint amountIn, uint reserve0, uint reserve1) internal pure returns (uint) {
         return amountIn.mul(reserve1).div(reserve0);
     }
 
@@ -226,17 +231,20 @@ contract DexStrategyV5 is YakStrategy {
      * @param maxAmountIn1 amount token1
      * @return liquidity tokens
      */
-    function _addLiquidity(address token0, address token1, uint maxAmountIn0, uint maxAmountIn1) private returns (uint) {
+    function _addLiquidity(address token0, address token1, uint maxAmountIn0, uint maxAmountIn1) internal returns (uint) {
         (uint112 reserve0, uint112 reserve1,) = IPair(address(depositToken)).getReserves();
+        // max token0, and gets the quote for token1
         uint amountIn1 = _quoteLiquidityAmountOut(maxAmountIn0, reserve0, reserve1);
+        // if the quote exceeds our balance then max token1 instead
         if (amountIn1 > maxAmountIn1) {
             amountIn1 = maxAmountIn1;
             maxAmountIn0 = _quoteLiquidityAmountOut(maxAmountIn1, reserve1, reserve0);
         }
-        
         _safeTransfer(token0, address(depositToken), maxAmountIn0);
         _safeTransfer(token1, address(depositToken), amountIn1);
-        return IPair(address(depositToken)).mint(address(this));
+        uint minted = IPair(address(depositToken)).mint(address(this));
+        IPair(address(depositToken)).sync();
+        return minted;
     }
 
     /**
@@ -247,18 +255,36 @@ contract DexStrategyV5 is YakStrategy {
      * @param pair Pair used for swap
      * @return output amount
      */
-    function _swap(uint amountIn, address fromToken, address toToken, IPair pair) private returns (uint) {
-        (address token0,) = _sortTokens(fromToken, toToken);
+    function _swap(uint amountIn, address fromToken, address toToken, IPair pair) internal returns (uint) {
+        // computes the reserves in the correct pair order
+        (address token0,) = sortTokens(fromToken, toToken);
         (uint112 reserve0, uint112 reserve1,) = pair.getReserves();
         if (token0 != fromToken) (reserve0, reserve1) = (reserve1, reserve0);
+        // gets the expected amount out
         uint amountOut1 = 0;
-        uint amountOut2 = _getAmountOut(amountIn, reserve0, reserve1);
+        uint amountOut2 = getAmountOut(amountIn, reserve0, reserve1);
         if (token0 != fromToken) (amountOut1, amountOut2) = (amountOut2, amountOut1);
+        // sends the input of the swap
         _safeTransfer(fromToken, address(pair), amountIn);
+        // gets the output of the swap
         pair.swap(amountOut1, amountOut2, address(this), zeroBytes);
+        if (toToken == reflectionToken) pair.sync();
         return amountOut2 > amountOut1 ? amountOut2 : amountOut1;
     }
 
+    /**
+     * @notice Computes how much dust of token the contract has in the reward token proportion
+     * @dev token must match the swapPair. It assumes swapPair is a pair of token-rewardToken
+     */
+    function _getDustInRewardToken(address token, IPair swapPair) internal view returns (uint) {
+        (address firstToken,) = sortTokens(address(rewardToken), token);
+        (uint112 reserve0, uint112 reserve1,) = swapPair.getReserves();
+        if (token != firstToken) (reserve0, reserve1) = (reserve1, reserve0);
+        return getAmountOut(
+            IERC20(token).balanceOf(address(this)),
+            reserve0, reserve1
+        );
+    }
 
     /**
      * @notice Converts reward tokens to deposit tokens
@@ -267,22 +293,39 @@ contract DexStrategyV5 is YakStrategy {
      * @return deposit tokens
      */
     function _convertRewardTokensToDepositTokens(uint amount) private returns (uint) {
-        uint amountIn = amount.div(2);
-        require(amountIn > 0, "DexStrategyV5::_convertRewardTokensToDepositTokens");
+        uint token0BalanceFactor = _getDustInRewardToken(IPair(address(depositToken)).token0(), swapPairToken0);
+        uint token1BalanceFactor = _getDustInRewardToken(IPair(address(depositToken)).token1(), swapPairToken1);
 
-        address token0 = IPair(address(depositToken)).token0();
-        uint amountOutToken0 = amountIn;
-        if (address(rewardToken) != token0) {
-            amountOutToken0 = _swap(amountIn, address(rewardToken), token0, swapPairToken0);
+        //amount that will be burned
+        uint burnBalance = amount.mul(burnFeeBips).div(BIPS_DIVISOR);
+        //higher quantity should go into the token that will burn
+        uint amountIn0 = amount.sub(token0BalanceFactor).add(token1BalanceFactor).add(burnBalance).div(2);
+        uint amountIn1 = amount.sub(token1BalanceFactor).add(token0BalanceFactor).sub(burnBalance).div(2);
+        if (IPair(address(depositToken)).token0() != reflectionToken) {
+            (amountIn0, amountIn1) = (amountIn1, amountIn0);
         }
 
-        address token1 = IPair(address(depositToken)).token1();
-        uint amountOutToken1 = amountIn;
-        if (address(rewardToken) != token1) {
-            amountOutToken1 = _swap(amountIn, address(rewardToken), token1, swapPairToken1);
+        // swap to token0
+        if (address(rewardToken) != IPair(address(depositToken)).token0()) {
+            _swap(
+                amountIn0, address(rewardToken),
+                IPair(address(depositToken)).token0(), swapPairToken0
+            );
         }
 
-        return _addLiquidity(token0, token1, amountOutToken0, amountOutToken1);
+        // swap to token1
+        if (address(rewardToken) != IPair(address(depositToken)).token1()) {
+            _swap(
+                amountIn1, address(rewardToken),
+                IPair(address(depositToken)).token1(), swapPairToken1
+            );
+        }
+
+        return _addLiquidity(
+            IPair(address(depositToken)).token0(), IPair(address(depositToken)).token1(),
+            IERC20(IPair(address(depositToken)).token0()).balanceOf(address(this)),
+            IERC20(IPair(address(depositToken)).token1()).balanceOf(address(this))
+        );
     }
     
     function checkReward() public override view returns (uint) {
@@ -293,11 +336,20 @@ contract DexStrategyV5 is YakStrategy {
         return stakingContract.balanceOf(address(this));
     }
 
+    /**
+     * @notice Updates the burning fee associated with the reflection token
+     * @dev No checks, incorrect value here might cause reinvest to fail due to balance miscalculation
+     * @param _burnFeeBips burn fee in bips meaning the percentage that the reflection burns in total
+     */
+    function updateBurnFee(uint _burnFeeBips) public onlyOwner {
+        burnFeeBips = _burnFeeBips;
+    }
+
     function rescueDeployedFunds(uint minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
         uint balanceBefore = depositToken.balanceOf(address(this));
         stakingContract.exit();
         uint balanceAfter = depositToken.balanceOf(address(this));
-        require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "DexStrategyV5::rescueDeployedFunds");
+        require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "DexStrategyV4::rescueDeployedFunds");
         totalDeposits = balanceAfter;
         emit Reinvest(totalDeposits, totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
