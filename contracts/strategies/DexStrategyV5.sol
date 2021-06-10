@@ -14,7 +14,7 @@ contract DexStrategyV5 is YakStrategy {
     IStakingRewards public stakingContract;
     IPair private swapPairToken0;
     IPair private swapPairToken1;
-    bytes private zeroBytes;
+    bytes private constant zeroBytes = new bytes(0);
 
     constructor (
         string memory _name,
@@ -44,8 +44,6 @@ contract DexStrategyV5 is YakStrategy {
         updateDepositsEnabled(true);
         transferOwnership(_timelock);
 
-        zeroBytes = new bytes(0);
-
         emit Reinvest(0, 0);
     }
 
@@ -59,6 +57,8 @@ contract DexStrategyV5 is YakStrategy {
             // deployment checks for non-pool2
             require(_swapPairToken0 > address(0), "Swap pair 0 is necessary but not supplied");
             require(_swapPairToken1 > address(0), "Swap pair 1 is necessary but not supplied");
+            swapPairToken0 = IPair(_swapPairToken0);
+            swapPairToken1 = IPair(_swapPairToken1);
             require(swapPairToken0.token0() == _rewardToken || swapPairToken0.token1() == _rewardToken, "Swap pair supplied does not have the reward token as one of it's pair");
             require(
                 swapPairToken0.token0() == IPair(address(depositToken)).token0() || swapPairToken0.token1() == IPair(address(depositToken)).token0(),
@@ -68,8 +68,6 @@ contract DexStrategyV5 is YakStrategy {
                 swapPairToken1.token0() == IPair(address(depositToken)).token1() || swapPairToken1.token1() == IPair(address(depositToken)).token1(),
                 "Swap pair 1 supplied does not match the pair in question"
             );
-            swapPairToken0 = IPair(_swapPairToken0);
-            swapPairToken1 = IPair(_swapPairToken1);
         } else if (_rewardToken == IPair(address(depositToken)).token0()) {
             swapPairToken1 = IPair(address(depositToken));
         } else if (_rewardToken == IPair(address(depositToken)).token1()) {
