@@ -76,8 +76,8 @@ module.exports = {
       gasPrice: 225000000000,
       url: AVALANCHE_MAINNET_URL,
       accounts: [
-        // PK_USER,
-        // PK_OWNER
+        PK_USER,
+        PK_OWNER
       ]
     },
     fuji: {
