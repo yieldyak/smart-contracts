@@ -1,4 +1,5 @@
 require("@nomiclabs/hardhat-waffle");
+require("@nomiclabs/hardhat-ethers");
 require("hardhat-deploy");
 require("hardhat-deploy-ethers");
 require('hardhat-abi-exporter');
@@ -12,6 +13,15 @@ const AVALANCHE_FUJI_URL = process.env.AVALANCHE_FUJI_URL;
 const PK_USER = process.env.PK_USER;
 const PK_OWNER = process.env.PK_OWNER;
 const PK_TEST = process.env.PK_TEST;
+
+// require scripts
+const farmData = require("./scripts/farm-data");
+
+// tasks
+task("checkFarmState", "Gives a nice output of the state of the farm")
+  .addParam("farm", "Farm to check the state of")
+  .setAction(async ({ farm }) => farmData(farm));
+
 
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
@@ -66,8 +76,8 @@ module.exports = {
       gasPrice: 225000000000,
       url: AVALANCHE_MAINNET_URL,
       accounts: [
-        PK_USER,
-        PK_OWNER
+        // PK_USER,
+        // PK_OWNER
       ]
     },
     fuji: {
