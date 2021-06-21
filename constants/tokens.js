@@ -1,0 +1,20 @@
+const tokens = new Map();
+tokens.set("BAG", "0xa1144a6a1304bd9cbb16c800f7a867508726566e");
+tokens.set("BAMBOO-V2", "0x9a928d7dcd8d7e5cb6860b7768ec2d87b8934267");
+tokens.set("BIRD", "0x4480b4ddfb15fe6518817ef024d8b493aff2db54");
+tokens.set("CNR", "0x8D88e48465F30Acfb8daC0b3E35c9D6D7d36abaf");
+tokens.set("XAVA", "0xd1c3f94DE7e5B45fa4eDBBA472491a9f4B166FC4");
+tokens.set("CHART", "0xd769bdfc0caee933dc0a047c7dbad2ec42cfb3e2");
+tokens.set("ELK", "0xe1c8f3d529bea8e3fa1fac5b416335a2f998ee1c");
+tokens.set("COM", "0x3711c397b6c8f7173391361e27e67d72f252caad");
+tokens.set("GDL", "0xd606199557c8ab6f4cc70bd03facc96ca576f142");
+tokens.set("LYD", "0x4c9b4e1ac6f24cde3660d5e4ef1ebf77c710c084");
+tokens.set("SNOB", "0xc38f41a296a4493ff429f1238e030924a1542e50");
+tokens.set("YTS", "0x488f73cddda1de3664775ffd91623637383d6404");
+tokens.set("OLIVE", "0x617724974218a18769020a70162165a539c07e8a");
+tokens.set("PNG", "0x60781c2586d68229fde47564546784ab3faca982");
+tokens.set("PEFI", "0xe896cdeaac9615145c0ca09c8cd5c25bced6384c");
+tokens.set("ZERO", "0x008e26068b3eb40b443d3ea88c1ff99b789c10f7");
+tokens.set("CYCLE", "0x81440C939f2C1E34fc7048E518a637205A632a74");
+
+module.exports = tokens;
