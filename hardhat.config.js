@@ -26,7 +26,10 @@ const masterchefScripts = {
   panda: require("./scripts/masterchef-panda"),
   penguin: require("./scripts/masterchef-penguin")
 }
+const writeTimelock = require("./scripts/write-timelock");
 
+// require constants
+const { timelockContractAddress } = require("./constants/addresses");
 
 // tasks
 task("checkFarmState", "Gives a nice output of the state of the farm")
@@ -34,13 +37,11 @@ task("checkFarmState", "Gives a nice output of the state of the farm")
   .setAction(async ({ farm }) => farmData(farm));
 
 task("timelockBalances", "Displays the token balances in the timelock contract")
-  .addParam("contract", "Timelock contract address to get balances from")
-  .setAction(async ({contract}) => timelockBalances(contract))
+  .setAction(async () => timelockBalances(timelockContractAddress))
 
 task("sweepTokens", "Sweeps the tokens given")
   .addParam("tokens", "Token list formatted as hyphenated ranges")
-  .addParam("timelock", "Timelock contract address to sweep tokens from")
-  .setAction(async ({tokens, timelock}) => sweepTokens(tokens, timelock))
+  .setAction(async ({tokens}) => sweepTokens(tokens, timelockContractAddress))
 
 task("masterchef", "Show's pool data for several platforms in different masterchef contracts")
   .addOptionalParam("platforms", "comma-seperated list of platforms to print, see possible platforms in the 'scripts' directory")
@@ -66,6 +67,13 @@ task("masterchef", "Show's pool data for several platforms in different masterch
     
   })
 
+task("writeTimelock", "specify a change in the timelock contract for a given farm")
+  .addFlag("set", "if this flag is not supplied, the task will propose whatever change is specified, else, it will set it.")
+  .addOptionalParam("value", "value of command to be written in smart contract")
+  .addParam("farm", "the farm to apply the changes of the timelock contract to")
+  .addParam("command", "DevFee, AdminFee, Owner, ReinvestReward")
+  .setAction(async ({farm, set, command, value}) => writeTimelock(farm, set, command, value, timelockContractAddress))
+
 
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
@@ -84,7 +92,7 @@ module.exports = {
       }
     }
   },
-  defaultNetwork: "mainnet",
+  defaultNetwork: "hardhat",
   namedAccounts: {
     deployer: {
       default: 1,
@@ -109,7 +117,7 @@ module.exports = {
       chainId: 43114,
       gasPrice: 225000000000,
       throwOnTransactionFailures: false,
-      loggingEnabled: true,
+      // loggingEnabled: true,
       forking: {
         url: AVALANCHE_MAINNET_URL,
         enabled: true,
@@ -120,8 +128,8 @@ module.exports = {
       gasPrice: 225000000000,
       url: AVALANCHE_MAINNET_URL,
       accounts: [
-        PK_USER,
-        PK_OWNER
+        // PK_USER,
+        // PK_OWNER
       ]
     },
     // fuji: {

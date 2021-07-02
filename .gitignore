@@ -7,7 +7,6 @@ dapp
 deploy
 deprecated
 node_modules
-test
 
 #Hardhat files
 cache

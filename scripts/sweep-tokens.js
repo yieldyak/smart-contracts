@@ -37,7 +37,7 @@ const sweepTokens = async (tokenList, timelock) => {
         return nums
     }
     
-    const ABI = require("../abis/YakTimelockForDexStrategyV2");
+    const ABI = require("../abis/YakTimelockForDexStrategyV3");
     const ABI_ERC20 = require("../abis/IPair");
     const tokens = require("../constants/tokens");
 
