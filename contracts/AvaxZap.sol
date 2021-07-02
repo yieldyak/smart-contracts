@@ -23,13 +23,19 @@ contract AvaxZap is Ownable {
         emit Received(msg.sender, msg.value);
     }
 
-    function _depositAVAX(address strategyContract, uint amountAVAX) external payable {
+    function _depositAVAX(uint amountAVAX) external payable {
+        require(payable(address(this)).balance > amountAVAX );
+        IWAVAX(WAVAX).deposit{value: amountAVAX}();
+        require(IWAVAX(WAVAX).transfer(msg.sender, amountAVAX));
+        emit Deposit(msg.sender, amountAVAX);
+    }
+    
+    function _depositAVAXFor(address strategyContract, uint amountAVAX) external payable {
         require(payable(address(this)).balance > amountAVAX );
         IWAVAX(WAVAX).deposit{value: amountAVAX}();
         require(IWAVAX(WAVAX).transfer(address(strategyContract), amountAVAX));
         emit Deposit(strategyContract, amountAVAX);
     }
-    
 
 /**
      * @notice Safely transfer AVAX
