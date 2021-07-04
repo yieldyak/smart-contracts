@@ -8,7 +8,8 @@ import "../interfaces/IWAVAX.sol";
 import "../interfaces/IERC20.sol";
 
 /**
- * @notice Pool2 strategy for StakingRewards
+ * @notice Strategy for Trader Joe, which includes optional and variable extra rewards
+ * @dev Fees are paid in WAVAX
  */
 contract JoeStrategyV1 is YakStrategy {
     using SafeMath for uint;
@@ -20,7 +21,7 @@ contract JoeStrategyV1 is YakStrategy {
     IPair private swapPairToken1;
     IERC20 private poolRewardToken;
     uint private PID;
-    IWAVAX private WAVAX;
+    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
     bytes private constant zeroBytes = new bytes(0);
 
     constructor (
@@ -47,7 +48,6 @@ contract JoeStrategyV1 is YakStrategy {
         stakingContract = IJoeChef(_stakingContract);
         devAddr = msg.sender;
         PID = pid;
-        WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
 
         assignSwapPairSafely(_swapPairWAVAXJoe, _extraTokenSwapPair, _swapPairToken0, _swapPairToken1);
         setAllowances();
@@ -84,7 +84,7 @@ contract JoeStrategyV1 is YakStrategy {
             _checkSwapPairCompatibility(IPair(_extraTokenSwapPair), address(WAVAX), extraRewardToken),
             "_swapPairWAVAXJoe is not a WAVAX-extra reward pair, check stakingContract.pendingTokens"
         );
-        // convert Joe to WAVAX
+        // converts Joe to WAVAX
         swapPairWAVAXJoe = IPair(_swapPairWAVAXJoe);
         // converts extra reward to WAVAX
         swapPairExtraToken = IPair(_extraTokenSwapPair);
@@ -117,7 +117,8 @@ contract JoeStrategyV1 is YakStrategy {
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
             uint unclaimedRewards = checkReward();
             if (unclaimedRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
-                _reinvest();
+                (uint poolTokenAmount, address extraRewardTokenAddress, uint extraRewardTokenAmount, uint rewardTokenAmount) = _checkReward();
+                _reinvest(poolTokenAmount, extraRewardTokenAddress, extraRewardTokenAmount, rewardTokenAmount);
             }
         }
         require(depositToken.transferFrom(msg.sender, address(this), amount));
@@ -144,7 +145,10 @@ contract JoeStrategyV1 is YakStrategy {
     }
 
     function reinvest() external override onlyEOA {
-        _reinvest();
+        uint unclaimedRewards = checkReward();
+        require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "JoeStrategyV1::reinvest");
+        (uint poolTokenAmount, address extraRewardTokenAddress, uint extraRewardTokenAmount, uint rewardTokenAmount) = _checkReward();
+        _reinvest(poolTokenAmount, extraRewardTokenAddress, extraRewardTokenAmount, rewardTokenAmount);
     }
 
     function _checkSwapPairCompatibility(IPair pair, address tokenA, address tokenB) private pure returns(bool) {
@@ -180,11 +184,11 @@ contract JoeStrategyV1 is YakStrategy {
      * @notice Reinvest rewards from staking contract to deposit tokens
      * @dev Reverts if the expected amount of tokens are not returned from `stakingContract`
      */
-    function _reinvest() private {
-        (uint pendingJoe, address extraRewardToken, , uint pendingExtraToken) = stakingContract.pendingTokens(PID, address(this));
-        require(pendingJoe >= MIN_TOKENS_TO_REINVEST, "JoeStrategyV1::reinvest");
+    function _reinvest(uint _pendingJoe, address _extraRewardToken, uint _pendingExtraToken, uint _pendingWavax) private {
         stakingContract.deposit(PID, 0);
-        uint amount = _convertRewardIntoWAVAX(pendingJoe, extraRewardToken, pendingExtraToken);
+        uint amount = _pendingWavax.add(
+            _convertRewardIntoWAVAX(_pendingJoe, _extraRewardToken, _pendingExtraToken)
+        );
         
         uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
@@ -332,7 +336,7 @@ contract JoeStrategyV1 is YakStrategy {
         return _addLiquidity(token0, token1, amountOutToken0, amountOutToken1);
     }
 
-    function setExtraRewardSwapPair(address swapPair) external onlyOwner {
+    function setExtraRewardSwapPair(address swapPair) external onlyDev {
         ( ,address extraRewardToken, , ) = stakingContract.pendingTokens(PID, address(this));
         require(
             _checkSwapPairCompatibility(IPair(swapPair), address(WAVAX), extraRewardToken),
@@ -347,24 +351,40 @@ contract JoeStrategyV1 is YakStrategy {
         if (token0 != fromToken) (reserve0, reserve1) = (reserve1, reserve0);
         return _getAmountOut(amountIn, reserve0, reserve1);
     }
+
+    function _checkReward() private view returns (uint poolTokenAmount, address extraRewardTokenAddress, uint extraRewardTokenAmount, uint rewardTokenAmount) {
+        (uint pendingJoe, address extraRewardToken, , uint pendingExtraToken) = stakingContract.pendingTokens(PID, address(this));
+        uint poolRewardBalance = poolRewardToken.balanceOf(address(this));
+        uint extraRewardTokenBalance;
+        if (extraRewardToken != address(0)) {
+            extraRewardTokenBalance = IERC20(extraRewardToken).balanceOf(address(this));
+        }
+        uint rewardTokenBalance = rewardToken.balanceOf(address(this));
+        return (
+            poolRewardBalance.add(pendingJoe),
+            extraRewardToken,
+            extraRewardTokenBalance.add(pendingExtraToken),
+            rewardTokenBalance
+        );
+    }
     
     function checkReward() public override view returns (uint) {
-        (uint pendingJoe, address extraRewardToken, , uint pendingExtraToken) = stakingContract.pendingTokens(PID, address(this));
+        (uint poolTokenAmount, address extraRewardTokenAddress, uint extraRewardTokenAmount, uint rewardTokenAmount) = _checkReward();
         uint estimatedWAVAX = _estimateConversionIntoRewardToken(
-            pendingJoe, 
+            poolTokenAmount, 
             address(poolRewardToken), address(WAVAX),
             swapPairWAVAXJoe
         );
-        if (pendingExtraToken > 0 && _checkSwapPairCompatibility(swapPairExtraToken, extraRewardToken, address(WAVAX))) {
+        if (extraRewardTokenAmount > 0 && _checkSwapPairCompatibility(swapPairExtraToken, extraRewardTokenAddress, address(WAVAX))) {
             estimatedWAVAX.add(
                 _estimateConversionIntoRewardToken(
-                    pendingExtraToken, 
-                    extraRewardToken, address(WAVAX),
+                    extraRewardTokenAmount,
+                    extraRewardTokenAddress, address(WAVAX),
                     swapPairExtraToken
                 )
             );
         }
-        return estimatedWAVAX;
+        return rewardTokenAmount.add(estimatedWAVAX);
     }
 
     function estimateDeployedBalance() external override view returns (uint) {
