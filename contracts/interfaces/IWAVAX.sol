@@ -6,4 +6,5 @@ interface IWAVAX {
     function transfer(address to, uint value) external returns (bool);
     function balanceOf(address owner) external view returns (uint); 
     function withdraw(uint) external;
+    function approve(address to, uint value) external returns (bool);
 }
