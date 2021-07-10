@@ -4,7 +4,7 @@ pragma solidity ^0.7.0;
 import "./interfaces/IWAVAX.sol";
 import "./lib/Ownable.sol";
 import "./lib/SafeMath.sol";
-import "./YakStrategy.sol";
+import "./interfaces/IYakStrategy.sol";
 
 /**
  * @notice 
@@ -13,7 +13,6 @@ import "./YakStrategy.sol";
 contract AvaxZap is Ownable {
     using SafeMath for uint;
     address public WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
-    event Received(address,uint);
     event Recovered(address token, uint amount);
 
     constructor (
@@ -22,15 +21,15 @@ contract AvaxZap is Ownable {
         transferOwnership(_timelock);
     }
 
-    receive() external payable {
-        emit Received(msg.sender, msg.value);
-    }
-
-    function _depositAVAX(address strategyContract) external payable {
+ /**
+   * @notice deposit wavax to the contract on behalf of user
+   * @param strategyContract strategy contract address
+   */
+    function depositAVAX(address strategyContract) external payable {
         IWAVAX(WAVAX).deposit{value: msg.value}();
         IWAVAX(WAVAX).approve(strategyContract, msg.value);
-        require(address(YakStrategy(strategyContract).depositToken()) == address(WAVAX));
-        YakStrategy(strategyContract).depositFor(msg.sender, msg.value);
+        require(address(IYakStrategy(strategyContract).depositToken()) == address(WAVAX));
+        IYakStrategy(strategyContract).depositFor(msg.sender, msg.value);
     }
 
     /**
