@@ -111,8 +111,8 @@ contract ELKILPStrategy is YakStrategy {
         // ToDO We need to call the coverage here na
         if ( checkCoverage() > 0 ) {
             uint coverage = stakingContract.getCoverage();
-            if (unclaimedRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
-                _reinvest(unclaimedRewards);
+            if (coverage > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
+                _reinvest(coverage);
             }
         }
         uint depositTokenAmount = getDepositTokensForShares(amount); //
