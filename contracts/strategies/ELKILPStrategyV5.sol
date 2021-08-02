@@ -4,11 +4,12 @@ pragma solidity ^0.7.0;
 import "../YakStrategy.sol";
 import "../interfaces/IStakingRewardsILPV2.sol";
 import "../interfaces/IPair.sol";
-
+import "../ELkILPStrategy.sol";
+import "hardhat/console.sol";
 /**
  * @notice Pool2 strategy for StakingRewards
  */
-contract ELKILPStrategy is YakStrategy {
+contract ELKILPStrategyV5 is ElkILPStrategy {
     using SafeMath for uint;
 
     IStakingRewardsILPV2 public stakingContract;

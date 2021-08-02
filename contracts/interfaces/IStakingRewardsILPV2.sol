@@ -13,7 +13,7 @@ interface IStakingRewardsILPV2 {
     function stakeWithPermit(uint256 amount, uint deadline, uint8 v, bytes32 r, bytes32 s) external;
     function withdraw(uint256 amount) external;
     function getReward() external;
-    function getCoverage() external;
+    function getCoverage() external returns (uint256);
     function exit() external;
     event RewardAdded(uint256 reward);
     event Staked(address indexed user, uint256 amount);

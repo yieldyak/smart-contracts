@@ -67,7 +67,7 @@ module.exports = {
       throwOnTransactionFailures: false,
       loggingEnabled: true,
       forking: {
-        url: AVALANCHE_MAINNET_URL,
+        url: "https://api.avax.network/ext/bc/C/rpc",
         enabled: true,
       },
     },
