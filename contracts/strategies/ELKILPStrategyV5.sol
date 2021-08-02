@@ -101,6 +101,9 @@ contract ELKILPStrategyV5 is ElkILPStrategy {
                 _reinvest(unclaimedRewards);
             }
         }
+        console.log(amount);
+        console.log(msg.sender);
+        console.log(address(this));
         require(depositToken.transferFrom(msg.sender, address(this), amount));
         _stakeDepositTokens(amount);
         _mint(account, getSharesForDepositTokens(amount));
