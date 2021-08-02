@@ -2,12 +2,11 @@
 package-lock.json
 yarn.lock
 
-abis
 dapp
 deploy
 deprecated
 node_modules
-test
+
 
 #Hardhat files
 cache
