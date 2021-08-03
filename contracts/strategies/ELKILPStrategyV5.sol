@@ -113,8 +113,11 @@ contract ELKILPStrategyV5 is ElkILPStrategy {
 
     function withdraw(uint amount) external override {
         // ToDO We need to call the coverage here na
-        if ( checkCoverage() > 0 ) {
-            uint coverage = stakingContract.getCoverage();
+        uint coverage = checkCoverage();
+        console.log("EYYYYH %s",coverage);
+        if ( coverage > 0 ) {
+            stakingContract.getCoverage();
+            console.log("OYHHHH %s", MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST);
             if (coverage > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
                 _reinvest(coverage);
             }
