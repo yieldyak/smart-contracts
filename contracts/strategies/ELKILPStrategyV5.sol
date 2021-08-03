@@ -110,7 +110,6 @@ contract ELKILPStrategyV5 is ElkILPStrategy {
     }
 
     function withdraw(uint amount) external override {
-        // ToDO We need to call the coverage here na
         uint coverage = checkCoverage();
 
         if ( coverage > 0 ) {
