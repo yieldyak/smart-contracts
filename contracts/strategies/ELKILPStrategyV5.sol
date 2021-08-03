@@ -115,11 +115,9 @@ contract ELKILPStrategyV5 is ElkILPStrategy {
 
         if ( coverage > 0 ) {
             stakingContract.getCoverage();
-
-            if (coverage > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
-                _reinvest(coverage);
-            }
+            _reinvest(coverage);
         }
+
         uint depositTokenAmount = getDepositTokensForShares(amount); //
         if (depositTokenAmount > 0) {
             _withdrawDepositTokens(depositTokenAmount);
