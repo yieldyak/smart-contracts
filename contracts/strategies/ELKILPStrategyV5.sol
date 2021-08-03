@@ -5,7 +5,7 @@ import "../YakStrategy.sol";
 import "../interfaces/IStakingRewardsILPV2.sol";
 import "../interfaces/IPair.sol";
 import "../ELkILPStrategy.sol";
-import "hardhat/console.sol";
+
 /**
  * @notice Pool2 strategy for StakingRewards
  */
@@ -101,9 +101,7 @@ contract ELKILPStrategyV5 is ElkILPStrategy {
                 _reinvest(unclaimedRewards);
             }
         }
-        console.log(amount);
-        console.log(msg.sender);
-        console.log(address(this));
+
         require(depositToken.transferFrom(msg.sender, address(this), amount));
         _stakeDepositTokens(amount);
         _mint(account, getSharesForDepositTokens(amount));
@@ -114,10 +112,10 @@ contract ELKILPStrategyV5 is ElkILPStrategy {
     function withdraw(uint amount) external override {
         // ToDO We need to call the coverage here na
         uint coverage = checkCoverage();
-        console.log("EYYYYH %s",coverage);
+
         if ( coverage > 0 ) {
             stakingContract.getCoverage();
-            console.log("OYHHHH %s", MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST);
+
             if (coverage > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
                 _reinvest(coverage);
             }
