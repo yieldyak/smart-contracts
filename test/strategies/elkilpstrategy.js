@@ -203,7 +203,7 @@ describe("elk_ilp_strategy_v5", function () {
 
             // We impersonate the 'owner' of the WAVAX-ELK StakingRewardsILP contract
             await ethers.provider.send('hardhat_impersonateAccount', ['0xba49776326A1ca54EB4F406C94Ae4e1ebE458E19']);
-            admin = await ethers.provider.getSigner('0xba49776326A1ca54EB4F406C94Ae4e1ebE458E19')
+            const admin = await ethers.provider.getSigner('0xba49776326A1ca54EB4F406C94Ae4e1ebE458E19')
 
             const stakingcontract = await ethers.getContractAt(staking_contract, elpStakingRewardAddress, admin);
             // We set the coverage amount for our Strategy
@@ -246,15 +246,10 @@ describe("elk_ilp_strategy_v5", function () {
             await elkRouterContract.addLiquidity(wavaxTokenContract.address, elkTokenContract.address, await wavaxTokenContract.balanceOf(owner.address), await elkTokenContract.balanceOf(owner.address), 0, 0, owner.address, 1807909162115)
 
             // Setup approval for the other account
-            console.log("A")
             await wavaxTokenContract.connect(account1).approve(elkRouterContract.address, BigNumber.from("1000000000000000000000000"))
-            console.log("B")
             await elkTokenContract.connect(account1).approve(elkRouterContract.address, BigNumber.from("1000000000000000000000000"))
-            console.log("C")
             await elkPairContract.connect(account1).approve(elkIlpStrategyV5.address, BigNumber.from("1000000000000000000000000"))
-            console.log("D")
             await elkRouterContract.connect(account1).swapExactTokensForTokens(BigNumber.from("10000000000000000"), BigNumber.from("5000000000000000"), [wavaxTokenContract.address, elkTokenContract.address], account1.address, 1807909162115)
-            console.log("E")
             await elkRouterContract.connect(account1).addLiquidity(wavaxTokenContract.address, elkTokenContract.address, await wavaxTokenContract.balanceOf(account1.address), await elkTokenContract.balanceOf(account1.address), 0, 0, account1.address, 1807909162115)
         })
 
@@ -279,7 +274,7 @@ describe("elk_ilp_strategy_v5", function () {
 
             // We impersonate the 'owner' of the WAVAX-ELK StakingRewardsILP contract
             await ethers.provider.send('hardhat_impersonateAccount', ['0xba49776326A1ca54EB4F406C94Ae4e1ebE458E19']);
-            admin = await ethers.provider.getSigner('0xba49776326A1ca54EB4F406C94Ae4e1ebE458E19')
+            const admin = await ethers.provider.getSigner('0xba49776326A1ca54EB4F406C94Ae4e1ebE458E19')
 
             const stakingcontract = await ethers.getContractAt(staking_contract, elpStakingRewardAddress, admin);
             // We set the coverage elp_balance_account1 for our Strategy
