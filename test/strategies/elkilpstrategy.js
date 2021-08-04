@@ -2,7 +2,6 @@ const {expect} = require("chai")
 const {ethers, run} = require("hardhat")
 const {BigNumber} = ethers
 
-const MAX_UINT = "115792089237316195423570985008687907853269984665640564039457584007913129639935";
 const ONE_EXPONENT_17 = "10000000000000000";
 const FIVE_EXPONENT_16 = "5000000000000000";
 
@@ -123,7 +122,7 @@ describe("ElkIlpStrategyV5", function () {
     })
 
     it('Set correctly the allowance on the deposit token', async () => {
-        expect(await elkPairContract.allowance(elkIlpStrategyV5.address, elpStakingRewardAddress)).to.equal(MAX_UINT)
+        expect(await elkPairContract.allowance(elkIlpStrategyV5.address, elpStakingRewardAddress)).to.equal(ethers.constants.MaxUint256)
     })
 
     });
@@ -136,22 +135,22 @@ describe("ElkIlpStrategyV5", function () {
 
         it('Deposit correct amount of ELK Liquidity token into the strategy', async () => {
             // We get the amount of ELK token we have
-            const amount = (await elkPairContract.balanceOf(owner.address)).toString();
+            const amount = await elkPairContract.balanceOf(owner.address)
             // We get the 'totalDeposit' before we deposit into the strategy
-            const totalDepositsBefore = (await elkIlpStrategyV5.totalDeposits()).toString();
+            const totalDepositsBefore = await elkIlpStrategyV5.totalDeposits()
 
             // We deposit our ELP tokens into the strategy
-            await elkIlpStrategyV5.deposit(BigNumber.from((await elkPairContract.balanceOf(owner.address)).toString()))
+            await elkIlpStrategyV5.deposit(await elkPairContract.balanceOf(owner.address))
             // We get the 'totalDeposit' after our deposit
-            const totalDepositsAfter = (await elkIlpStrategyV5.totalDeposits()).toString();
+            const totalDepositsAfter = await elkIlpStrategyV5.totalDeposits()
 
             // Our balance should be equal to the amount of ELP token we deposited
-            expect((await elkIlpStrategyV5.balanceOf(owner.address)).toString()).to.equal(amount)
+            expect(await elkIlpStrategyV5.balanceOf(owner.address)).to.equal(amount)
             // The strategy contract should have correct balance on the staking contract
-            expect((await stakingContract.balanceOf(elkIlpStrategyV5.address)).toString()).to.equal(amount)
+            expect(await stakingContract.balanceOf(elkIlpStrategyV5.address)).to.equal(amount)
 
             // We check if the totalDeposit has grown after our deposit
-            expect(BigNumber.from(totalDepositsAfter)).gt(BigNumber.from(totalDepositsBefore));
+            expect(totalDepositsAfter).gt(totalDepositsBefore);
         })
     })
 
@@ -162,38 +161,38 @@ describe("ElkIlpStrategyV5", function () {
 
         it('Withdraw correctly our ELP tokens from the Strategy', async () => {
             // We get the amount of ELK token we have
-            const amount = (await elkPairContract.balanceOf(owner.address)).toString();
+            const amount = await elkPairContract.balanceOf(owner.address)
             // We get the 'totalDeposit' before we deposit into the strategy
-            const totalDepositsBefore = (await elkIlpStrategyV5.totalDeposits()).toString();
+            const totalDepositsBefore = await elkIlpStrategyV5.totalDeposits()
 
             // We deposit into the staking contract our ELP tokens
-            await elkIlpStrategyV5.deposit(BigNumber.from((await elkPairContract.balanceOf(owner.address)).toString()))
+            await elkIlpStrategyV5.deposit(await elkPairContract.balanceOf(owner.address))
             // We get the 'totalDeposit' after our deposit into the strategy
-            let totalDepositsAfter = (await elkIlpStrategyV5.totalDeposits()).toString();
+            let totalDepositsAfter = await elkIlpStrategyV5.totalDeposits()
 
             // We make sure all balances are correct .
-            expect((await elkIlpStrategyV5.balanceOf(owner.address)).toString()).to.equal(amount)
-            expect((await stakingContract.balanceOf(elkIlpStrategyV5.address)).toString()).to.equal(amount)
-            expect(BigNumber.from(totalDepositsAfter)).gt(BigNumber.from(totalDepositsBefore));
+            expect(await elkIlpStrategyV5.balanceOf(owner.address)).to.equal(amount)
+            expect(await stakingContract.balanceOf(elkIlpStrategyV5.address)).to.equal(amount)
+            expect(totalDepositsAfter).gt(totalDepositsBefore)
 
             // Advance the time to 1 week
             await hre.ethers.provider.send('evm_increaseTime', [7 * 24 * 60 * 60]);
             await network.provider.send("evm_mine")
 
             // We check the amount we earned so far
-            expect((await stakingContract.earned(elkIlpStrategyV5.address)).toString()).to.not.equal('0')
+            expect(await stakingContract.earned(elkIlpStrategyV5.address)).to.not.equal(0)
 
             // We withdraw from the strategy all tokens we deposited
-            await elkIlpStrategyV5.withdraw(BigNumber.from((await elkIlpStrategyV5.balanceOf(owner.address)).toString()))
+            await elkIlpStrategyV5.withdraw(await elkIlpStrategyV5.balanceOf(owner.address))
 
             // We get the 'totalDeposit' after withdrawing from the strategy
-            totalDepositsAfter = (await elkIlpStrategyV5.totalDeposits()).toString();
+            totalDepositsAfter = await elkIlpStrategyV5.totalDeposits()
 
             // We check if balances are correct
-            expect((await elkIlpStrategyV5.balanceOf(owner.address)).toString()).to.equal("0")
-            expect((await stakingContract.balanceOf(elkIlpStrategyV5.address)).toString()).to.equal("0")
-            expect(totalDepositsAfter).eq(BigNumber.from(totalDepositsBefore));
-            expect(await elkPairContract.balanceOf(owner.address)).gt("0");
+            expect(await elkIlpStrategyV5.balanceOf(owner.address)).to.equal(0)
+            expect(await stakingContract.balanceOf(elkIlpStrategyV5.address)).to.equal(0)
+            expect(totalDepositsAfter).eq(totalDepositsBefore);
+            expect(await elkPairContract.balanceOf(owner.address)).gt(0)
         })
     })
 
@@ -205,20 +204,20 @@ describe("ElkIlpStrategyV5", function () {
 
         it('Withdraw correct amount of ELK Liquidity token from the strategy', async () => {
             // We get the amount of ELK token we have
-            const amount = (await elkPairContract.balanceOf(owner.address)).toString();
+            const amount = await elkPairContract.balanceOf(owner.address)
             // We get the 'totalDeposit' before we deposit into the strategy
-            const totalDepositsBefore = (await elkIlpStrategyV5.totalDeposits()).toString();
+            const totalDepositsBefore = await elkIlpStrategyV5.totalDeposits()
 
             // We deposit into the staking contract our ELP tokens
-            await elkIlpStrategyV5.deposit(BigNumber.from((await elkPairContract.balanceOf(owner.address)).toString()))
+            await elkIlpStrategyV5.deposit(await elkPairContract.balanceOf(owner.address))
             // We get the 'totalDeposit' after our deposit into the strategy
-            const totalDepositsAfter = (await elkIlpStrategyV5.totalDeposits()).toString();
+            const totalDepositsAfter = await elkIlpStrategyV5.totalDeposits()
 
             // We check all balances
-            expect((await elkIlpStrategyV5.balanceOf(owner.address)).toString()).to.equal(amount)
-            expect((await stakingContract.balanceOf(elkIlpStrategyV5.address)).toString()).to.equal(amount)
-            expect(BigNumber.from(totalDepositsAfter)).gt(BigNumber.from(totalDepositsBefore));
-            expect((await stakingContract.coverageOf(elkIlpStrategyV5.address)).toString()).to.equal("0")
+            expect(await elkIlpStrategyV5.balanceOf(owner.address)).to.equal(amount)
+            expect(await stakingContract.balanceOf(elkIlpStrategyV5.address)).to.equal(amount)
+            expect(totalDepositsAfter).gt(totalDepositsBefore)
+            expect(await stakingContract.coverageOf(elkIlpStrategyV5.address)).to.equal(0)
 
             // We impersonate the 'owner' of the WAVAX-ELK StakingRewardsILP contract
             await ethers.provider.send('hardhat_impersonateAccount', ['0xba49776326A1ca54EB4F406C94Ae4e1ebE458E19']);
@@ -234,12 +233,12 @@ describe("ElkIlpStrategyV5", function () {
             });
 
             // We check the amount of coverage the Strategy contract address currently has
-            expect((await stakingContract.coverageOf(elkIlpStrategyV5.address)).toString()).to.equal('1000000000000')
+            expect(await stakingContract.coverageOf(elkIlpStrategyV5.address)).to.equal(1000000000000)
 
             // We should check now if, upon withdrawal, we get a bigger amount of ELP tokens
             // We withdraw from the strategy all tokens we deposited
-            await elkIlpStrategyV5.withdraw(BigNumber.from((await elkIlpStrategyV5.balanceOf(owner.address)).toString()))
-            const totalDepositsAfterWithdraw = (await elkIlpStrategyV5.totalDeposits()).toString();
+            await elkIlpStrategyV5.withdraw(await elkIlpStrategyV5.balanceOf(owner.address))
+            const totalDepositsAfterWithdraw = await elkIlpStrategyV5.totalDeposits()
 
             // We check if balances are correct
             // Since we have only one depositor, strategy contract and staking contract should both be back at 0
@@ -260,35 +259,35 @@ describe("ElkIlpStrategyV5", function () {
 
         it('Reinvest correct amount for 2 depositors', async () => {
             // We get the amount of ELK token we have
-            const amount = (await elkPairContract.balanceOf(owner.address)).toString();
+            const amount = await elkPairContract.balanceOf(owner.address)
             // We get the 'totalDeposit' before we deposit into the strategy
-            const totalDepositsBefore = (await elkIlpStrategyV5.totalDeposits()).toString();
+            const totalDepositsBefore = await elkIlpStrategyV5.totalDeposits()
 
             // We deposit into the staking contract our ELP tokens
-            await elkIlpStrategyV5.deposit(BigNumber.from((await elkPairContract.balanceOf(owner.address)).toString()))
+            await elkIlpStrategyV5.deposit(await elkPairContract.balanceOf(owner.address))
             // We get the 'totalDeposit' after our deposit into the strategy
-            const totalDepositsAfterDeposit = (await elkIlpStrategyV5.totalDeposits()).toString();
+            const totalDepositsAfterDeposit = await elkIlpStrategyV5.totalDeposits()
 
             // We check all balances
-            expect((await elkIlpStrategyV5.balanceOf(owner.address)).toString()).to.equal(amount)
-            expect((await stakingContract.balanceOf(elkIlpStrategyV5.address)).toString()).to.equal(amount)
-            expect(BigNumber.from(totalDepositsAfterDeposit)).gt(BigNumber.from(totalDepositsBefore));
-            expect((await stakingContract.coverageOf(elkIlpStrategyV5.address)).toString()).to.equal("0")
+            expect(await elkIlpStrategyV5.balanceOf(owner.address)).to.equal(amount)
+            expect(await stakingContract.balanceOf(elkIlpStrategyV5.address)).to.equal(amount)
+            expect(totalDepositsAfterDeposit).gt(BigNumber.from(totalDepositsBefore));
+            expect(await stakingContract.coverageOf(elkIlpStrategyV5.address)).to.equal("0")
 
             // Advance the time to 1 week so we get some reward
             await hre.ethers.provider.send('evm_increaseTime', [7 * 24 * 60 * 60]);
             await network.provider.send("evm_mine")
 
             // We check the amount we earned so far
-            expect((await stakingContract.earned(elkIlpStrategyV5.address)).toString()).to.not.equal('0')
+            expect(await stakingContract.earned(elkIlpStrategyV5.address)).to.not.equal('0')
 
             // We should check now if, upon withdrawal, we get a bigger amount of ELP tokens
             // We withdraw from the strategy all tokens we deposited
             await elkIlpStrategyV5.reinvest()
-            const totalDepositsAfterReinvest = (await elkIlpStrategyV5.totalDeposits()).toString();
+            const totalDepositsAfterReinvest = await elkIlpStrategyV5.totalDeposits()
 
             // The total deposit should be back to its previous value
-            expect(BigNumber.from(totalDepositsAfterReinvest)).gt(BigNumber.from(totalDepositsAfterDeposit));
+            expect(totalDepositsAfterReinvest).gt(totalDepositsAfterDeposit)
         })
     })
 
@@ -300,22 +299,22 @@ describe("ElkIlpStrategyV5", function () {
 
         it('Withdraw correct elp_balance_account1 of ELK Liquidity token from the strategy', async () => {
             // We get the elpBalanceAccount1 of ELK token we have
-            const elpBalanceAccount1 = (await elkPairContract.balanceOf(owner.address)).toString();
-            const elpBalanceAccount2 = (await elkPairContract.balanceOf(account1.address)).toString();
+            const elpBalanceAccount1 = await elkPairContract.balanceOf(owner.address);
+            const elpBalanceAccount2 = await elkPairContract.balanceOf(account1.address);
             // We get the 'totalDeposit' before we deposit into the strategy
-            const totalDepositsBefore = (await elkIlpStrategyV5.totalDeposits()).toString();
+            const totalDepositsBefore = await elkIlpStrategyV5.totalDeposits();
 
             // We deposit into the staking contract our ELP tokens
-            await elkIlpStrategyV5.deposit(BigNumber.from((await elkPairContract.balanceOf(owner.address)).toString()))
-            await elkIlpStrategyV5.connect(account1).deposit(BigNumber.from((await elkPairContract.balanceOf(account1.address)).toString()))
+            await elkIlpStrategyV5.deposit(await elkPairContract.balanceOf(owner.address))
+            await elkIlpStrategyV5.connect(account1).deposit(await elkPairContract.balanceOf(account1.address))
             // We get the 'totalDeposit' after our deposit into the strategy
-            const totalDepositsAfter = (await elkIlpStrategyV5.totalDeposits()).toString();
+            const totalDepositsAfter = await elkIlpStrategyV5.totalDeposits();
 
             // We check all balances
-            expect((await elkIlpStrategyV5.balanceOf(owner.address)).toString()).to.equal(elpBalanceAccount1)
-            expect((await elkIlpStrategyV5.balanceOf(account1.address)).toString()).to.equal(elpBalanceAccount2)
-            expect(BigNumber.from(totalDepositsAfter)).gt(BigNumber.from(totalDepositsBefore));
-            expect((await stakingContract.coverageOf(elkIlpStrategyV5.address)).toString()).to.equal("0")
+            expect(await elkIlpStrategyV5.balanceOf(owner.address)).to.equal(elpBalanceAccount1)
+            expect(await elkIlpStrategyV5.balanceOf(account1.address)).to.equal(elpBalanceAccount2)
+            expect(totalDepositsAfter).gt(totalDepositsBefore);
+            expect(await stakingContract.coverageOf(elkIlpStrategyV5.address)).to.equal(0)
 
             // We impersonate the 'owner' of the WAVAX-ELK StakingRewardsILP contract
             await ethers.provider.send('hardhat_impersonateAccount', ['0xba49776326A1ca54EB4F406C94Ae4e1ebE458E19']);
@@ -331,13 +330,12 @@ describe("ElkIlpStrategyV5", function () {
             });
 
             // We check the elpBalanceAccount1 of coverage the Strategy contract address currently has
-            expect((await stakingContract.coverageOf(elkIlpStrategyV5.address)).toString()).to.equal('1000000000000')
-            // expect((await elk_ilp_strategy_v5.checkCoverage()).toString()).to.equal('1000000000000')
+            expect(await stakingContract.coverageOf(elkIlpStrategyV5.address)).to.equal(1000000000000)
 
             // We should check now if, upon withdrawal, we get a bigger elpBalanceAccount1 of ELP tokens
             // We withdraw from the strategy all tokens we deposited
-            await elkIlpStrategyV5.withdraw(BigNumber.from((await elkIlpStrategyV5.balanceOf(owner.address)).toString()))
-            const totalDepositsAfterWithdraw = (await elkIlpStrategyV5.totalDeposits()).toString();
+            await elkIlpStrategyV5.withdraw(await elkIlpStrategyV5.balanceOf(owner.address))
+            const totalDepositsAfterWithdraw = await elkIlpStrategyV5.totalDeposits();
 
             // We check if balances are correct
             // Since we have only one depositor, strategy contract and staking contract should both be back at 0
