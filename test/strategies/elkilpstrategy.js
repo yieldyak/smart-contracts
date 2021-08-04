@@ -52,7 +52,7 @@ describe("ElkIlpStrategyV5", function () {
         await elkIlpStrategyV5.deployed()
 
         wavaxTokenContract = await ethers.getContractAt("IWAVAX", wavaxTokenAddress)
-        elkTokenContract = await ethers.getContractAt("IElkERC20", elkTokenAddress)
+        elkTokenContract = await ethers.getContractAt("contracts/interfaces/IERC20.sol:IERC20", elkTokenAddress)
         //makes sure owner has enough WAVAX balance
         if ((await wavaxTokenContract.balanceOf(owner.address)).lt("1000000000000000000000")) {
             wavaxTokenContract.connect(owner).deposit({
@@ -104,9 +104,9 @@ describe("ElkIlpStrategyV5", function () {
 
         beforeEach(async () => {
             // We approve addresses
-            await wavaxTokenContract.approve(elkRouterContract.address, BigNumber.from("1000000000000000000000000"));
-            await elkTokenContract.approve(elkRouterContract.address, BigNumber.from("1000000000000000000000000"));
-            await elkPairContract.approve(elkIlpStrategyV5.address, BigNumber.from("1000000000000000000000000"));
+            await wavaxTokenContract.approve(elkRouterContract.address, ethers.constants.MaxUint256);
+            await elkTokenContract.approve(elkRouterContract.address, ethers.constants.MaxUint256);
+            await elkPairContract.approve(elkIlpStrategyV5.address, ethers.constants.MaxUint256);
 
             await elkRouterContract.swapExactTokensForTokens(BigNumber.from("10000000000000000"), BigNumber.from("5000000000000000"), [wavaxTokenContract.address, elkTokenContract.address], owner.address, 1807909162115)
             await elkRouterContract.addLiquidity(wavaxTokenContract.address, elkTokenContract.address, await wavaxTokenContract.balanceOf(owner.address), await elkTokenContract.balanceOf(owner.address), 0, 0, owner.address, 1807909162115)
@@ -135,9 +135,9 @@ describe("ElkIlpStrategyV5", function () {
 
     describe("Test withdraw functionality", async () => {
         beforeEach(async () => {
-            await wavaxTokenContract.approve(elkRouterContract.address, BigNumber.from("1000000000000000000000000"));
-            await elkTokenContract.approve(elkRouterContract.address, BigNumber.from("1000000000000000000000000"));
-            await elkPairContract.approve(elkIlpStrategyV5.address, BigNumber.from("1000000000000000000000000"));
+            await wavaxTokenContract.approve(elkRouterContract.address, ethers.constants.MaxUint256);
+            await elkTokenContract.approve(elkRouterContract.address, ethers.constants.MaxUint256);
+            await elkPairContract.approve(elkIlpStrategyV5.address, ethers.constants.MaxUint256);
 
             await elkRouterContract.swapExactTokensForTokens(BigNumber.from("10000000000000000"), BigNumber.from("5000000000000000"), [wavaxTokenContract.address, elkTokenContract.address], owner.address, 1807909162115)
             await elkRouterContract.addLiquidity(wavaxTokenContract.address, elkTokenContract.address, await wavaxTokenContract.balanceOf(owner.address), await elkTokenContract.balanceOf(owner.address), 0, 0, owner.address, 1807909162115)
@@ -185,9 +185,9 @@ describe("ElkIlpStrategyV5", function () {
     describe("Test coverage on withdraw - only one depositor", async () => {
 
         beforeEach(async () => {
-            await wavaxTokenContract.approve(elkRouterContract.address, BigNumber.from("1000000000000000000000000"));
-            await elkTokenContract.approve(elkRouterContract.address, BigNumber.from("1000000000000000000000000"));
-            await elkPairContract.approve(elkIlpStrategyV5.address, BigNumber.from("1000000000000000000000000"));
+            await wavaxTokenContract.approve(elkRouterContract.address, ethers.constants.MaxUint256);
+            await elkTokenContract.approve(elkRouterContract.address, ethers.constants.MaxUint256);
+            await elkPairContract.approve(elkIlpStrategyV5.address, ethers.constants.MaxUint256);
 
             await elkRouterContract.swapExactTokensForTokens(BigNumber.from("10000000000000000"), BigNumber.from("5000000000000000"), [wavaxTokenContract.address, elkTokenContract.address], owner.address, 1807909162115)
             await elkRouterContract.addLiquidity(wavaxTokenContract.address, elkTokenContract.address, await wavaxTokenContract.balanceOf(owner.address), await elkTokenContract.balanceOf(owner.address), 0, 0, owner.address, 1807909162115)
@@ -246,17 +246,17 @@ describe("ElkIlpStrategyV5", function () {
 
         beforeEach(async () => {
             // Setup approval for one account
-            await wavaxTokenContract.approve(elkRouterContract.address, BigNumber.from("1000000000000000000000000"))
-            await elkTokenContract.approve(elkRouterContract.address, BigNumber.from("1000000000000000000000000"))
-            await elkPairContract.approve(elkIlpStrategyV5.address, BigNumber.from("1000000000000000000000000"))
+            await wavaxTokenContract.approve(elkRouterContract.address, ethers.constants.MaxUint256)
+            await elkTokenContract.approve(elkRouterContract.address, ethers.constants.MaxUint256)
+            await elkPairContract.approve(elkIlpStrategyV5.address, ethers.constants.MaxUint256)
 
             await elkRouterContract.swapExactTokensForTokens(BigNumber.from("10000000000000000"), BigNumber.from("5000000000000000"), [wavaxTokenContract.address, elkTokenContract.address], owner.address, 1807909162115)
             await elkRouterContract.addLiquidity(wavaxTokenContract.address, elkTokenContract.address, await wavaxTokenContract.balanceOf(owner.address), await elkTokenContract.balanceOf(owner.address), 0, 0, owner.address, 1807909162115)
 
             // Setup approval for the other account
-            await wavaxTokenContract.connect(account1).approve(elkRouterContract.address, BigNumber.from("1000000000000000000000000"))
-            await elkTokenContract.connect(account1).approve(elkRouterContract.address, BigNumber.from("1000000000000000000000000"))
-            await elkPairContract.connect(account1).approve(elkIlpStrategyV5.address, BigNumber.from("1000000000000000000000000"))
+            await wavaxTokenContract.connect(account1).approve(elkRouterContract.address, ethers.constants.MaxUint256)
+            await elkTokenContract.connect(account1).approve(elkRouterContract.address, ethers.constants.MaxUint256)
+            await elkPairContract.connect(account1).approve(elkIlpStrategyV5.address, ethers.constants.MaxUint256)
             await elkRouterContract.connect(account1).swapExactTokensForTokens(BigNumber.from("10000000000000000"), BigNumber.from("5000000000000000"), [wavaxTokenContract.address, elkTokenContract.address], account1.address, 1807909162115)
             await elkRouterContract.connect(account1).addLiquidity(wavaxTokenContract.address, elkTokenContract.address, await wavaxTokenContract.balanceOf(account1.address), await elkTokenContract.balanceOf(account1.address), 0, 0, account1.address, 1807909162115)
         })
