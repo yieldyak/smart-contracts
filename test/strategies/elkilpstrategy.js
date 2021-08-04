@@ -155,20 +155,32 @@ describe("elk_ilp_strategy_v5", function () {
             // We deposit into the staking contract our ELP tokens
             await elkIlpStrategyV5.deposit(BigNumber.from((await elkPairContract.balanceOf(owner.address)).toString()))
             // We get the 'totalDeposit' after our deposit into the strategy
-            const totalDepositsAfter = (await elkIlpStrategyV5.totalDeposits()).toString();
+            let totalDepositsAfter = (await elkIlpStrategyV5.totalDeposits()).toString();
 
             // We make sure all balances are correct .
             expect((await elkIlpStrategyV5.balanceOf(owner.address)).toString()).to.equal(amount)
             expect((await stakingContract.balanceOf(elkIlpStrategyV5.address)).toString()).to.equal(amount)
             expect(BigNumber.from(totalDepositsAfter)).gt(BigNumber.from(totalDepositsBefore));
 
+            // Advance the time to 1 week
+            await hre.ethers.provider.send('evm_increaseTime', [7 * 24 * 60 * 60]);
+            await network.provider.send("evm_mine")
+
+            // We check the amount we earned so far
+            expect((await stakingContract.earned(elkIlpStrategyV5.address)).toString()).to.not.equal('0')
+
+
+
             // We withdraw from the strategy all tokens we deposited
             await elkIlpStrategyV5.withdraw(BigNumber.from((await elkIlpStrategyV5.balanceOf(owner.address)).toString()))
+
+            // We get the 'totalDeposit' after withdrawing from the strategy
+            totalDepositsAfter = (await elkIlpStrategyV5.totalDeposits()).toString();
 
             // We check if balances are correct
             expect((await elkIlpStrategyV5.balanceOf(owner.address)).toString()).to.equal("0")
             expect((await stakingContract.balanceOf(elkIlpStrategyV5.address)).toString()).to.equal("0")
-            expect(BigNumber.from(totalDepositsAfter)).gt(BigNumber.from(totalDepositsBefore));
+            expect(totalDepositsAfter).eq(BigNumber.from(totalDepositsBefore));
             expect(await elkPairContract.balanceOf(owner.address)).gt("0");
         })
     })
@@ -205,7 +217,7 @@ describe("elk_ilp_strategy_v5", function () {
             await ethers.provider.send('hardhat_impersonateAccount', ['0xba49776326A1ca54EB4F406C94Ae4e1ebE458E19']);
             const admin = await ethers.provider.getSigner('0xba49776326A1ca54EB4F406C94Ae4e1ebE458E19')
 
-            const stakingcontract = await ethers.getContractAt(staking_contract, elpStakingRewardAddress, admin);
+            const stakingcontract = await ethers.getContractAt('IStakingRewardsILPV2', elpStakingRewardAddress, admin);
             // We set the coverage amount for our Strategy
             await stakingcontract.setCoverageAmount(elkIlpStrategyV5.address, 1000000000000);
 
@@ -216,7 +228,6 @@ describe("elk_ilp_strategy_v5", function () {
 
             // We check the amount of coverage the Strategy contract address currently has
             expect((await stakingContract.coverageOf(elkIlpStrategyV5.address)).toString()).to.equal('1000000000000')
-            // expect((await elk_ilp_strategy_v5.checkCoverage()).toString()).to.equal('1000000000000')
 
             // We should check now if, upon withdrawal, we get a bigger amount of ELP tokens
             // We withdraw from the strategy all tokens we deposited
@@ -254,9 +265,9 @@ describe("elk_ilp_strategy_v5", function () {
         })
 
         it('Withdraw correct elp_balance_account1 of ELK Liquidity token from the strategy', async () => {
-            // We get the elp_balance_account1 of ELK token we have
-            const elp_balance_account1 = (await elkPairContract.balanceOf(owner.address)).toString();
-            const elp_balance_account2 = (await elkPairContract.balanceOf(account1.address)).toString();
+            // We get the elpBalanceAccount1 of ELK token we have
+            const elpBalanceAccount1 = (await elkPairContract.balanceOf(owner.address)).toString();
+            const elpBalanceAccount2 = (await elkPairContract.balanceOf(account1.address)).toString();
             // We get the 'totalDeposit' before we deposit into the strategy
             const totalDepositsBefore = (await elkIlpStrategyV5.totalDeposits()).toString();
 
@@ -267,8 +278,8 @@ describe("elk_ilp_strategy_v5", function () {
             const totalDepositsAfter = (await elkIlpStrategyV5.totalDeposits()).toString();
 
             // We check all balances
-            expect((await elkIlpStrategyV5.balanceOf(owner.address)).toString()).to.equal(elp_balance_account1)
-            expect((await elkIlpStrategyV5.balanceOf(account1.address)).toString()).to.equal(elp_balance_account2)
+            expect((await elkIlpStrategyV5.balanceOf(owner.address)).toString()).to.equal(elpBalanceAccount1)
+            expect((await elkIlpStrategyV5.balanceOf(account1.address)).toString()).to.equal(elpBalanceAccount2)
             expect(BigNumber.from(totalDepositsAfter)).gt(BigNumber.from(totalDepositsBefore));
             expect((await stakingContract.coverageOf(elkIlpStrategyV5.address)).toString()).to.equal("0")
 
@@ -276,8 +287,8 @@ describe("elk_ilp_strategy_v5", function () {
             await ethers.provider.send('hardhat_impersonateAccount', ['0xba49776326A1ca54EB4F406C94Ae4e1ebE458E19']);
             const admin = await ethers.provider.getSigner('0xba49776326A1ca54EB4F406C94Ae4e1ebE458E19')
 
-            const stakingcontract = await ethers.getContractAt(staking_contract, elpStakingRewardAddress, admin);
-            // We set the coverage elp_balance_account1 for our Strategy
+            const stakingcontract = await ethers.getContractAt('IStakingRewardsILPV2', elpStakingRewardAddress, admin);
+            // We set the coverage elpBalanceAccount1 for our Strategy
             await stakingcontract.setCoverageAmount(elkIlpStrategyV5.address, 1000000000000);
 
             await hre.network.provider.request({
@@ -285,11 +296,11 @@ describe("elk_ilp_strategy_v5", function () {
                 params: ["0xba49776326A1ca54EB4F406C94Ae4e1ebE458E19"],
             });
 
-            // We check the elp_balance_account1 of coverage the Strategy contract address currently has
+            // We check the elpBalanceAccount1 of coverage the Strategy contract address currently has
             expect((await stakingContract.coverageOf(elkIlpStrategyV5.address)).toString()).to.equal('1000000000000')
             // expect((await elk_ilp_strategy_v5.checkCoverage()).toString()).to.equal('1000000000000')
 
-            // We should check now if, upon withdrawal, we get a bigger elp_balance_account1 of ELP tokens
+            // We should check now if, upon withdrawal, we get a bigger elpBalanceAccount1 of ELP tokens
             // We withdraw from the strategy all tokens we deposited
             await elkIlpStrategyV5.withdraw(BigNumber.from((await elkIlpStrategyV5.balanceOf(owner.address)).toString()))
             const totalDepositsAfterWithdraw = (await elkIlpStrategyV5.totalDeposits()).toString();
@@ -297,12 +308,12 @@ describe("elk_ilp_strategy_v5", function () {
             // We check if balances are correct
             // Since we have only one depositor, strategy contract and staking contract should both be back at 0
             expect((await elkIlpStrategyV5.balanceOf(owner.address))).eq(0)
-            expect((await elkIlpStrategyV5.balanceOf(account1.address))).eq(elp_balance_account2)
-            expect((await stakingContract.balanceOf(elkIlpStrategyV5.address))).gt(elp_balance_account2)
+            expect((await elkIlpStrategyV5.balanceOf(account1.address))).eq(elpBalanceAccount2)
+            expect((await stakingContract.balanceOf(elkIlpStrategyV5.address))).gt(elpBalanceAccount2)
             // The total deposit should be back to its previous value
             expect(BigNumber.from(totalDepositsAfterWithdraw)).gt(BigNumber.from(totalDepositsBefore));
-            // We should get a slightly bigger elp_balance_account1 of ELP tokens since we got the coverage as well
-            expect(await elkPairContract.balanceOf(owner.address)).gt(elp_balance_account1);
+            // We should get a slightly bigger elpBalanceAccount1 of ELP tokens since we got the coverage as well
+            expect(await elkPairContract.balanceOf(owner.address)).gt(elpBalanceAccount1);
         })
     })
 })

@@ -14,6 +14,7 @@ interface IStakingRewardsILPV2 {
     function withdraw(uint256 amount) external;
     function getReward() external;
     function getCoverage() external;
+    function setCoverageAmount(address addr, uint256 amount) external;
     function exit() external;
     event RewardAdded(uint256 reward);
     event Staked(address indexed user, uint256 amount);
