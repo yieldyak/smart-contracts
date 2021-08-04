@@ -272,14 +272,14 @@ describe("ElkIlpStrategyV5", function () {
             expect(await elkIlpStrategyV5.balanceOf(owner.address)).to.equal(amount)
             expect(await stakingContract.balanceOf(elkIlpStrategyV5.address)).to.equal(amount)
             expect(totalDepositsAfterDeposit).gt(totalDepositsBefore);
-            expect(await stakingContract.coverageOf(elkIlpStrategyV5.address)).to.equal("0")
+            expect(await stakingContract.coverageOf(elkIlpStrategyV5.address)).to.equal(0)
 
             // Advance the time to 1 week so we get some reward
             await hre.ethers.provider.send('evm_increaseTime', [7 * 24 * 60 * 60]);
             await network.provider.send("evm_mine")
 
             // We check the amount we earned so far
-            expect(await stakingContract.earned(elkIlpStrategyV5.address)).to.not.equal('0')
+            expect(await stakingContract.earned(elkIlpStrategyV5.address)).to.not.equal(0)
 
             // We should check now if, upon withdrawal, we get a bigger amount of ELP tokens
             // We withdraw from the strategy all tokens we deposited
