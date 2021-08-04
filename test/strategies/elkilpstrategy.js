@@ -1,14 +1,10 @@
 const {expect} = require("chai")
 const {ethers, run} = require("hardhat")
-const staking_contract = require("../resources/abis/StakingRewardsILPV2.json");
 const {BigNumber} = ethers
 
 const MAX_UINT = "115792089237316195423570985008687907853269984665640564039457584007913129639935";
 
-describe("elk_ilp_strategy_v5", function () {
-
-    const elk_pair = require("../resources/abis/ElkPair.json");
-    const elk_router = require("../resources/abis/ElkRouter.json");
+describe("ElkIlpStrategyV5", function () {
 
     before(async () => {
         await run("compile")
@@ -36,9 +32,9 @@ describe("elk_ilp_strategy_v5", function () {
         account1 = accounts[1]
         account2 = accounts[2]
         
-        elkPairContract = await ethers.getContractAt(elk_pair, depositTokenAddress);
-        elkRouterContract = await ethers.getContractAt(elk_router, elkRouterAddress);
-        stakingContract = await ethers.getContractAt(staking_contract, elpStakingRewardAddress);
+        elkPairContract = await ethers.getContractAt('IPair', depositTokenAddress);
+        elkRouterContract = await ethers.getContractAt('IRouter', elkRouterAddress);
+        stakingContract = await ethers.getContractAt('IStakingRewardsILPV2', elpStakingRewardAddress);
         const elkILPStrategyV5Factory = await ethers.getContractFactory("ELKILPStrategyV5")
         elkIlpStrategyV5 = await elkILPStrategyV5Factory.deploy(
             "ElkIlpStrategy-Test",
@@ -54,8 +50,9 @@ describe("elk_ilp_strategy_v5", function () {
             1
         )
         await elkIlpStrategyV5.deployed()
+
         wavaxTokenContract = await ethers.getContractAt("IWAVAX", wavaxTokenAddress)
-        elkTokenContract = await ethers.getContractAt("IWAVAX", elkTokenAddress)
+        elkTokenContract = await ethers.getContractAt("contracts/interfaces/IERC20.sol:IERC20", elkTokenAddress)
         //makes sure owner has enough WAVAX balance
         if ((await wavaxTokenContract.balanceOf(owner.address)).lt("1000000000000000000000")) {
             wavaxTokenContract.connect(owner).deposit({
