@@ -6,6 +6,32 @@ const MAX_UINT = "11579208923731619542357098500868790785326998466564056403945758
 const ONE_EXPONENT_17 = "10000000000000000";
 const FIVE_EXPONENT_16 = "5000000000000000";
 
+async function setupForTwoAccounts(wavaxTokenContract, elkRouterContract, elkTokenContract, elkPairContract, elkIlpStrategyV5, owner, account1) {
+    // Setup approval for one account
+    await wavaxTokenContract.approve(elkRouterContract.address, ethers.constants.MaxUint256)
+    await elkTokenContract.approve(elkRouterContract.address, ethers.constants.MaxUint256)
+    await elkPairContract.approve(elkIlpStrategyV5.address, ethers.constants.MaxUint256)
+
+    await elkRouterContract.swapExactTokensForTokens(BigNumber.from(ONE_EXPONENT_17), BigNumber.from(FIVE_EXPONENT_16), [wavaxTokenContract.address, elkTokenContract.address], owner.address, 1807909162115)
+    await elkRouterContract.addLiquidity(wavaxTokenContract.address, elkTokenContract.address, await wavaxTokenContract.balanceOf(owner.address), await elkTokenContract.balanceOf(owner.address), 0, 0, owner.address, 1807909162115)
+
+    // Setup approval for the other account
+    await wavaxTokenContract.connect(account1).approve(elkRouterContract.address, ethers.constants.MaxUint256)
+    await elkTokenContract.connect(account1).approve(elkRouterContract.address, ethers.constants.MaxUint256)
+    await elkPairContract.connect(account1).approve(elkIlpStrategyV5.address, ethers.constants.MaxUint256)
+    await elkRouterContract.connect(account1).swapExactTokensForTokens(BigNumber.from(ONE_EXPONENT_17), BigNumber.from(FIVE_EXPONENT_16), [wavaxTokenContract.address, elkTokenContract.address], account1.address, 1807909162115)
+    await elkRouterContract.connect(account1).addLiquidity(wavaxTokenContract.address, elkTokenContract.address, await wavaxTokenContract.balanceOf(account1.address), await elkTokenContract.balanceOf(account1.address), 0, 0, account1.address, 1807909162115)
+}
+
+async function setupForOneAccount(wavaxTokenContract, elkRouterContract, elkTokenContract, elkPairContract, elkIlpStrategyV5, owner) {
+    await wavaxTokenContract.approve(elkRouterContract.address, ethers.constants.MaxUint256);
+    await elkTokenContract.approve(elkRouterContract.address, ethers.constants.MaxUint256);
+    await elkPairContract.approve(elkIlpStrategyV5.address, ethers.constants.MaxUint256);
+
+    await elkRouterContract.swapExactTokensForTokens(BigNumber.from(ONE_EXPONENT_17), BigNumber.from(FIVE_EXPONENT_16), [wavaxTokenContract.address, elkTokenContract.address], owner.address, 1807909162115)
+    await elkRouterContract.addLiquidity(wavaxTokenContract.address, elkTokenContract.address, await wavaxTokenContract.balanceOf(owner.address), await elkTokenContract.balanceOf(owner.address), 0, 0, owner.address, 1807909162115)
+}
+
 describe("ElkIlpStrategyV5", function () {
 
     before(async () => {
@@ -105,13 +131,7 @@ describe("ElkIlpStrategyV5", function () {
     describe("Test deposit functionality", async () => {
 
         beforeEach(async () => {
-            // We approve addresses
-            await wavaxTokenContract.approve(elkRouterContract.address, ethers.constants.MaxUint256);
-            await elkTokenContract.approve(elkRouterContract.address, ethers.constants.MaxUint256);
-            await elkPairContract.approve(elkIlpStrategyV5.address, ethers.constants.MaxUint256);
-
-            await elkRouterContract.swapExactTokensForTokens(BigNumber.from(ONE_EXPONENT_17), BigNumber.from(FIVE_EXPONENT_16), [wavaxTokenContract.address, elkTokenContract.address], owner.address, 1807909162115)
-            await elkRouterContract.addLiquidity(wavaxTokenContract.address, elkTokenContract.address, await wavaxTokenContract.balanceOf(owner.address), await elkTokenContract.balanceOf(owner.address), 0, 0, owner.address, 1807909162115)
+            await setupForOneAccount(wavaxTokenContract, elkRouterContract, elkTokenContract, elkPairContract, elkIlpStrategyV5, owner);
         })
 
         it('Deposit correct amount of ELK Liquidity token into the strategy', async () => {
@@ -137,12 +157,7 @@ describe("ElkIlpStrategyV5", function () {
 
     describe("Test withdraw functionality", async () => {
         beforeEach(async () => {
-            await wavaxTokenContract.approve(elkRouterContract.address, ethers.constants.MaxUint256);
-            await elkTokenContract.approve(elkRouterContract.address, ethers.constants.MaxUint256);
-            await elkPairContract.approve(elkIlpStrategyV5.address, ethers.constants.MaxUint256);
-
-            await elkRouterContract.swapExactTokensForTokens(BigNumber.from(ONE_EXPONENT_17), BigNumber.from(FIVE_EXPONENT_16), [wavaxTokenContract.address, elkTokenContract.address], owner.address, 1807909162115)
-            await elkRouterContract.addLiquidity(wavaxTokenContract.address, elkTokenContract.address, await wavaxTokenContract.balanceOf(owner.address), await elkTokenContract.balanceOf(owner.address), 0, 0, owner.address, 1807909162115)
+            await setupForOneAccount(wavaxTokenContract, elkRouterContract, elkTokenContract, elkPairContract, elkIlpStrategyV5, owner);
         })
 
         it('Withdraw correctly our ELP tokens from the Strategy', async () => {
@@ -168,8 +183,6 @@ describe("ElkIlpStrategyV5", function () {
             // We check the amount we earned so far
             expect((await stakingContract.earned(elkIlpStrategyV5.address)).toString()).to.not.equal('0')
 
-
-
             // We withdraw from the strategy all tokens we deposited
             await elkIlpStrategyV5.withdraw(BigNumber.from((await elkIlpStrategyV5.balanceOf(owner.address)).toString()))
 
@@ -187,12 +200,7 @@ describe("ElkIlpStrategyV5", function () {
     describe("Test coverage on withdraw - only one depositor", async () => {
 
         beforeEach(async () => {
-            await wavaxTokenContract.approve(elkRouterContract.address, ethers.constants.MaxUint256);
-            await elkTokenContract.approve(elkRouterContract.address, ethers.constants.MaxUint256);
-            await elkPairContract.approve(elkIlpStrategyV5.address, ethers.constants.MaxUint256);
-
-            await elkRouterContract.swapExactTokensForTokens(BigNumber.from(ONE_EXPONENT_17), BigNumber.from(FIVE_EXPONENT_16), [wavaxTokenContract.address, elkTokenContract.address], owner.address, 1807909162115)
-            await elkRouterContract.addLiquidity(wavaxTokenContract.address, elkTokenContract.address, await wavaxTokenContract.balanceOf(owner.address), await elkTokenContract.balanceOf(owner.address), 0, 0, owner.address, 1807909162115)
+            await setupForOneAccount(wavaxTokenContract, elkRouterContract, elkTokenContract, elkPairContract, elkIlpStrategyV5, owner);
         })
 
         it('Withdraw correct amount of ELK Liquidity token from the strategy', async () => {
@@ -244,23 +252,50 @@ describe("ElkIlpStrategyV5", function () {
         })
     })
 
+    describe("Test reinvesting - two depositors", async () => {
+
+        beforeEach(async () => {
+            await setupForTwoAccounts(wavaxTokenContract, elkRouterContract, elkTokenContract, elkPairContract, elkIlpStrategyV5, owner, account1);
+        })
+
+        it('Reinvest correct amount for 2 depositors', async () => {
+            // We get the amount of ELK token we have
+            const amount = (await elkPairContract.balanceOf(owner.address)).toString();
+            // We get the 'totalDeposit' before we deposit into the strategy
+            const totalDepositsBefore = (await elkIlpStrategyV5.totalDeposits()).toString();
+
+            // We deposit into the staking contract our ELP tokens
+            await elkIlpStrategyV5.deposit(BigNumber.from((await elkPairContract.balanceOf(owner.address)).toString()))
+            // We get the 'totalDeposit' after our deposit into the strategy
+            const totalDepositsAfterDeposit = (await elkIlpStrategyV5.totalDeposits()).toString();
+
+            // We check all balances
+            expect((await elkIlpStrategyV5.balanceOf(owner.address)).toString()).to.equal(amount)
+            expect((await stakingContract.balanceOf(elkIlpStrategyV5.address)).toString()).to.equal(amount)
+            expect(BigNumber.from(totalDepositsAfterDeposit)).gt(BigNumber.from(totalDepositsBefore));
+            expect((await stakingContract.coverageOf(elkIlpStrategyV5.address)).toString()).to.equal("0")
+
+            // Advance the time to 1 week so we get some reward
+            await hre.ethers.provider.send('evm_increaseTime', [7 * 24 * 60 * 60]);
+            await network.provider.send("evm_mine")
+
+            // We check the amount we earned so far
+            expect((await stakingContract.earned(elkIlpStrategyV5.address)).toString()).to.not.equal('0')
+
+            // We should check now if, upon withdrawal, we get a bigger amount of ELP tokens
+            // We withdraw from the strategy all tokens we deposited
+            await elkIlpStrategyV5.reinvest()
+            const totalDepositsAfterReinvest = (await elkIlpStrategyV5.totalDeposits()).toString();
+
+            // The total deposit should be back to its previous value
+            expect(BigNumber.from(totalDepositsAfterReinvest)).gt(BigNumber.from(totalDepositsAfterDeposit));
+        })
+    })
+
     describe("Test coverage on withdraw - two depositor", async () => {
 
         beforeEach(async () => {
-            // Setup approval for one account
-            await wavaxTokenContract.approve(elkRouterContract.address, ethers.constants.MaxUint256)
-            await elkTokenContract.approve(elkRouterContract.address, ethers.constants.MaxUint256)
-            await elkPairContract.approve(elkIlpStrategyV5.address, ethers.constants.MaxUint256)
-
-            await elkRouterContract.swapExactTokensForTokens(BigNumber.from(ONE_EXPONENT_17), BigNumber.from(FIVE_EXPONENT_16), [wavaxTokenContract.address, elkTokenContract.address], owner.address, 1807909162115)
-            await elkRouterContract.addLiquidity(wavaxTokenContract.address, elkTokenContract.address, await wavaxTokenContract.balanceOf(owner.address), await elkTokenContract.balanceOf(owner.address), 0, 0, owner.address, 1807909162115)
-
-            // Setup approval for the other account
-            await wavaxTokenContract.connect(account1).approve(elkRouterContract.address, ethers.constants.MaxUint256)
-            await elkTokenContract.connect(account1).approve(elkRouterContract.address, ethers.constants.MaxUint256)
-            await elkPairContract.connect(account1).approve(elkIlpStrategyV5.address, ethers.constants.MaxUint256)
-            await elkRouterContract.connect(account1).swapExactTokensForTokens(BigNumber.from(ONE_EXPONENT_17), BigNumber.from(FIVE_EXPONENT_16), [wavaxTokenContract.address, elkTokenContract.address], account1.address, 1807909162115)
-            await elkRouterContract.connect(account1).addLiquidity(wavaxTokenContract.address, elkTokenContract.address, await wavaxTokenContract.balanceOf(account1.address), await elkTokenContract.balanceOf(account1.address), 0, 0, account1.address, 1807909162115)
+            await setupForTwoAccounts(wavaxTokenContract, elkRouterContract, elkTokenContract, elkPairContract, elkIlpStrategyV5, owner, account1);
         })
 
         it('Withdraw correct elp_balance_account1 of ELK Liquidity token from the strategy', async () => {
