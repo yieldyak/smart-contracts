@@ -245,7 +245,7 @@ describe("ElkIlpStrategyV5", function () {
             expect((await elkIlpStrategyV5.balanceOf(owner.address))).eq(0)
             expect((await stakingContract.balanceOf(elkIlpStrategyV5.address))).eq(0)
             // The total deposit should be back to its previous value
-            expect(BigNumber.from(totalDepositsAfterWithdraw)).eq(BigNumber.from(totalDepositsBefore));
+            expect(totalDepositsAfterWithdraw).eq(totalDepositsBefore);
             // We should get a slightly bigger amount of ELP tokens since we got the coverage as well
             expect(await elkPairContract.balanceOf(owner.address)).gt(amount);
         })
@@ -271,7 +271,7 @@ describe("ElkIlpStrategyV5", function () {
             // We check all balances
             expect(await elkIlpStrategyV5.balanceOf(owner.address)).to.equal(amount)
             expect(await stakingContract.balanceOf(elkIlpStrategyV5.address)).to.equal(amount)
-            expect(totalDepositsAfterDeposit).gt(BigNumber.from(totalDepositsBefore));
+            expect(totalDepositsAfterDeposit).gt(totalDepositsBefore);
             expect(await stakingContract.coverageOf(elkIlpStrategyV5.address)).to.equal("0")
 
             // Advance the time to 1 week so we get some reward
@@ -343,7 +343,7 @@ describe("ElkIlpStrategyV5", function () {
             expect((await elkIlpStrategyV5.balanceOf(account1.address))).eq(elpBalanceAccount2)
             expect((await stakingContract.balanceOf(elkIlpStrategyV5.address))).gt(elpBalanceAccount2)
             // The total deposit should be back to its previous value
-            expect(BigNumber.from(totalDepositsAfterWithdraw)).gt(BigNumber.from(totalDepositsBefore));
+            expect(totalDepositsAfterWithdraw).gt(totalDepositsBefore);
             // We should get a slightly bigger elpBalanceAccount1 of ELP tokens since we got the coverage as well
             expect(await elkPairContract.balanceOf(owner.address)).gt(elpBalanceAccount1);
         })
