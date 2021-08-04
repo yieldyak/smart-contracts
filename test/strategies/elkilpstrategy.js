@@ -52,7 +52,7 @@ describe("ElkIlpStrategyV5", function () {
         await elkIlpStrategyV5.deployed()
 
         wavaxTokenContract = await ethers.getContractAt("IWAVAX", wavaxTokenAddress)
-        elkTokenContract = await ethers.getContractAt("contracts/interfaces/IERC20.sol:IERC20", elkTokenAddress)
+        elkTokenContract = await ethers.getContractAt("IElkERC20", elkTokenAddress)
         //makes sure owner has enough WAVAX balance
         if ((await wavaxTokenContract.balanceOf(owner.address)).lt("1000000000000000000000")) {
             wavaxTokenContract.connect(owner).deposit({
