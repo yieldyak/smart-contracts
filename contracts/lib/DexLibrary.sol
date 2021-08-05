@@ -5,7 +5,7 @@ import "./SafeMath.sol";
 import "../interfaces/IPair.sol";
 import "../interfaces/IWAVAX.sol";
 
-library DexInteractionHandler {
+library DexLibrary {
     using SafeMath for uint;
     bytes private constant zeroBytes = new bytes(0);
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
@@ -31,7 +31,7 @@ library DexInteractionHandler {
         return amountOut2 > amountOut1 ? amountOut2 : amountOut1;
     }
 
-    function checkSwapPairCompatibility(IPair pair, address tokenA, address tokenB) internal pure returns(bool) {
+    function checkSwapPairCompatibility(IPair pair, address tokenA, address tokenB) internal pure returns (bool) {
         return (tokenA == pair.token0() || tokenA == pair.token1()) && (tokenB == pair.token0() || tokenB == pair.token1()) && tokenA != tokenB;
     }
 
@@ -106,7 +106,7 @@ library DexInteractionHandler {
      * @param tokenB address
      * @return sorted tokens
      */
-    function sortTokens(address tokenA, address tokenB) private pure returns (address, address) {
+    function sortTokens(address tokenA, address tokenB) internal pure returns (address, address) {
         return tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
     }
 
@@ -118,7 +118,7 @@ library DexInteractionHandler {
      * @param reserveOut size of output asset reserve
      * @return maximum output amount
      */
-    function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) private pure returns (uint) {
+    function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) internal pure returns (uint) {
         uint amountInWithFee = amountIn.mul(997);
         uint numerator = amountInWithFee.mul(reserveOut);
         uint denominator = reserveIn.mul(1000).add(amountInWithFee);
@@ -132,7 +132,7 @@ library DexInteractionHandler {
      * @param to recipient address
      * @param value amount
      */
-    function safeTransfer(address token, address to, uint256 value) private {
+    function safeTransfer(address token, address to, uint256 value) internal {
         require(IERC20(token).transfer(to, value), 'Transferring: TRANSFER_FROM_FAILED');
     }
 }
