@@ -5,8 +5,6 @@ import "../YakStrategy.sol";
 import "../interfaces/IStakingRewards.sol";
 import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
-import "../lib/DexLibrary.sol";
-import "../lib/DexLibrary.sol";
 
 /**
  * @notice Pool2 strategy for StakingRewards
