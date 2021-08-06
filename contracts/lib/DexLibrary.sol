@@ -10,7 +10,6 @@ library DexLibrary {
     bytes private constant zeroBytes = new bytes(0);
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
 
-
     /**
      * @notice Swap directly through a Pair
      * @param amountIn input amount
@@ -48,23 +47,23 @@ library DexLibrary {
      * @param amount reward tokens
      * @return deposit tokens
      */
-    function convertWAVAXToDepositTokens(uint amount, address depositToken, IPair swapPairToken0, IPair swapPairToken1) internal returns (uint, uint) {
+    function convertRewardTokensToDepositTokens(uint amount, address rewardToken, address depositToken, IPair swapPairToken0, IPair swapPairToken1) internal returns (uint) {
         uint amountIn = amount.div(2);
-        require(amountIn > 0, "DexInteractionHandler::_convertRewardTokensToDepositTokens");
+        require(amountIn > 0, "DexLibrary::_convertRewardTokensToDepositTokens");
 
         address token0 = IPair(depositToken).token0();
         uint amountOutToken0 = amountIn;
-        if (address(WAVAX) != token0) {
-            amountOutToken0 = swap(amountIn, address(WAVAX), token0, swapPairToken0);
+        if (rewardToken != token0) {
+            amountOutToken0 = DexLibrary.swap(amountIn, rewardToken, token0, swapPairToken0);
         }
 
         address token1 = IPair(depositToken).token1();
         uint amountOutToken1 = amountIn;
-        if (address(WAVAX) != token1) {
-            amountOutToken1 = swap(amountIn, address(WAVAX), token1, swapPairToken1);
+        if (rewardToken != token1) {
+            amountOutToken1 = DexLibrary.swap(amountIn, rewardToken, token1, swapPairToken1);
         }
 
-        return (amountOutToken0, amountOutToken1);
+        return DexLibrary.addLiquidity(depositToken, amountOutToken0, amountOutToken1);
     }
 
     /**
@@ -133,6 +132,6 @@ library DexLibrary {
      * @param value amount
      */
     function safeTransfer(address token, address to, uint256 value) internal {
-        require(IERC20(token).transfer(to, value), 'Transferring: TRANSFER_FROM_FAILED');
+        require(IERC20(token).transfer(to, value), "DexLibrary::TRANSFER_FROM_FAILED");
     }
 }

@@ -5,6 +5,8 @@ import "../YakStrategy.sol";
 import "../interfaces/IStakingRewards.sol";
 import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
+import "../lib/DexLibrary.sol";
+import "../lib/DexLibrary.sol";
 
 /**
  * @notice Pool2 strategy for StakingRewards
@@ -153,8 +155,12 @@ contract DexStrategyV6 is YakStrategy {
             _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
         }
 
-        uint depositTokenAmount = _convertRewardTokensToDepositTokens(
-            amount.sub(devFee).sub(adminFee).sub(reinvestFee)
+        uint depositTokenAmount = DexLibrary.convertRewardTokensToDepositTokens(
+            amount.sub(devFee).sub(adminFee).sub(reinvestFee),
+            address(rewardToken),
+            address(depositToken),
+            swapPairToken0,
+            swapPairToken1
         );
 
         _stakeDepositTokens(depositTokenAmount);
@@ -179,31 +185,6 @@ contract DexStrategyV6 is YakStrategy {
         require(IERC20(token).transfer(to, value), 'DexStrategyV6::TRANSFER_FROM_FAILED');
     }
 
-    /**
-     * @notice Converts reward tokens to deposit tokens
-     * @dev No price checks enforced
-     * @param amount reward tokens
-     * @return deposit tokens
-     */
-    function _convertRewardTokensToDepositTokens(uint amount) private returns (uint) {
-        uint amountIn = amount.div(2);
-        require(amountIn > 0, "DexStrategyV6::_convertRewardTokensToDepositTokens");
-
-        address token0 = IPair(address(depositToken)).token0();
-        uint amountOutToken0 = amountIn;
-        if (address(rewardToken) != token0) {
-            amountOutToken0 = DexLibrary.swap(amountIn, address(rewardToken), token0, swapPairToken0);
-        }
-
-        address token1 = IPair(address(depositToken)).token1();
-        uint amountOutToken1 = amountIn;
-        if (address(rewardToken) != token1) {
-            amountOutToken1 = DexLibrary.swap(amountIn, address(rewardToken), token1, swapPairToken1);
-        }
-
-        return DexLibrary.addLiquidity(address(depositToken), amountOutToken0, amountOutToken1);
-    }
-    
     function checkReward() public override view returns (uint) {
         return stakingContract.earned(address(this));
     }

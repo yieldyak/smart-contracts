@@ -208,11 +208,13 @@ contract JoeStrategyV2 is YakStrategy {
             _safeTransfer(address(WAVAX), msg.sender, reinvestFee);
         }
 
-        (uint amountOutToken0, uint amountOutToken1) = DexLibrary.convertWAVAXToDepositTokens(
-            amount.sub(devFee).sub(adminFee).sub(reinvestFee), address(depositToken), swapPairToken0, swapPairToken1
+        uint depositTokenAmount = DexLibrary.convertRewardTokensToDepositTokens(
+            amount.sub(devFee).sub(adminFee).sub(reinvestFee),
+            address(WAVAX),
+            address(depositToken),
+            swapPairToken0,
+            swapPairToken1
         );
-
-        uint depositTokenAmount = DexLibrary.addLiquidity(address(depositToken), amountOutToken0, amountOutToken1);
 
         _stakeDepositTokens(depositTokenAmount);
         totalDeposits = totalDeposits.add(depositTokenAmount);
