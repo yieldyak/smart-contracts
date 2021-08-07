@@ -8,7 +8,7 @@ import "../interfaces/IRouter.sol";
 import "../interfaces/IPair.sol";
 
 /**
- * @notice Single asset strategy for BAMBOO
+ * @notice Single asset strategy for Joe
  */
 contract CompoundingJoe is YakStrategy {
   using SafeMath for uint;
