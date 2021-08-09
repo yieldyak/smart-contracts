@@ -75,7 +75,7 @@ module.exports = {
       chainId: 43114,
       gasPrice: 225000000000,
       url: AVALANCHE_MAINNET_URL,
-      seeds: [
+      accounts: [
         PK_USER,
         PK_OWNER
       ]
@@ -84,7 +84,7 @@ module.exports = {
       chainId: 43113,
       gasPrice: 225000000000,
       url: AVALANCHE_FUJI_URL,
-      seeds: [
+      accounts: [
         PK_TEST
       ]
     },
