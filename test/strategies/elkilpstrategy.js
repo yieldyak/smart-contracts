@@ -225,7 +225,7 @@ describe("ElkIlpStrategyV5", function () {
         })
     })
 
-    describe("Test reinvesting - two depositors", async () => {
+    describe("Test reinvesting - two depositors - without coverage", async () => {
 
         beforeEach(async () => {
             await setupForTwoAccounts(wavaxTokenContract, elkRouterContract, elkTokenContract, elkPairContract, elkIlpStrategyV5, owner, account1);
@@ -254,6 +254,52 @@ describe("ElkIlpStrategyV5", function () {
 
             // We check the amount we earned so far
             expect(await stakingContract.earned(elkIlpStrategyV5.address)).to.not.equal(0)
+
+            // We should check now if, upon withdrawal, we get a bigger amount of ELP tokens
+            // We withdraw from the strategy all tokens we deposited
+            await elkIlpStrategyV5.reinvest()
+            const totalDepositsAfterReinvest = await elkIlpStrategyV5.totalDeposits()
+
+            // The total deposit should be back to its previous value
+            expect(totalDepositsAfterReinvest).gt(totalDepositsAfterDeposit)
+        })
+    })
+
+    describe("Test reinvesting - two depositors - with coverage", async () => {
+
+        beforeEach(async () => {
+            await setupForTwoAccounts(wavaxTokenContract, elkRouterContract, elkTokenContract, elkPairContract, elkIlpStrategyV5, owner, account1);
+        })
+
+        it('Reinvest correct amount for 2 depositors', async () => {
+            // We get the amount of ELK token we have
+            const amount = await elkPairContract.balanceOf(owner.address)
+            // We get the 'totalDeposit' before we deposit into the strategy
+            const totalDepositsBefore = await elkIlpStrategyV5.totalDeposits()
+
+            // We deposit into the staking contract our ELP tokens
+            await elkIlpStrategyV5.deposit(await elkPairContract.balanceOf(owner.address))
+            // We get the 'totalDeposit' after our deposit into the strategy
+            const totalDepositsAfterDeposit = await elkIlpStrategyV5.totalDeposits()
+
+            // We check all balances
+            expect(await elkIlpStrategyV5.balanceOf(owner.address)).to.equal(amount)
+            expect(await stakingContract.balanceOf(elkIlpStrategyV5.address)).to.equal(amount)
+            expect(totalDepositsAfterDeposit).gt(totalDepositsBefore);
+            expect(await stakingContract.coverageOf(elkIlpStrategyV5.address)).to.equal(0)
+
+            // We impersonate the 'owner' of the WAVAX-ELK StakingRewardsILP contract
+            await ethers.provider.send('hardhat_impersonateAccount', ['0xba49776326A1ca54EB4F406C94Ae4e1ebE458E19']);
+            const admin = await ethers.provider.getSigner('0xba49776326A1ca54EB4F406C94Ae4e1ebE458E19')
+
+            const stakingcontract = await ethers.getContractAt('IStakingRewardsILPV2', elpStakingRewardAddress, admin);
+            // We set the coverage elpBalanceAccount1 for our Strategy
+            await stakingcontract.setCoverageAmount(elkIlpStrategyV5.address, 1000000000000);
+
+            await hre.network.provider.request({
+                method: "hardhat_stopImpersonatingAccount",
+                params: ["0xba49776326A1ca54EB4F406C94Ae4e1ebE458E19"],
+            });
 
             // We should check now if, upon withdrawal, we get a bigger amount of ELP tokens
             // We withdraw from the strategy all tokens we deposited

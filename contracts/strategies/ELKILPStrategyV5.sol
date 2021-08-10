@@ -4,12 +4,11 @@ pragma solidity ^0.7.0;
 import "../YakStrategy.sol";
 import "../interfaces/IStakingRewardsILPV2.sol";
 import "../interfaces/IPair.sol";
-import "../ELkILPStrategy.sol";
 
 /**
  * @notice Pool2 strategy for StakingRewards
  */
-contract ELKILPStrategyV5 is ElkILPStrategy {
+contract ELKILPStrategyV5 is YakStrategy {
     using SafeMath for uint;
 
     IStakingRewardsILPV2 public stakingContract;
@@ -97,6 +96,7 @@ contract ELKILPStrategyV5 is ElkILPStrategy {
         require(DEPOSITS_ENABLED == true, "ELKILPStrategy::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
             uint unclaimedRewards = checkReward();
+            unclaimedRewards.add(checkCoverage());
             if (unclaimedRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
                 _reinvest(unclaimedRewards);
             }
@@ -110,11 +110,10 @@ contract ELKILPStrategyV5 is ElkILPStrategy {
     }
 
     function withdraw(uint amount) external override {
-        uint coverage = checkCoverage();
-
-        if ( coverage > 0 ) {
-            stakingContract.getCoverage();
-            _reinvest(coverage);
+        uint unclaimedRewards = checkReward();
+        unclaimedRewards.add(checkCoverage());
+        if (unclaimedRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
+            _reinvest(unclaimedRewards);
         }
 
         uint depositTokenAmount = getDepositTokensForShares(amount); //
@@ -134,6 +133,7 @@ contract ELKILPStrategyV5 is ElkILPStrategy {
 
     function reinvest() external override onlyEOA {
         uint unclaimedRewards = checkReward();
+        unclaimedRewards.add(checkCoverage());
         require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "ELKILPStrategy::reinvest");
         _reinvest(unclaimedRewards);
     }
@@ -145,6 +145,7 @@ contract ELKILPStrategyV5 is ElkILPStrategy {
      */
     function _reinvest(uint amount) private {
         stakingContract.getReward();
+        stakingContract.getCoverage();
 
         uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
@@ -296,7 +297,7 @@ contract ELKILPStrategyV5 is ElkILPStrategy {
         return stakingContract.earned(address(this));
     }
 
-    function checkCoverage() public override view returns (uint) {
+    function checkCoverage() public view returns (uint) {
         return stakingContract.coverageOf(address(this));
     }
 
