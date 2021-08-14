@@ -43,6 +43,7 @@ contract YakTimelockForDexStrategyV4 {
     mapping(address => address) public pendingTokenAddressesToRecover;
     mapping(address => uint) public pendingTokenAmountsToRecover;
     mapping(address => uint) public pendingAVAXToRecover;
+    mapping(PermissionedTimelockFunctions => address[]) public permissionedFunctionOwners;
 
     event grant(PermissionedTimelockFunctions _ptf, address indexed account);
     event revoke(PermissionedTimelockFunctions _ptf, address indexed account);
@@ -98,7 +99,6 @@ contract YakTimelockForDexStrategyV4 {
     }
 
     mapping(PermissionedTimelockFunctions => mapping(address => bool)) public authorizedAddressess;
-
     mapping(address => mapping(Functions => uint)) public timelock;
 
     constructor() {
@@ -112,8 +112,8 @@ contract YakTimelockForDexStrategyV4 {
      * @notice Restrict to `emergencyWithdraw`
      * @dev To change, call revokeRole with emergencyWithdraw_ADMIN
      */
-    modifier hasPermission (PermissionedTimelockFunctions _fn, address account) {
-        require(_hasAccess(_fn, account), "Caller is not emergencyWithdraw_ADMIN");
+    modifier hasPermission (PermissionedTimelockFunctions _ptf, address account) {
+        require( (authorizedAddressess[_ptf][account]) ||  msg.sender == manager, "Caller doesnt have permission");
         _;
     }
 
@@ -158,20 +158,46 @@ contract YakTimelockForDexStrategyV4 {
         timelock[_strategy][_fn] = 0;
     }
 
-    function _hasAccess(PermissionedTimelockFunctions _ptf, address account) internal returns (bool) {
-        return authorizedAddressess[_ptf][account];
-    }
-
+    /**
+     * @notice Grant access for a time lock method for an account
+     * @param _ptf PermissionedTimelockFunctions enum value for the desired method
+     * @param account address to grant the access
+     */
     function grantAccountAccess(PermissionedTimelockFunctions _ptf, address account) external onlyManager {
         require(!authorizedAddressess[_ptf][account], "Account has already been given access");
         emit grant(_ptf,account);
         authorizedAddressess[_ptf][account] = true;
+        permissionedFunctionOwners[_ptf].push(account);
     }
 
+    /**
+     * @notice Revokes access for a time lock method for an account
+     * @param _ptf PermissionedTimelockFunctions enum value for the desired method
+     * @param account address to revoke the access
+     */
     function revokeAccountAccess(PermissionedTimelockFunctions _ptf, address account) external onlyManager {
-        require(!authorizedAddressess[_ptf][account], "Account has no access");
+        require(authorizedAddressess[_ptf][account], "Account has no access");
         emit revoke(_ptf,account);
+        uint accountIndex = permissionedFunctionOwners[_ptf].length+1;
+        for(uint i = 0; i < permissionedFunctionOwners[_ptf].length; i++) {
+            if (permissionedFunctionOwners[_ptf][i] == account) {
+                accountIndex = i;
+                break;
+            }
+        }
+        require(accountIndex < permissionedFunctionOwners[_ptf].length, "Account not found");
         authorizedAddressess[_ptf][account] = false;
+        _removeElement(_ptf, accountIndex);
+    }
+
+    /**
+     * @notice returns a list of addressess that have grant access to a timelock function 
+     * @dev The timelock contract may receive assets from both revenue and asset recovery.
+     * @dev The sweep function is NOT timelocked, because recovered assets must go through separate timelock functions.
+     * @param _ptf PermissionedTimelockFunctions enum value for the desired method
+     */
+    function listofGrantedAccounts(PermissionedTimelockFunctions _ptf) external view onlyManager returns (address [] memory) {
+        return permissionedFunctionOwners[_ptf];
     }
 
     /**
@@ -181,7 +207,7 @@ contract YakTimelockForDexStrategyV4 {
      * @param tokenAddress address
      * @param tokenAmount amount
      */
-    function sweepTokens(address tokenAddress, uint tokenAmount) external onlyFeeCollector {
+    function sweepTokens(address tokenAddress, uint tokenAmount) external hasPermission (PermissionedTimelockFunctions.sweepTokens,msg.sender) {
         require(tokenAmount > 0, "YakTimelockManager::sweepTokens, amount too low");
         require(IERC20(tokenAddress).transfer(msg.sender, tokenAmount), "YakTimelockManager::sweepTokens, transfer failed");
         emit Sweep(tokenAddress, tokenAmount);
@@ -193,7 +219,7 @@ contract YakTimelockForDexStrategyV4 {
      * @dev The sweep function is NOT timelocked, because recovered assets must go through separate timelock functions.
      * @param amount amount
      */
-    function sweepAVAX(uint amount) external onlyFeeCollector {
+    function sweepAVAX(uint amount) external hasPermission (PermissionedTimelockFunctions.sweepAVAX,msg.sender) {
         require(amount > 0, 'YakTimelockManager::sweepAVAX, amount too low');
         msg.sender.transfer(amount);
         emit Sweep(address(0), amount);
@@ -208,7 +234,7 @@ contract YakTimelockForDexStrategyV4 {
      * @param _strategy address
      * @param _pendingOwner new value
      */
-    function proposeOwner(address _strategy, address _pendingOwner) external hasPermission (PermissionedTimelockFunctions(2),msg.sender)
+    function proposeOwner(address _strategy, address _pendingOwner) external onlyManager
     setTimelock(_strategy, Functions.transferOwnership, timelockLengthForOwnershipTransfer) {
         pendingOwners[_strategy] = _pendingOwner;
         emit ProposeOwner(_strategy, _pendingOwner, timelock[_strategy][Functions.transferOwnership]);
@@ -233,7 +259,7 @@ contract YakTimelockForDexStrategyV4 {
      * @param _strategy address
      * @param _pendingAdminFee new value
      */
-    function proposeAdminFee(address _strategy, uint _pendingAdminFee) external hasPermission(PermissionedTimelockFunctions(3), msg.sender) 
+    function proposeAdminFee(address _strategy, uint _pendingAdminFee) external hasPermission(PermissionedTimelockFunctions.proposeAdminFee, msg.sender) 
     setTimelock(_strategy, Functions.updateAdminFee, timelockLengthForFeeChanges) {
         pendingAdminFees[_strategy] = _pendingAdminFee;
         emit ProposeAdminFee(_strategy, _pendingAdminFee, timelock[_strategy][Functions.updateAdminFee]);
@@ -258,7 +284,7 @@ contract YakTimelockForDexStrategyV4 {
      * @param _strategy address
      * @param _pendingDevFee new value
      */
-    function proposeDevFee(address _strategy, uint _pendingDevFee) external hasPermission (PermissionedTimelockFunctions(4),msg.sender)
+    function proposeDevFee(address _strategy, uint _pendingDevFee) external hasPermission (PermissionedTimelockFunctions.proposeDevFee,msg.sender)
     setTimelock(_strategy, Functions.updateDevFee, timelockLengthForFeeChanges) {
         pendingDevFees[_strategy] = _pendingDevFee;
         emit ProposeDevFee(_strategy, _pendingDevFee, timelock[_strategy][Functions.updateDevFee]);
@@ -283,7 +309,7 @@ contract YakTimelockForDexStrategyV4 {
      * @param _strategy address
      * @param _pendingReinvestReward new value
      */
-    function proposeReinvestReward(address _strategy, uint _pendingReinvestReward) external onlyManager 
+    function proposeReinvestReward(address _strategy, uint _pendingReinvestReward) external hasPermission (PermissionedTimelockFunctions.proposeReinvestReward,msg.sender) 
     setTimelock(_strategy, Functions.updateReinvestReward, timelockLengthForFeeChanges) {
         pendingReinvestRewards[_strategy] = _pendingReinvestReward;
         emit ProposeReinvestReward(_strategy, _pendingReinvestReward, timelock[_strategy][Functions.updateReinvestReward]);
@@ -309,7 +335,7 @@ contract YakTimelockForDexStrategyV4 {
      * @param _pendingTokenAddressToRecover address
      * @param _pendingTokenAmountToRecover amount
      */
-    function proposeRecoverERC20(address _strategy, address _pendingTokenAddressToRecover, uint _pendingTokenAmountToRecover) external onlyManager 
+    function proposeRecoverERC20(address _strategy, address _pendingTokenAddressToRecover, uint _pendingTokenAmountToRecover) external hasPermission (PermissionedTimelockFunctions.proposeRecoverERC20,msg.sender) 
     setTimelock(_strategy, Functions.recoverERC20, timelockLengthForAssetRecovery) {
         pendingTokenAddressesToRecover[_strategy] = _pendingTokenAddressToRecover;
         pendingTokenAmountsToRecover[_strategy] = _pendingTokenAmountToRecover;
@@ -337,7 +363,7 @@ contract YakTimelockForDexStrategyV4 {
      * @param _strategy address
      * @param _pendingAVAXToRecover amount
      */
-    function proposeRecoverAVAX(address _strategy, uint _pendingAVAXToRecover) external onlyManager 
+    function proposeRecoverAVAX(address _strategy, uint _pendingAVAXToRecover) external hasPermission (PermissionedTimelockFunctions.proposeRecoverAVAX,msg.sender) 
     setTimelock(_strategy, Functions.recoverAVAX, timelockLengthForAssetRecovery) {
         pendingAVAXToRecover[_strategy] = _pendingAVAXToRecover;
         emit ProposeRecovery(_strategy, address(0), _pendingAVAXToRecover, timelock[_strategy][Functions.recoverAVAX]);
@@ -364,7 +390,7 @@ contract YakTimelockForDexStrategyV4 {
      * @param _strategy address
      * @param newValue min tokens
      */
-    function setMinTokensToReinvest(address _strategy, uint newValue) external onlyManager {
+    function setMinTokensToReinvest(address _strategy, uint newValue) external hasPermission (PermissionedTimelockFunctions.setMinTokensToReinvest,msg.sender) {
         IStrategy(_strategy).updateMinTokensToReinvest(newValue);
         emit SetMinTokensToReinvest(_strategy, newValue);
     }
@@ -375,7 +401,7 @@ contract YakTimelockForDexStrategyV4 {
      * @param _strategy address
      * @param newValue max tokens
      */
-    function setMaxTokensToDepositWithoutReinvest(address _strategy, uint newValue) external onlyManager {
+    function setMaxTokensToDepositWithoutReinvest(address _strategy, uint newValue) external hasPermission (PermissionedTimelockFunctions.setMaxTokensToDepositWithoutReinvest,msg.sender) {
         IStrategy(_strategy).updateMaxTokensToDepositWithoutReinvest(newValue);
         emit SetMaxTokensToDepositWithoutReinvest(_strategy, newValue);
     }
@@ -385,7 +411,7 @@ contract YakTimelockForDexStrategyV4 {
      * @param _strategy address
      * @param newValue bool
      */
-    function setDepositsEnabled(address _strategy, bool newValue) external onlyManager {
+    function setDepositsEnabled(address _strategy, bool newValue) external hasPermission (PermissionedTimelockFunctions.setDepositsEnabled,msg.sender) {
         IStrategy(_strategy).updateDepositsEnabled(newValue);
         emit SetDepositsEnabled(_strategy, newValue);
     }
@@ -395,7 +421,7 @@ contract YakTimelockForDexStrategyV4 {
      * @dev Restricted to `manager` to avoid griefing
      * @param _strategy address
      */
-    function emergencyWithdraw(address _strategy) external onlyManager {
+    function emergencyWithdraw(address _strategy) external hasPermission (PermissionedTimelockFunctions.emergencyWithdraw,msg.sender) {
         IStrategy(_strategy).emergencyWithdraw();
         emit EmergencyWithdraw(_strategy);
     }
@@ -407,7 +433,7 @@ contract YakTimelockForDexStrategyV4 {
      * @param minReturnAmountAccepted amount
      * @param disableDeposits bool
      */
-    function rescueDeployedFunds(address _strategy, uint minReturnAmountAccepted, bool disableDeposits) external onlyManager {
+    function rescueDeployedFunds(address _strategy, uint minReturnAmountAccepted, bool disableDeposits) external hasPermission (PermissionedTimelockFunctions.rescueDeployedFunds,msg.sender) {
         IStrategy(_strategy).rescueDeployedFunds(minReturnAmountAccepted, disableDeposits);
         emit EmergencyWithdraw(_strategy);
     }
@@ -417,7 +443,7 @@ contract YakTimelockForDexStrategyV4 {
      * @dev Restricted to `manager` to avoid griefing
      * @param _strategy address
      */
-    function setAllowances(address _strategy) external onlyManager {
+    function setAllowances(address _strategy) external hasPermission (PermissionedTimelockFunctions.setAllowances,msg.sender) {
         IStrategy(_strategy).setAllowances();
         emit SetAllowances(_strategy);
     }
@@ -427,7 +453,7 @@ contract YakTimelockForDexStrategyV4 {
      * @param _strategy address
      * @param depositor address
      */
-    function allowDepositor(address _strategy, address depositor) external onlyManager {
+    function allowDepositor(address _strategy, address depositor) external hasPermission (PermissionedTimelockFunctions.allowDepositor,msg.sender) {
         IStrategy(_strategy).allowDepositor(depositor);
         emit AllowDepositor(_strategy, depositor);
     }
@@ -437,8 +463,16 @@ contract YakTimelockForDexStrategyV4 {
      * @param _strategy address
      * @param depositor address
      */
-    function removeDepositor(address _strategy, address depositor) external onlyManager {
+    function removeDepositor(address _strategy, address depositor) external hasPermission (PermissionedTimelockFunctions.removeDepositor,msg.sender) {
         IStrategy(_strategy).removeDepositor(depositor);
         emit RemoveDepositor(_strategy, depositor);
+    }
+
+    function _removeElement(PermissionedTimelockFunctions _ptf, uint index) internal {
+        if (index >= permissionedFunctionOwners[_ptf].length) return;
+        for (uint i = index; i < permissionedFunctionOwners[_ptf].length - 1; i++){
+            permissionedFunctionOwners[_ptf][i] = permissionedFunctionOwners[_ptf][i+1];
+        }
+        permissionedFunctionOwners[_ptf].pop();
     }
 }
