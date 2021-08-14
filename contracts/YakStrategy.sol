@@ -51,6 +51,14 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
     }
 
     /**
+     * @notice Only called by dev
+     */
+    modifier onlyDev() {
+        require(msg.sender == devAddr, "YakStrategy::onlyDev");
+        _;
+    }
+
+    /**
      * @notice Approve tokens for use in Strategy
      * @dev Should use modifier `onlyOwner` to avoid griefing
      */
@@ -221,8 +229,7 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
      * @notice Update devAddr
      * @param newValue address
      */
-    function updateDevAddr(address newValue) public {
-        require(msg.sender == devAddr);
+    function updateDevAddr(address newValue) public onlyDev {
         emit UpdateDevAddr(devAddr, newValue);
         devAddr = newValue;
     }

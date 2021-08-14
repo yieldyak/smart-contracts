@@ -16,13 +16,13 @@ abstract contract YakERC20 {
     mapping (address => mapping (address => uint256)) internal allowances;
     mapping (address => uint256) internal balances;
 
-    /// keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
+    /// @dev keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
     bytes32 public constant DOMAIN_TYPEHASH = 0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f;
 
-    /// keccak256("1");
+    /// @dev keccak256("1");
     bytes32 public constant VERSION_HASH = 0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6;
 
-    /// keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+    /// @dev keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
     bytes32 public constant PERMIT_TYPEHASH = 0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
 
     mapping(address => uint) public nonces;
