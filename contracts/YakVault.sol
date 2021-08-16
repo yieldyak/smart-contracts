@@ -6,6 +6,7 @@ import "./YakERC20.sol";
 import "./lib/SafeMath.sol";
 import "./lib/Ownable.sol";
 import "./interfaces/IERC20.sol";
+import "./YakRegistry.sol";
 import "./YakStrategy.sol";
 
 /**
@@ -17,6 +18,9 @@ contract YakVault is YakERC20, Ownable {
 
     /// @notice Vault version number
     string public constant version = "0.0.1";
+
+    /// @notice YakRegistry address
+    YakRegistry public yakRegistry;
 
     /// @notice Deposit token that the vault manages
     IERC20 public depositToken;
@@ -42,12 +46,15 @@ contract YakVault is YakERC20, Ownable {
 
     constructor (
         string memory _name,
-        address _depositToken
+        address _depositToken,
+        address _yakRegistry
     ) {
         name = _name;
         depositToken = IERC20(_depositToken);
 
         supportedDepositTokens[_depositToken] = true;
+
+        yakRegistry = YakRegistry(_yakRegistry);
     }
 
     /**
@@ -89,7 +96,7 @@ contract YakVault is YakERC20, Ownable {
     }
 
     /**
-     * @notice Withdraw from strategies
+     * @notice Withdraw from the vault
      * @param amount receipt tokens
      */
     function withdraw(uint amount) external {
@@ -117,7 +124,13 @@ contract YakVault is YakERC20, Ownable {
         emit Sync(totalDeposits, totalSupply);
     }
 
-    function _revokeApproval(address token, address spender) internal {
+    /**
+     * @notice Revoke approval for an anonymosu ERC20 token
+     * @dev Requires token to return true on approve
+     * @param token address
+     * @param spender address
+     */
+    function _revokeApproval(address token, address spender) private {
         require(IERC20(token).approve(spender, 0), "YakVault::revokeApproval");
     }
 
@@ -138,7 +151,7 @@ contract YakVault is YakERC20, Ownable {
      * @param strategy address for new strategy
      */
     function setActiveStrategy(address strategy) public onlyOwner {
-        require(supportedDepositTokens[strategy], "YakVault::setActiveStrategy, not found");
+        require(supportedDepositTokens[strategy] == true, "YakVault::setActiveStrategy, not found");
         require(depositToken.approve(strategy, uint(-1)));
         activeStrategy = strategy;
         emit SetActiveStrategy(strategy);
@@ -147,8 +160,10 @@ contract YakVault is YakERC20, Ownable {
     /**
      * @notice Add a supported strategy and allow deposits
      * @dev Makes light checks for compatible deposit tokens
+     * @param strategy address for new strategy
      */
     function addStrategy(address strategy) public onlyOwner {
+        require(yakRegistry.registeredStrategies(strategy) == true, "YakVault::addStrategy, not registered");
         require(supportedDepositTokens[strategy] == false, "YakVault::addStrategy, already supported");
         require(depositToken == YakStrategy(strategy).depositToken(), "YakVault::addStrategy, not compatible");
         supportedDepositTokens[strategy] = true;
@@ -158,6 +173,7 @@ contract YakVault is YakERC20, Ownable {
 
     /**
      * @notice Remove a supported strategy and revoke approval
+     * @param strategy address for new strategy
      */
     function removeStrategy(address strategy) public onlyOwner {
         require(strategy != activeStrategy, "YakVault::removeStrategy, cannot remove activeStrategy");
@@ -165,28 +181,44 @@ contract YakVault is YakERC20, Ownable {
         require(supportedDepositTokens[strategy] == true, "YakVault::removeStrategy, not supported");
         _revokeApproval(address(depositToken), strategy);
         supportedDepositTokens[strategy] = false;
-        // todo: update array
+        for (uint i = 0; i < supportedStrategies.length; i++) {
+            if (strategy == supportedStrategies[i]) {
+                supportedStrategies[i] = supportedStrategies[supportedStrategies.length - 1];
+                supportedStrategies.pop();
+                break;
+            }
+        }
         emit RemoveStrategy(strategy);
     }
 
+    /**
+     * @notice Owner method for removing funds from strategy (to rebalance, typically)
+     * @param strategy address
+     * @param amount deposit tokens
+     */
     function withdrawFromStrategy(address strategy, uint amount) public onlyOwner {
         uint balanceBefore = depositToken.balanceOf(address(this));
         uint strategyShares = YakStrategy(strategy).getSharesForDepositTokens(amount);
         YakStrategy(strategy).withdraw(strategyShares);
         uint balanceAfter = depositToken.balanceOf(address(this));
         require(balanceAfter > balanceBefore, "YakVault::withdrawFromStrategy");
+        resetTotalDeposits();
     }
 
+    /**
+     * @notice Count deposit tokens deployed in a strategy
+     * @param strategy address
+     * @return amount deposit tokens
+     */
     function getDeployedBalance(address strategy) public view returns (uint) {
-        // todo fallback for old version to totalDeposits
-        uint deployedInStrategy = YakStrategy(strategy).estimateDeployedBalance();
         uint vaultShares = YakStrategy(strategy).balanceOf(address(this));
-        return YakStrategy(strategy).getSharesForDepositTokens(vaultShares);
+        return YakStrategy(strategy).getDepositTokensForShares(vaultShares);
     }
 
     /**
      * @notice Count deposit tokens deployed across supported strategies
      * @dev Does not include deprecated strategies
+     * @return amount deposit tokens
      */
     function estimateDeployedBalances() public view returns (uint) {
         uint deployedFunds = 0;
@@ -194,6 +226,13 @@ contract YakVault is YakERC20, Ownable {
             deployedFunds = deployedFunds.add(getDeployedBalance(supportedStrategies[i]));
         }
         return deployedFunds;
+    }
+
+    function resetTotalDeposits() external {
+        uint liquidBalance = depositToken.balanceOf(address(this));
+        uint deployedBalance = estimateDeployedBalances();
+        totalDeposits = liquidBalance.add(deployedBalance);
+        emit Sync(totalDeposits, totalSupply);
     }
 
     /**
