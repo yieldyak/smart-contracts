@@ -16,6 +16,7 @@ artifacts
 
 .DS_Store
 .vscode
+.mocharc.json
 
 #Localfiles
 deployments/localhost/
