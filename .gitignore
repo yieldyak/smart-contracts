@@ -9,6 +9,8 @@ deprecated
 node_modules
 _scripts
 test
+solcInputs
+flatten
 
 #Hardhat files
 cache

@@ -172,7 +172,7 @@ contract BenqiStrategyV1 is YakStrategyV2 {
     }
 
     function withdraw(uint amount) external override {
-        require(amount > 1e12, "BenqiStrategyV1:: below minimum withdraw");
+        require(amount > minMinting, "BenqiStrategyV1:: below minimum withdraw");
         uint depositTokenAmount = _totalDepositsFresh().mul(amount).div(totalSupply);
         if (depositTokenAmount > 0) {
             _burn(msg.sender, amount);
