@@ -1,23 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.0;
 
-import "../YakStrategyV2.sol";
+import "../YakStrategyV2Payable.sol";
 import "../interfaces/IBenqiUnitroller.sol";
-import "../interfaces/IBenqiERC20Delegator.sol";
+import "../interfaces/IBenqiAVAXDelegator.sol";
 import "../interfaces/IWAVAX.sol";
 
 import "../interfaces/IERC20.sol";
 import "../lib/DexLibrary.sol";
+import "../lib/ReentrancyGuard.sol";
 
-contract BenqiStrategyV1 is YakStrategyV2 {
+contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
     using SafeMath for uint;
 
     IBenqiUnitroller private rewardController;
-    IBenqiERC20Delegator private tokenDelegator;
+    IBenqiAVAXDelegator private tokenDelegator;
     IERC20 private rewardToken0;
-    IERC20 private rewardToken1;
-    IPair private swapPairToken0;
-    IPair private swapPairToken1;
+    IPair private swapPairToken0; // swaps rewardToken0 to WAVAX
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
     uint private leverageLevel;
     uint private leverageBips;
@@ -25,13 +24,10 @@ contract BenqiStrategyV1 is YakStrategyV2 {
 
     constructor (
         string memory _name,
-        address _depositToken,
         address _rewardController,
         address _tokenDelegator,
         address _rewardToken0,
-        address _rewardToken1,
         address _swapPairToken0,
-        address _swapPairToken1,
         address _timelock,
         uint _minMinting,
         uint _leverageLevel,
@@ -42,19 +38,18 @@ contract BenqiStrategyV1 is YakStrategyV2 {
         uint _reinvestRewardBips
     ) {
         name = _name;
-        depositToken = IERC20(_depositToken);
+        depositToken = IERC20(address(0));
         rewardController = IBenqiUnitroller(_rewardController);
-        tokenDelegator = IBenqiERC20Delegator(_tokenDelegator);
+        tokenDelegator = IBenqiAVAXDelegator(_tokenDelegator);
         rewardToken0 = IERC20(_rewardToken0);
-        rewardToken1 = IERC20(_rewardToken1);
-        rewardToken = rewardToken1;
+        rewardToken = IERC20(address(WAVAX));
         minMinting = _minMinting;
         _updateLeverage(_leverageLevel, _leverageBips);
         devAddr = msg.sender;
 
         _enterMarket();
 
-        assignSwapPairSafely(_swapPairToken0, _swapPairToken1);
+        assignSwapPairSafely(_swapPairToken0);
         setAllowances();
         updateMinTokensToReinvest(_minTokensToReinvest);
         updateAdminFee(_adminFeeBips);
@@ -102,9 +97,8 @@ contract BenqiStrategyV1 is YakStrategyV2 {
      * @dev Checks that selected Pairs are valid for trading deposit tokens
      * @dev Assigns values to swapPairToken0 and swapPairToken1
      */
-    function assignSwapPairSafely(address _swapPairToken0, address _swapPairToken1) private {
+    function assignSwapPairSafely(address _swapPairToken0) private {
         require(_swapPairToken0 > address(0), "Swap pair 0 is necessary but not supplied");
-        require(_swapPairToken1 > address(0), "Swap pair 1 is necessary but not supplied");
 
         require(
             address(rewardToken0) == IPair(address(_swapPairToken0)).token0() ||
@@ -113,43 +107,36 @@ contract BenqiStrategyV1 is YakStrategyV2 {
         );
 
         require(
-            address(rewardToken1) == IPair(address(_swapPairToken0)).token0() ||
-            address(rewardToken1) == IPair(address(_swapPairToken0)).token1(),
-            "Swap pair 0 does not match rewardToken1"
-        );
-
-        require(
-            address(depositToken) == IPair(address(_swapPairToken1)).token0() ||
-            address(depositToken) == IPair(address(_swapPairToken1)).token1(),
-            "Swap pair 1 does not match depositToken"
-        );
-
-        require(
-            address(rewardToken1) == IPair(address(_swapPairToken1)).token0() ||
-            address(rewardToken1) == IPair(address(_swapPairToken1)).token1(),
-            "Swap pair 1 does not match rewardToken1"
+            address(WAVAX) == IPair(address(_swapPairToken0)).token0() ||
+            address(WAVAX) == IPair(address(_swapPairToken0)).token1(),
+            "Swap pair 0 does not match WAVAX"
         );
 
         swapPairToken0 = IPair(_swapPairToken0);
-        swapPairToken1 = IPair(_swapPairToken1);
     }
 
     function setAllowances() public override onlyOwner {
-        depositToken.approve(address(tokenDelegator), type(uint256).max);
         tokenDelegator.approve(address(tokenDelegator), type(uint256).max);
     }
 
+    function deposit() external payable override nonReentrant {
+         _deposit(msg.sender, msg.value);
+    }
+
+    function depositFor(address account) external payable override nonReentrant {
+         _deposit(account, msg.value);
+    }
+
     function deposit(uint amount) external override {
-        _deposit(msg.sender, amount);
+        revert();
     }
 
     function depositWithPermit(uint amount, uint deadline, uint8 v, bytes32 r, bytes32 s) external override {
-        depositToken.permit(msg.sender, address(this), amount, deadline, v, r, s);
-        _deposit(msg.sender, amount);
+        revert();
     }
 
     function depositFor(address account, uint amount) external override {
-        _deposit(account, amount);
+        revert();
     }
 
     function _deposit(address account, uint amount) private onlyAllowedDeposits {
@@ -160,7 +147,6 @@ contract BenqiStrategyV1 is YakStrategyV2 {
                 _reinvest(qiRewards, avaxRewards, totalAvaxRewards);
             }
         }
-        require(depositToken.transferFrom(msg.sender, address(this), amount), "BenqiStrategyV1::transfer failed");
         uint depositTokenAmount = amount;
         uint balance = _totalDepositsFresh();
         if (totalSupply.mul(balance) > 0) {
@@ -171,13 +157,14 @@ contract BenqiStrategyV1 is YakStrategyV2 {
         emit Deposit(account, amount);
     }
 
-    function withdraw(uint amount) external override {
-        require(amount > minMinting, "BenqiStrategyV1:: below minimum withdraw");
+    function withdraw(uint amount) external override nonReentrant {
+        require(amount > minMinting, "BenqiStrategyV1::below minimum withdraw");
         uint depositTokenAmount = _totalDepositsFresh().mul(amount).div(totalSupply);
         if (depositTokenAmount > 0) {
             _burn(msg.sender, amount);
             _withdrawDepositTokens(depositTokenAmount);
-            _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
+            (bool success, ) = msg.sender.call{value: depositTokenAmount}("");
+            require(success, "BenqiStrategyV1::withdraw transfer failed");
             emit Withdraw(msg.sender, depositTokenAmount);
         }
     }
@@ -191,14 +178,19 @@ contract BenqiStrategyV1 is YakStrategyV2 {
         }
     }
 
-    function reinvest() external override onlyEOA {
+    function reinvest() external override onlyEOA nonReentrant {
         (uint qiRewards, uint avaxRewards, uint totalAvaxRewards) = _checkRewards();
         require(totalAvaxRewards >= MIN_TOKENS_TO_REINVEST, "BenqiStrategyV1::reinvest");
         _reinvest(qiRewards, avaxRewards, totalAvaxRewards);
     }
 
     receive() external payable {
-        require(msg.sender == address(rewardController), "BenqiStrategyV1::payments not allowed");
+        require(
+            msg.sender == address(rewardController) ||
+            msg.sender == address(WAVAX) ||
+            msg.sender == address(tokenDelegator),
+            "BenqiStrategyV1::payments not allowed"
+        );
     }
 
     /**
@@ -209,37 +201,29 @@ contract BenqiStrategyV1 is YakStrategyV2 {
     function _reinvest(uint qiRewards, uint avaxRewards, uint amount) private {
         rewardController.claimReward(0, address(this));
         rewardController.claimReward(1, address(this));
-        if (avaxRewards > 0) {
-            WAVAX.deposit{value: avaxRewards}();
+    
+        if (qiRewards > 0) {
+            uint convertedWavax = DexLibrary.swap(qiRewards, address(rewardToken0), address(WAVAX), swapPairToken0);
+            WAVAX.withdraw(convertedWavax);
         }
 
-        if (qiRewards > 0) {
-            DexLibrary.swap(qiRewards, address(rewardToken0), address(rewardToken1), swapPairToken0);
-        }
+        amount = address(this).balance;
 
         uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
+        uint adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
+        uint reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
+        WAVAX.deposit{value: devFee.add(adminFee).add(reinvestFee)}();
         if (devFee > 0) {
             _safeTransfer(address(rewardToken), devAddr, devFee);
         }
-
-        uint adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
         if (adminFee > 0) {
             _safeTransfer(address(rewardToken), owner(), adminFee);
         }
-
-        uint reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
             _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
         }
 
-        uint depositTokenAmount = DexLibrary.swap(
-            amount.sub(devFee).sub(adminFee).sub(reinvestFee),
-            address(rewardToken1),
-            address(depositToken),
-            swapPairToken1
-        );
-
-        _stakeDepositTokens(depositTokenAmount);
+        _stakeDepositTokens(amount.sub(devFee).sub(adminFee).sub(reinvestFee));
 
         emit Reinvest(totalDeposits(), totalSupply);
     }
@@ -259,7 +243,7 @@ contract BenqiStrategyV1 is YakStrategyV2 {
                 break;
             }
             require(tokenDelegator.borrow(toBorrowAmount) == 0, "BenqiStrategyV1::borrowing failed");
-            require(tokenDelegator.mint(toBorrowAmount) == 0, "BenqiStrategyV1::lending failed");
+            tokenDelegator.mint{value: toBorrowAmount}();
             supplied = tokenDelegator.balanceOfUnderlying(address(this));
             totalBorrowed = totalBorrowed.add(toBorrowAmount);
         }
@@ -289,7 +273,7 @@ contract BenqiStrategyV1 is YakStrategyV2 {
                 unrollAmount = borrowed;
             }
             require(tokenDelegator.redeemUnderlying(unrollAmount) == 0, "BenqiStrategyV1::failed to redeem");
-            require(tokenDelegator.repayBorrow(unrollAmount) == 0, "BenqiStrategyV1::failed to repay borrow");
+            tokenDelegator.repayBorrow{value: unrollAmount}();
             balance = balance.sub(unrollAmount);
             borrowed = borrowed.sub(unrollAmount);
         }
@@ -297,7 +281,7 @@ contract BenqiStrategyV1 is YakStrategyV2 {
 
     function _stakeDepositTokens(uint amount) private {
         require(amount > 0, "BenqiStrategyV1::_stakeDepositTokens");
-        require(tokenDelegator.mint(amount) == 0, "BenqiStrategyV1::Deposit failed");
+        tokenDelegator.mint{value: amount}();
         uint borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
         uint principal = tokenDelegator.balanceOfUnderlying(address(this));
         _rollupDebt(principal, borrowed);
@@ -320,7 +304,7 @@ contract BenqiStrategyV1 is YakStrategyV2 {
 
         uint qiAsWavax = DexLibrary.estimateConversionThroughPair(
             qiRewards, address(rewardToken0),
-            address(rewardToken1), swapPairToken0
+            address(WAVAX), swapPairToken0
         );
         return (qiRewards, avaxRewards, avaxRewards.add(qiAsWavax));
     }
