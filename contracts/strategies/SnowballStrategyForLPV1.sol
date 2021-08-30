@@ -7,12 +7,10 @@ import "../interfaces/IGauge.sol";
 import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
 
-import "hardhat/console.sol";
-
 /**
  * @notice Snowball strategy
  */
-contract SnowballStrategyV1 is YakStrategy {
+contract SnowballStrategyForLPV1 is YakStrategy {
     using SafeMath for uint;
 
     IGauge public stakingContract;
@@ -20,7 +18,6 @@ contract SnowballStrategyV1 is YakStrategy {
     IPair private swapPairWAVAXSnob;
     IPair private swapPairToken0;
     IPair private swapPairToken1;
-    bytes private constant zeroBytes = new bytes(0);
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
 
     constructor (
@@ -104,7 +101,7 @@ contract SnowballStrategyV1 is YakStrategy {
     }
 
     function _deposit(address account, uint amount) private onlyAllowedDeposits {
-        require(DEPOSITS_ENABLED == true, "SnowballStrategyV1::_deposit");
+        require(DEPOSITS_ENABLED == true, "SnowballStrategyForLPV1::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
             uint unclaimedRewards = checkReward();
             if (unclaimedRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
@@ -119,11 +116,11 @@ contract SnowballStrategyV1 is YakStrategy {
     }
 
     function _stakeDepositTokens(uint amount) private returns (uint) {
-        require(amount > 0, "SnowballStrategyV1::_stakeDepositTokens");
+        require(amount > 0, "SnowballStrategyForLPV1::_stakeDepositTokens");
         snowGlobe.deposit(amount);
-        uint sLPAmount = snowGlobe.balanceOf(address(this));
-        uint lpAmountDeposited = sLPAmount.mul(snowGlobe.getRatio()).div(1e18);
-        stakingContract.deposit(sLPAmount);
+        uint snowballSharesAmount = snowGlobe.balanceOf(address(this));
+        uint lpAmountDeposited = snowballSharesAmount.mul(snowGlobe.getRatio()).div(1e18);
+        stakingContract.deposit(snowballSharesAmount);
         return lpAmountDeposited;
     }
 
@@ -139,7 +136,7 @@ contract SnowballStrategyV1 is YakStrategy {
     }
 
     function _withdrawDepositTokens(uint amount) private {
-        require(amount > 0, "SnowballStrategyV1::_withdrawDepositTokens");
+        require(amount > 0, "SnowballStrategyForLPV1::_withdrawDepositTokens");
         uint sharesAmount = amount.mul(1e18).div(snowGlobe.getRatio());
         stakingContract.withdraw(sharesAmount);
         snowGlobe.withdraw(sharesAmount);
@@ -147,14 +144,14 @@ contract SnowballStrategyV1 is YakStrategy {
 
     function reinvest() external override onlyEOA {
         uint unclaimedRewards = checkReward();
-        require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "SnowballStrategyV1::reinvest");
+        require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "SnowballStrategyForLPV1::reinvest");
         _reinvest(_convertRewardIntoWAVAX(unclaimedRewards));
     }
 
     function _convertRewardIntoWAVAX(uint pendingReward) private returns (uint) {
         stakingContract.getReward();
         DexLibrary.swap(
-            rewardToken.balanceOf(address(this)),
+            pendingReward,
             address(rewardToken), address(WAVAX),
             swapPairWAVAXSnob
         );
@@ -204,12 +201,14 @@ contract SnowballStrategyV1 is YakStrategy {
      * @param value amount
      */
     function _safeTransfer(address token, address to, uint256 value) private {
-        require(IERC20(token).transfer(to, value), 'SnowballStrategyV1::TRANSFER_FROM_FAILED');
+        require(IERC20(token).transfer(to, value), 'SnowballStrategyForLPV1::_safeTransfer');
     }
 
     function checkReward() public override view returns (uint) {
+        uint unclaimedReward = stakingContract.earned(address(this));
+        uint pendingReward = unclaimedReward.add(rewardToken.balanceOf(address(this)));
         return DexLibrary.estimateConversionThroughPair(
-            stakingContract.earned(address(this)),
+            pendingReward,
             address(rewardToken), address(WAVAX),
             swapPairWAVAXSnob
         );
@@ -225,7 +224,7 @@ contract SnowballStrategyV1 is YakStrategy {
         snowGlobe.withdrawAll();
         stakingContract.withdraw(stakingContract.balanceOf(address(this)));
         uint balanceAfter = depositToken.balanceOf(address(this));
-        require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "SnowballStrategyV1::rescueDeployedFunds");
+        require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "SnowballStrategyForLPV1::rescueDeployedFunds");
         totalDeposits = balanceAfter;
         emit Reinvest(totalDeposits, totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
