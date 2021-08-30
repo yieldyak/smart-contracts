@@ -4,7 +4,6 @@ pragma solidity ^0.7.0;
 import "../YakStrategy.sol";
 import "../interfaces/IJoeChef.sol";
 import "../interfaces/IJoeBar.sol";
-import "../interfaces/IRouter.sol";
 import "../interfaces/IPair.sol";
 
 /**
@@ -13,7 +12,6 @@ import "../interfaces/IPair.sol";
 contract CompoundingJoe is YakStrategy {
   using SafeMath for uint;
 
-  IRouter public router;
   IJoeChef public stakingContract;
   IJoeBar public conversionContract;
   IERC20 public xJoe;
@@ -42,7 +40,7 @@ contract CompoundingJoe is YakStrategy {
     conversionContract = IJoeBar(_conversionContract);
     xJoe = IERC20(_conversionContract);
     PID = _pid;
-    devAddr = 0xcEf537d5773e321DD4Bc61D0e02B7BD7c46685F6;
+    devAddr = msg.sender;
 
     setAllowances();
     updateMinTokensToReinvest(_minTokensToReinvest);
@@ -69,7 +67,7 @@ contract CompoundingJoe is YakStrategy {
    * @param amount Amount of tokens to deposit
    */
   function deposit(uint amount) external override {
-    _deposit(address(depositToken), msg.sender, amount);
+    _deposit(msg.sender, amount);
   }
 
   /**
@@ -82,35 +80,20 @@ contract CompoundingJoe is YakStrategy {
    */
   function depositWithPermit(uint amount, uint deadline, uint8 v, bytes32 r, bytes32 s) external override {
     depositToken.permit(msg.sender, address(this), amount, deadline, v, r, s);
-    _deposit(address(depositToken), msg.sender, amount);
+    _deposit(msg.sender, amount);
   }
 
   function depositFor(address account, uint amount) external override {
-      _deposit(address(depositToken), account, amount);
-  }
-
-  function depositXJoe(uint amount) external {
-    _deposit(address(xJoe), msg.sender, amount);
-  }
-
-  function depositXJoeWithPermit(uint amount, uint deadline, uint8 v, bytes32 r, bytes32 s) external {
-    xJoe.permit(msg.sender, address(this), amount, deadline, v, r, s);
-    _deposit(address(xJoe), msg.sender, amount);
-  }
-
-  function depositXJoeFor(address account, uint amount) external {
-      _deposit(address(xJoe), account, amount);
+      _deposit(account, amount);
   }
 
   /**
-   * @notice Deposit Joe or xJoe
-   * @param token address
+   * @notice Deposit Joe
    * @param account address
    * @param amount token amount
    */
-  function _deposit(address token, address account, uint amount) internal {
+  function _deposit(address account, uint amount) internal {
     require(DEPOSITS_ENABLED == true, "CompoundingJoe::_deposit");
-    require(token == address(depositToken) || token == address(xJoe), "CompoundingJoe::_deposit, token not accepted");
     if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
         uint unclaimedRewards = checkReward();
         if (unclaimedRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
@@ -118,21 +101,11 @@ contract CompoundingJoe is YakStrategy {
         }
     }
 
-    uint depositTokenAmount;
-    if (token == address(depositToken)) {
-      require(depositToken.transferFrom(msg.sender, address(this), amount));
-      depositTokenAmount = amount;
-      _stakeDepositTokens(amount);
-    }
-    else if (token == address(xJoe)) {
-      require(xJoe.transferFrom(msg.sender, address(this), amount));
-      depositTokenAmount = _getJoeForXJoe(amount);
-      _stakeXJoe(amount);
-    }
-
-    _mint(account, getSharesForDepositTokens(depositTokenAmount));
-    totalDeposits = totalDeposits.add(depositTokenAmount);
-    emit Deposit(account, depositTokenAmount);
+    require(depositToken.transferFrom(msg.sender, address(this), amount));
+    _stakeDepositTokens(amount);
+    _mint(account, getSharesForDepositTokens(amount));
+    totalDeposits = totalDeposits.add(amount);
+    emit Deposit(account, amount);
   }
 
   function withdraw(uint amount) external override {
