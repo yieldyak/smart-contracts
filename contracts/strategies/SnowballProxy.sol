@@ -27,8 +27,8 @@ contract SnowballProxy {
     using SafeProxy for ISnowballVoter;
     using SafeERC20 for IERC20;
 
-    ISnowballVoter public immutable snowballVoter;
     address constant public snob = address(0xC38f41A296A4493Ff429F1238e030924A1542e50);
+    ISnowballVoter public immutable snowballVoter;
     address public immutable devAddr;
 
     modifier onlyDev() {
