@@ -7,5 +7,5 @@ interface ISnowballProxy {
     function balanceOf(address _stakingContract, address _snowGlobe) external view returns (uint256);
     function deposit(address _stakingContract, address _snowGlobe, address _token) external returns (uint256);
     function checkReward(address _stakingContract) external view returns (uint);
-    function claimReward(address _stakingContract, uint _amount) external;
+    function claimReward(address _stakingContract) external;
 }

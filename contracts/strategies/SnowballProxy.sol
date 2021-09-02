@@ -112,10 +112,11 @@ contract SnowballProxy {
         return pendingReward.sub(snobFee);
     }
 
-    function claimReward(address _stakingContract, uint _amount) external onlyStrategy(_stakingContract) {
+    function claimReward(address _stakingContract) external onlyStrategy(_stakingContract) {
+        uint pendingReward = IGauge(_stakingContract).earned(address(snowballVoter));
+        uint snobFee = pendingReward.mul(SNOB_FEE_BIPS).div(BIPS_DIVISOR);
+        uint transferAmount = pendingReward.sub(snobFee);
         snowballVoter.safeExecute(_stakingContract, 0, abi.encodeWithSignature("getReward()"));
-        uint snobFee = _amount.mul(SNOB_FEE_BIPS).div(BIPS_DIVISOR);
-        uint transferAmount = _amount.sub(snobFee);
         snowballVoter.safeExecute(SNOB, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, transferAmount));
     }
 }

@@ -18,7 +18,7 @@ contract SnowballVoter is Ownable {
     address public snowballProxy;
 
     modifier onlySnowballProxy() {
-        require(msg.sender == devAddr, "SnowballVoter::onlySnowballVoter");
+        require(msg.sender == snowballProxy, "SnowballVoter::onlySnowballProxy");
         _;
     }
 

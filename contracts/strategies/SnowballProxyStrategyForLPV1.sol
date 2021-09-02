@@ -150,7 +150,7 @@ contract SnowballProxyStrategyForLPV1 is YakStrategy {
     }
 
     function _convertRewardIntoWAVAX(uint pendingReward) private returns (uint) {
-        proxy.claimReward(stakingContract, pendingReward);
+        proxy.claimReward(stakingContract);
         DexLibrary.swap(
             pendingReward,
             address(rewardToken), address(WAVAX),
