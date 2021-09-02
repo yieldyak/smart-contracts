@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.0;
 
-interface IProxy {
+interface ISnowballVoter {
     function execute(
         address to,
         uint value,
@@ -9,5 +9,4 @@ interface IProxy {
     ) external returns (bool, bytes memory);
 
     function increaseAmount(uint) external;
-    function createLock(uint _value, uint _unlockTime) external;
 }

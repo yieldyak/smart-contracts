@@ -150,7 +150,7 @@ contract SnowballProxyStrategyForLPV1 is YakStrategy {
     }
 
     function _convertRewardIntoWAVAX(uint pendingReward) private returns (uint) {
-        proxy.claimRewards(stakingContract);
+        proxy.claimReward(stakingContract, pendingReward);
         DexLibrary.swap(
             pendingReward,
             address(rewardToken), address(WAVAX),
@@ -208,9 +208,6 @@ contract SnowballProxyStrategyForLPV1 is YakStrategy {
 
     function checkReward() public override view returns (uint) {
         uint pendingReward = proxy.checkReward(stakingContract);
-        uint balance = proxy.balanceOf(stakingContract);
-        console.log("Pending reward: %s", pendingReward);
-        console.log("Balance: %s", balance);
         return DexLibrary.estimateConversionThroughPair(
             pendingReward,
             address(rewardToken), address(WAVAX),
@@ -219,7 +216,7 @@ contract SnowballProxyStrategyForLPV1 is YakStrategy {
     }
 
     function estimateDeployedBalance() external override view returns (uint) {
-        return proxy.balanceOf(stakingContract);
+        return proxy.balanceOf(stakingContract, snowGlobe);
     }
 
     function rescueDeployedFunds(uint minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
