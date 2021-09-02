@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.0;
 
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-
 import "../interfaces/IGauge.sol";
 import "../interfaces/IVoteEscrow.sol";
+import "../lib/SafeERC20.sol";
 import "../lib/Ownable.sol";
+
 
 contract SnowballVoter is Ownable {
     using SafeERC20 for IERC20;

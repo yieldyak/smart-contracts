@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.0;
 
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-
 import "../interfaces/ISnowballVoter.sol";
 import "../interfaces/IGauge.sol";
 import "../interfaces/ISnowGlobe.sol";
+import "../lib/SafeERC20.sol";
 
 import "hardhat/console.sol";
-
 
 library SafeProxy {
     function safeExecute(
@@ -27,7 +25,10 @@ contract SnowballProxy {
     using SafeProxy for ISnowballVoter;
     using SafeERC20 for IERC20;
 
-    address constant public snob = address(0xC38f41A296A4493Ff429F1238e030924A1542e50);
+    uint constant internal BIPS_DIVISOR = 10000;
+
+    uint public SNOB_FEE_BIPS;
+    address constant public SNOB = address(0xC38f41A296A4493Ff429F1238e030924A1542e50);
     ISnowballVoter public immutable snowballVoter;
     address public immutable devAddr;
 
@@ -44,8 +45,9 @@ contract SnowballProxy {
     // stakingContract => strategies
     mapping(address => address) public strategies;
 
-    constructor(address _snowballVoter) {
+    constructor(address _snowballVoter, uint _snobFeeBips) {
         devAddr = msg.sender;
+        SNOB_FEE_BIPS = _snobFeeBips;
         snowballVoter = ISnowballVoter(_snowballVoter);
     }
 
@@ -105,11 +107,15 @@ contract SnowballProxy {
     }
 
     function checkReward(address _stakingContract) public view returns (uint) {
-        return IGauge(_stakingContract).earned(address(snowballVoter));
+        uint pendingReward = IGauge(_stakingContract).earned(address(snowballVoter));
+        uint snobFee = pendingReward.mul(SNOB_FEE_BIPS).div(BIPS_DIVISOR);
+        return pendingReward.sub(snobFee);
     }
 
     function claimReward(address _stakingContract, uint _amount) external onlyStrategy(_stakingContract) {
         snowballVoter.safeExecute(_stakingContract, 0, abi.encodeWithSignature("getReward()"));
-        snowballVoter.safeExecute(snob, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, _amount));
+        uint snobFee = _amount.mul(SNOB_FEE_BIPS).div(BIPS_DIVISOR);
+        uint transferAmount = _amount.sub(snobFee);
+        snowballVoter.safeExecute(SNOB, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, transferAmount));
     }
 }
