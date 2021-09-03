@@ -29,6 +29,7 @@ contract SnowballProxyStrategyForLPV1 is YakStrategy {
         string memory _name,
         address _depositToken,
         address _rewardToken,
+        address _snowballProxy,
         address _stakingContract,
         address _snowGlobeContract,
         address _swapPairWAVAXSnob,
@@ -43,6 +44,7 @@ contract SnowballProxyStrategyForLPV1 is YakStrategy {
         name = _name;
         depositToken = IERC20(_depositToken);
         rewardToken = IERC20(_rewardToken);
+        proxy = ISnowballProxy(_snowballProxy);
         stakingContract = _stakingContract;
         snowGlobe = _snowGlobeContract;
         devAddr = msg.sender;
