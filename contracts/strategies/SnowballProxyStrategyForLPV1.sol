@@ -56,7 +56,7 @@ contract SnowballProxyStrategyForLPV1 is YakStrategy {
         updateDevFee(_devFeeBips);
         updateReinvestReward(_reinvestRewardBips);
         updateDepositsEnabled(true);
-        //transferOwnership(_timelock);
+        transferOwnership(_timelock);
 
         emit Reinvest(0, 0);
     }
