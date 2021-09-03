@@ -59,6 +59,10 @@ contract SnowballProxy {
         strategies[_stakingContract] = address(0);
     }
 
+    function setSnobFee(uint _snobFeeBips) external onlyDev {
+        SNOB_FEE_BIPS = _snobFeeBips;
+    }
+
     // Methods for YY Strategies
     function withdraw(
         address _stakingContract,
@@ -82,13 +86,13 @@ contract SnowballProxy {
     }
 
     function deposit(address _stakingContract, address _snowGlobe, address _token) external onlyStrategy(_stakingContract) returns (uint256) {
-        uint256 _balance = IERC20(_token).balanceOf(address(this));
-        IERC20(_token).safeTransfer(address(snowballVoter), _balance);
-        _balance = IERC20(_token).balanceOf(address(snowballVoter));
+        uint256 balance = IERC20(_token).balanceOf(address(this));
+        IERC20(_token).safeTransfer(address(snowballVoter), balance);
+        balance = IERC20(_token).balanceOf(address(snowballVoter));
 
         snowballVoter.safeExecute(_token, 0, abi.encodeWithSignature("approve(address,uint256)", _snowGlobe, 0));
-        snowballVoter.safeExecute(_token, 0, abi.encodeWithSignature("approve(address,uint256)", _snowGlobe, _balance));
-        snowballVoter.safeExecute(_snowGlobe, 0, abi.encodeWithSignature("deposit(uint256)", _balance));
+        snowballVoter.safeExecute(_token, 0, abi.encodeWithSignature("approve(address,uint256)", _snowGlobe, balance));
+        snowballVoter.safeExecute(_snowGlobe, 0, abi.encodeWithSignature("deposit(uint256)", balance));
         
         uint snowballSharesAmount = ISnowGlobe(_snowGlobe).balanceOf(address(snowballVoter));
         snowballVoter.safeExecute(_snowGlobe, 0, abi.encodeWithSignature("approve(address,uint256)", _stakingContract, 0));
