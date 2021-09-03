@@ -55,10 +55,6 @@ contract SnowballProxy {
         strategies[_stakingContract] = _strategy;
     }
 
-    function revokeStrategy(address _stakingContract) external onlyDev {
-        strategies[_stakingContract] = address(0);
-    }
-
     function setSnobFee(uint _snobFeeBips) external onlyDev {
         SNOB_FEE_BIPS = _snobFeeBips;
     }
