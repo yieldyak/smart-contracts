@@ -94,6 +94,7 @@ contract SnowballProxyStrategyForLPV1 is YakStrategy {
     }
 
     function setAllowances() public override onlyOwner {
+        depositToken.approve(address(this), MAX_UINT);
     }
 
     function deposit(uint amount) external override {
@@ -117,15 +118,15 @@ contract SnowballProxyStrategyForLPV1 is YakStrategy {
                 _reinvest(unclaimedRewards);
             }
         }
-        require(depositToken.transferFrom(msg.sender, address(proxy), amount));
-        uint lpAmountDeposited = _stakeDepositTokens(amount);
+        uint lpAmountDeposited = _stakeDepositTokens(msg.sender, amount);
         _mint(account, getSharesForDepositTokens(lpAmountDeposited));
         totalDeposits = totalDeposits.add(lpAmountDeposited);
         emit Deposit(account, lpAmountDeposited);
     }
 
-    function _stakeDepositTokens(uint amount) private returns (uint) {
+    function _stakeDepositTokens(address from, uint amount) private returns (uint) {
         require(amount > 0, "SnowballStrategyForLPV1::_stakeDepositTokens");
+        require(depositToken.transferFrom(from, address(proxy), amount), "SnowballStrategyForLPV1::_stakeDepositTokens transfer failed");
         return proxy.deposit(stakingContract, snowGlobe, address(depositToken));
     }
 
@@ -153,12 +154,11 @@ contract SnowballProxyStrategyForLPV1 is YakStrategy {
 
     function _convertRewardIntoWAVAX(uint pendingReward) private returns (uint) {
         proxy.claimReward(stakingContract);
-        DexLibrary.swap(
+        return DexLibrary.swap(
             pendingReward,
             address(rewardToken), address(WAVAX),
             swapPairWAVAXSnob
         );
-        return WAVAX.balanceOf(address(this));
     }
 
     /**
@@ -190,8 +190,7 @@ contract SnowballProxyStrategyForLPV1 is YakStrategy {
             swapPairToken1
         );
 
-        _safeTransfer(address(depositToken), address(proxy), depositTokenAmount);
-        _stakeDepositTokens(depositTokenAmount);
+        _stakeDepositTokens(address(this), depositTokenAmount);
         totalDeposits = totalDeposits.add(depositTokenAmount);
 
         emit Reinvest(totalDeposits, totalSupply);

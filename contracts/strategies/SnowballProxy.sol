@@ -84,7 +84,6 @@ contract SnowballProxy {
     function deposit(address _stakingContract, address _snowGlobe, address _token) external onlyStrategy(_stakingContract) returns (uint256) {
         uint256 balance = IERC20(_token).balanceOf(address(this));
         IERC20(_token).safeTransfer(address(snowballVoter), balance);
-        balance = IERC20(_token).balanceOf(address(snowballVoter));
 
         snowballVoter.safeExecute(_token, 0, abi.encodeWithSignature("approve(address,uint256)", _snowGlobe, 0));
         snowballVoter.safeExecute(_token, 0, abi.encodeWithSignature("approve(address,uint256)", _snowGlobe, balance));
