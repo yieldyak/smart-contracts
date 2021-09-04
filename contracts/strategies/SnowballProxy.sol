@@ -6,8 +6,6 @@ import "../interfaces/IGauge.sol";
 import "../interfaces/ISnowGlobe.sol";
 import "../lib/SafeERC20.sol";
 
-import "hardhat/console.sol";
-
 library SafeProxy {
     function safeExecute(
         ISnowballVoter snowballVoter,
@@ -81,7 +79,7 @@ contract SnowballProxy {
         snowballVoter.safeExecute(_token, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, IERC20(_token).balanceOf(address(snowballVoter))));
     }
 
-    function deposit(address _stakingContract, address _snowGlobe, address _token) external onlyStrategy(_stakingContract) returns (uint256) {
+    function deposit(address _stakingContract, address _snowGlobe, address _token) external onlyStrategy(_stakingContract) {
         uint256 balance = IERC20(_token).balanceOf(address(this));
         IERC20(_token).safeTransfer(address(snowballVoter), balance);
 
@@ -93,16 +91,11 @@ contract SnowballProxy {
         snowballVoter.safeExecute(_snowGlobe, 0, abi.encodeWithSignature("approve(address,uint256)", _stakingContract, 0));
         snowballVoter.safeExecute(_snowGlobe, 0, abi.encodeWithSignature("approve(address,uint256)", _stakingContract, snowballSharesAmount));
         snowballVoter.safeExecute(_stakingContract, 0, abi.encodeWithSignature("deposit(uint256)", snowballSharesAmount));
-
-        uint lpAmountDeposited = snowballSharesAmount
-            .mul(ISnowGlobe(_snowGlobe).getRatio())
-            .div(1e18);
-        return lpAmountDeposited;
     }
 
     function balanceOf(address _stakingContract, address _snowGlobe) public view returns (uint256) {
         uint ratio = ISnowGlobe(_snowGlobe).getRatio();
-        return IERC20(_stakingContract).balanceOf(address(snowballVoter)).mul(ratio).div(1e18);
+        return IGauge(_stakingContract).balanceOf(address(snowballVoter)).mul(ratio).div(1e18);
     }
 
     function checkReward(address _stakingContract) public view returns (uint) {

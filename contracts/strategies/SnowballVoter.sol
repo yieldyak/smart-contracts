@@ -6,7 +6,6 @@ import "../interfaces/IVoteEscrow.sol";
 import "../lib/SafeERC20.sol";
 import "../lib/Ownable.sol";
 
-
 contract SnowballVoter is Ownable {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;

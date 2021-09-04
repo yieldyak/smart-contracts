@@ -1,20 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.0;
 
-import "../YakStrategy.sol";
+import "../YakStrategyV2.sol";
 import "../interfaces/ISnowGlobe.sol";
 import "../interfaces/IGauge.sol";
 import "../interfaces/IPair.sol";
 import "../interfaces/ISnowballProxy.sol";
 import "../lib/DexLibrary.sol";
 
-import "hardhat/console.sol";
-
-
 /**
  * @notice Snowball strategy
  */
-contract SnowballProxyStrategyForLPV1 is YakStrategy {
+contract SnowballProxyStrategyForLPV1 is YakStrategyV2 {
     using SafeMath for uint;
 
     address public immutable stakingContract;
@@ -118,16 +115,15 @@ contract SnowballProxyStrategyForLPV1 is YakStrategy {
                 _reinvest(unclaimedRewards);
             }
         }
-        uint lpAmountDeposited = _stakeDepositTokens(msg.sender, amount);
-        _mint(account, getSharesForDepositTokens(lpAmountDeposited));
-        totalDeposits = totalDeposits.add(lpAmountDeposited);
-        emit Deposit(account, lpAmountDeposited);
+        _stakeDepositTokens(msg.sender, amount);
+        _mint(account, getSharesForDepositTokens(amount));
+        emit Deposit(account, amount);
     }
 
-    function _stakeDepositTokens(address from, uint amount) private returns (uint) {
+    function _stakeDepositTokens(address from, uint amount) private {
         require(amount > 0, "SnowballStrategyForLPV1::_stakeDepositTokens");
         require(depositToken.transferFrom(from, address(proxy), amount), "SnowballStrategyForLPV1::_stakeDepositTokens transfer failed");
-        return proxy.deposit(stakingContract, snowGlobe, address(depositToken));
+        proxy.deposit(stakingContract, snowGlobe, address(depositToken));
     }
 
     function withdraw(uint amount) external override {
@@ -136,7 +132,6 @@ contract SnowballProxyStrategyForLPV1 is YakStrategy {
             uint amountReceived = _withdrawDepositTokens(depositTokenAmount);
             _safeTransfer(address(depositToken), msg.sender, amountReceived);
             _burn(msg.sender, amount);
-            totalDeposits = totalDeposits.sub(depositTokenAmount);
             emit Withdraw(msg.sender, depositTokenAmount);
         }
     }
@@ -191,9 +186,8 @@ contract SnowballProxyStrategyForLPV1 is YakStrategy {
         );
 
         _stakeDepositTokens(address(this), depositTokenAmount);
-        totalDeposits = totalDeposits.add(depositTokenAmount);
 
-        emit Reinvest(totalDeposits, totalSupply);
+        emit Reinvest(totalDeposits(), totalSupply);
     }
     
     /**
@@ -220,13 +214,16 @@ contract SnowballProxyStrategyForLPV1 is YakStrategy {
         return proxy.balanceOf(stakingContract, snowGlobe);
     }
 
+    function totalDeposits() public override view returns (uint) {
+        return proxy.balanceOf(stakingContract, snowGlobe);
+    }
+
     function rescueDeployedFunds(uint minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
         uint balanceBefore = depositToken.balanceOf(address(this));
         proxy.withdrawAll(stakingContract, snowGlobe, address(depositToken));
         uint balanceAfter = depositToken.balanceOf(address(this));
         require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "SnowballStrategyForLPV1::rescueDeployedFunds");
-        totalDeposits = balanceAfter;
-        emit Reinvest(totalDeposits, totalSupply);
+        emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
             updateDepositsEnabled(false);
         }
