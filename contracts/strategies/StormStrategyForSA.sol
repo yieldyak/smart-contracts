@@ -16,7 +16,6 @@ contract StormStrategyForSA is YakStrategy {
   IPair private swapPairToken;
   IPair private swapPairWAVAXTundra;
   address private constant WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
-  address private referrer;
 
   uint public PID;
 
@@ -28,7 +27,6 @@ contract StormStrategyForSA is YakStrategy {
     address _swapPairWAVAXTundra,
     address _swapPairToken,
     address _timelock,
-    address _referrer,
     uint _pid,
     uint _minTokensToReinvest,
     uint _adminFeeBips,
@@ -43,7 +41,6 @@ contract StormStrategyForSA is YakStrategy {
     swapPairToken = IPair(_swapPairToken);
     PID = _pid;
     devAddr = msg.sender;
-    referrer = _referrer;
 
     setAllowances();
     updateMinTokensToReinvest(_minTokensToReinvest);
@@ -134,7 +131,7 @@ contract StormStrategyForSA is YakStrategy {
     * @param amount deposit tokens to reinvest
     */
   function _reinvest(uint amount) private {
-    stakingContract.deposit(PID, 0, referrer);
+    stakingContract.deposit(PID, 0, address(0));
 
     uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
     if (devFee > 0) {
@@ -170,7 +167,7 @@ contract StormStrategyForSA is YakStrategy {
     
   function _stakeDepositTokens(uint amount) private {
     require(amount > 0, "StormStrategyForSA::_stakeDepositTokens");
-    stakingContract.deposit(PID, amount, referrer);
+    stakingContract.deposit(PID, amount, address(0));
   }
 
   /**

@@ -15,7 +15,6 @@ contract StormStrategyForLP is YakStrategy {
   IStormChef public stakingContract;
   IPair private swapPairToken0;
   IPair private swapPairToken1;
-  address private referrer;
 
   uint public PID;
 
@@ -27,7 +26,6 @@ contract StormStrategyForLP is YakStrategy {
     address _swapPairToken0,
     address _swapPairToken1,
     address _timelock,
-    address _referrer,
     uint _pid,
     uint _minTokensToReinvest,
     uint _adminFeeBips,
@@ -40,7 +38,6 @@ contract StormStrategyForLP is YakStrategy {
     stakingContract = IStormChef(_stakingContract);
     PID = _pid;
     devAddr = msg.sender;
-    referrer = _referrer;
 
     assignSwapPairSafely(_swapPairToken0, _swapPairToken1, _rewardToken);
     setAllowances();
@@ -160,7 +157,7 @@ contract StormStrategyForLP is YakStrategy {
     * @param amount deposit tokens to reinvest
     */
   function _reinvest(uint amount) private {
-    stakingContract.deposit(PID, 0, referrer);
+    stakingContract.deposit(PID, 0, address(0));
 
     uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
     if (devFee > 0) {
@@ -193,7 +190,7 @@ contract StormStrategyForLP is YakStrategy {
     
   function _stakeDepositTokens(uint amount) private {
     require(amount > 0, "StormStrategyForLP::_stakeDepositTokens");
-    stakingContract.deposit(PID, amount, referrer);
+    stakingContract.deposit(PID, amount, address(0));
   }
 
   /**
