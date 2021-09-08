@@ -114,13 +114,19 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
 
     function withdraw(uint amount) external override {
         require(amount > 0, "ElevenStrategyV1::withdraw");
+        uint depositTokenAmount = _convertSharesToDepositTokens(amount);
         uint elevenShares = _convertSharesToElevenShares(amount);
         stakingContract.withdraw(PID, elevenShares);
-        vaultContract.withdrawAll();
-        uint depositTokenAmount = depositToken.balanceOf(address(this));
+        vaultContract.withdraw(elevenShares);
         _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
         _burn(msg.sender, amount);
         emit Withdraw(msg.sender, depositTokenAmount);
+    }
+    
+    function _convertSharesToDepositTokens(uint amount) public view returns (uint) {
+        uint lpAmount = getDepositTokensForShares(amount);
+        uint withdrawalFee = _calculateWithdrawalFee(lpAmount);
+        return lpAmount.sub(withdrawalFee);
     }
 
     function _convertSharesToElevenShares(uint amount) private returns (uint) {
