@@ -8,9 +8,8 @@ import "../interfaces/IElevenQuickStrat.sol";
 import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
 
-
 /**
- * @notice Strategy for ElevenVaults
+ * @notice Strategy for CycleVaults
  */
 contract ElevenStrategyForLPV1 is YakStrategyV2 {
     using SafeMath for uint;
@@ -19,6 +18,7 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
     IElevenGrowthVault public vaultContract;
     IPair private immutable swapPairToken0;
     IPair private immutable swapPairToken1;
+    IPair private immutable swapPairWAVAXELE;
     uint private immutable PID;
     address private constant WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
 
@@ -28,8 +28,10 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
         address _rewardToken,
         address _stakingContract,
         address _vaultContract,
+        address _swapPairWAVAXELE,
         address _swapPairToken0,
         address _swapPairToken1,
+        address _timelock,
         uint _pid,
         uint _minTokensToReinvest,
         uint _adminFeeBips,
@@ -44,6 +46,21 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
         PID = _pid;
         devAddr = msg.sender;
 
+        require(
+            DexLibrary.checkSwapPairCompatibility(IPair(_swapPairWAVAXELE), address(WAVAX), address(rewardToken)),
+            "_swapPairWAVAXELE is not a WAVAX-ELE pair"
+        );
+        require(
+            _swapPairToken0 == address(0)
+            || DexLibrary.checkSwapPairCompatibility(IPair(_swapPairToken0), address(WAVAX), IPair(address(depositToken)).token0()),
+            "_swapPairToken0 is not a WAVAX+deposit token0"
+        );
+        require(
+            _swapPairToken1 == address(0)
+            || DexLibrary.checkSwapPairCompatibility(IPair(_swapPairToken1), address(WAVAX), IPair(address(depositToken)).token1()),
+            "_swapPairToken0 is not a WAVAX+deposit token1"
+        );
+        swapPairWAVAXELE = IPair(_swapPairWAVAXELE);
         swapPairToken0 = IPair(_swapPairToken0);
         swapPairToken1 = IPair(_swapPairToken1);
 
@@ -53,9 +70,11 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
         updateDevFee(_devFeeBips);
         updateReinvestReward(_reinvestRewardBips);
         updateDepositsEnabled(true);
+        transferOwnership(_timelock);
 
         emit Reinvest(0, 0);
     }
+
 
     function totalDeposits() public override view returns (uint) {
         return deployedLPBalance();
@@ -110,7 +129,7 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
     }
 
     function reinvest() external override onlyEOA {
-        uint unclaimedRewards = checkReward();
+        uint unclaimedRewards = _checkReward();
         require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "ElevenStrategyV1::reinvest");
         _reinvest(unclaimedRewards);
     }
@@ -123,24 +142,26 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
     function _reinvest(uint amount) private {
         stakingContract.deposit(PID, 0);
 
-        uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
+        uint avaxAmount = _convertRewardIntoWAVAX(amount);
+
+        uint devFee = avaxAmount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
-            _safeTransfer(address(rewardToken), devAddr, devFee);
+            _safeTransfer(address(WAVAX), devAddr, devFee);
         }
 
-        uint adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
+        uint adminFee = avaxAmount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
         if (adminFee > 0) {
-            _safeTransfer(address(rewardToken), owner(), adminFee);
+            _safeTransfer(address(WAVAX), owner(), adminFee);
         }
 
-        uint reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
+        uint reinvestFee = avaxAmount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
-            _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
+            _safeTransfer(address(WAVAX), msg.sender, reinvestFee);
         }
 
         uint depositTokenAmount = DexLibrary.convertRewardTokensToDepositTokens(
-            amount.sub(devFee).sub(adminFee).sub(reinvestFee),
-            address(rewardToken),
+            avaxAmount.sub(devFee).sub(adminFee).sub(reinvestFee),
+            address(WAVAX),
             address(depositToken),
             swapPairToken0,
             swapPairToken1
@@ -149,6 +170,14 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
         _stakeDepositTokens(depositTokenAmount);
 
         emit Reinvest(totalDeposits(), totalSupply);
+    }
+
+    function _convertRewardIntoWAVAX(uint pendingReward) private returns (uint) {
+        return DexLibrary.swap(
+            pendingReward,
+            address(rewardToken), address(WAVAX),
+            swapPairWAVAXELE
+        );
     }
     
     function _stakeDepositTokens(uint amount) private {
@@ -169,8 +198,17 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
         require(IERC20(token).transfer(to, value), 'ElevenStrategyV1::TRANSFER_FROM_FAILED');
     }
 
-    function checkReward() public override view returns (uint) {
+    function _checkReward() private view returns (uint) {
         return stakingContract.pendingEleven(PID, address(this));
+    }
+
+    function checkReward() public override view returns (uint) {
+        uint pendingReward = _checkReward();
+        return DexLibrary.estimateConversionThroughPair(
+            pendingReward,
+            address(rewardToken), address(WAVAX),
+            swapPairWAVAXELE
+        );
     }
 
     function deployedLPBalance() private view returns (uint) {
