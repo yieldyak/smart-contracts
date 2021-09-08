@@ -142,7 +142,7 @@ contract SnowballProxyStrategyForLPV1 is YakStrategyV2 {
     }
 
     function reinvest() external override onlyEOA {
-        uint unclaimedRewards = checkReward();
+        uint unclaimedRewards = proxy.checkReward(stakingContract);
         require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "SnowballStrategyForLPV1::reinvest");
         _reinvest(_convertRewardIntoWAVAX(unclaimedRewards));
     }
