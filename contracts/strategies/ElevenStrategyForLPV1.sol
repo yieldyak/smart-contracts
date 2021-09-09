@@ -9,7 +9,7 @@ import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
 
 /**
- * @notice Strategy for CycleVaults
+ * @notice Strategy for ElevenVaults
  */
 contract ElevenStrategyForLPV1 is YakStrategyV2 {
     using SafeMath for uint;
@@ -75,11 +75,6 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
         emit Reinvest(0, 0);
     }
 
-
-    function totalDeposits() public override view returns (uint) {
-        return deployedLPBalance();
-    }
-
     function setAllowances() public override onlyOwner {
         depositToken.approve(address(vaultContract), type(uint256).max);
         IERC20(address(vaultContract)).approve(address(stakingContract), type(uint256).max);
@@ -99,23 +94,23 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
     }
 
     function _deposit(address account, uint amount) private onlyAllowedDeposits {
-        require(DEPOSITS_ENABLED == true, "ElevenStrategyV1::_deposit");
+        require(DEPOSITS_ENABLED == true, "ElevenStrategyForLPV1::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
             uint unclaimedRewards = checkReward();
             if (unclaimedRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
                 _reinvest(unclaimedRewards);
             }
         }
-        require(depositToken.transferFrom(msg.sender, address(this), amount), "ElevenStrategyV1::transfer failed");
+        require(depositToken.transferFrom(msg.sender, address(this), amount), "ElevenStrategyForLPV1::transfer failed");
         _mint(account, getSharesForDepositTokens(amount));
         _stakeDepositTokens(amount);
         emit Deposit(account, amount);
     }
 
     function withdraw(uint amount) external override {
-        require(amount > 0, "ElevenStrategyV1::withdraw");
-        uint depositTokenAmount = _convertSharesToDepositTokens(amount);
+        require(amount > 0, "ElevenStrategyForLPV1::withdraw");
         uint elevenShares = _convertSharesToElevenShares(amount);
+        uint depositTokenAmount = _convertElevenSharesToDepositTokens(elevenShares);
         stakingContract.withdraw(PID, elevenShares);
         vaultContract.withdraw(elevenShares);
         _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
@@ -123,20 +118,19 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
         emit Withdraw(msg.sender, depositTokenAmount);
     }
     
-    function _convertSharesToDepositTokens(uint amount) public view returns (uint) {
-        uint lpAmount = getDepositTokensForShares(amount);
-        uint withdrawalFee = _calculateWithdrawalFee(lpAmount);
-        return lpAmount.sub(withdrawalFee);
+    function _convertElevenSharesToDepositTokens(uint amount) public view returns (uint) {
+        uint depositToken = amount.mul(vaultContract.balance()).div(vaultContract.totalSupply());
+        return depositToken.sub(_calculateWithdrawalFee(depositToken));
     }
 
-    function _convertSharesToElevenShares(uint amount) private returns (uint) {
+    function _convertSharesToElevenShares(uint amount) private view returns (uint) {
         (uint elevenShareBalance, ) = stakingContract.userInfo(PID, address(this));
         return amount.mul(elevenShareBalance).div(totalSupply);
     }
 
     function reinvest() external override onlyEOA {
         uint unclaimedRewards = _checkReward();
-        require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "ElevenStrategyV1::reinvest");
+        require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "ElevenStrategyForLPV1::reinvest");
         _reinvest(unclaimedRewards);
     }
 
@@ -187,9 +181,9 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
     }
     
     function _stakeDepositTokens(uint amount) private {
-        require(amount > 0, "ElevenStrategyV1::_stakeDepositTokens");
+        require(amount > 0, "ElevenStrategyForLPV1::_stakeDepositTokens");
+        uint elevenShares = amount.mul(vaultContract.totalSupply()).div(vaultContract.balance());
         vaultContract.deposit(amount);
-        uint elevenShares = vaultContract.balanceOf(address(this));
         stakingContract.deposit(PID, elevenShares);
     }
 
@@ -201,7 +195,7 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
      * @param value amount
      */
     function _safeTransfer(address token, address to, uint256 value) private {
-        require(IERC20(token).transfer(to, value), 'ElevenStrategyV1::TRANSFER_FROM_FAILED');
+        require(IERC20(token).transfer(to, value), "ElevenStrategyForLPV1::TRANSFER_FROM_FAILED");
     }
 
     function _checkReward() private view returns (uint) {
@@ -217,11 +211,13 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
         );
     }
 
+    function totalDeposits() public override view returns (uint) {
+        return deployedLPBalance();
+    }
+
     function deployedLPBalance() private view returns (uint) {
         (uint sharesAmount, ) = stakingContract.userInfo(PID, address(this));
-        uint totalLPDeposits = vaultContract.balance();
-        uint sharesTotalSupply = vaultContract.totalSupply();
-        return sharesAmount.mul(totalLPDeposits).div(sharesTotalSupply);
+        return _convertElevenSharesToDepositTokens(sharesAmount);
     }
 
     function _calculateWithdrawalFee(uint _withdrawalAmount) private view returns (uint) {
@@ -241,7 +237,7 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
         stakingContract.emergencyWithdraw(PID);
         vaultContract.withdrawAll();
         uint balanceAfter = depositToken.balanceOf(address(this));
-        require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "ElevenStrategyV1::rescueDeployedFunds");
+        require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "ElevenStrategyForLPV1::rescueDeployedFunds");
         emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
             updateDepositsEnabled(false);
