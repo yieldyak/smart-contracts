@@ -7,14 +7,19 @@
     "ethereum-waffle": "^3.3.0",
     "ethers": "^5.3.1",
     "hardhat": "^2.0.11",
-    "hardhat-abi-exporter": "^2.1.2",
+    "hardhat-abi-exporter": "^2.2.1",
     "hardhat-contract-sizer": "^2.0.3",
     "hardhat-deploy": "^0.7.5",
-    "hardhat-deploy-ethers": "^0.3.0-beta.7"
+    "hardhat-deploy-ethers": "^0.3.0-beta.7",
+    "mocha": "^7.2.0"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^3.4.0",
     "@pangolindex/governance": "^1.0.5",
     "dotenv": "^8.2.0"
+  },
+  "scripts": {
+    "compile": "npx hardhat compile",
+    "test": "npx hardhat test --network hardhat"
   }
 }
