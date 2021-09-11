@@ -7,7 +7,8 @@ import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
 
 /**
- * @notice Strategy for Storm
+ * @notice Strategy for Storm LP
+ * @dev Referall fee is collected by devAddr on `deposit`
  */
 contract StormStrategyForLP is YakStrategy {
   using SafeMath for uint;
@@ -131,7 +132,7 @@ contract StormStrategyForLP is YakStrategy {
     uint depositTokenAmount = getDepositTokensForShares(amount);
     if (depositTokenAmount > 0) {
       _withdrawDepositTokens(depositTokenAmount);
-      (,,,, uint withdrawFeeBP) = stakingContract.poolInfo(PID);
+      (,,,, uint withdrawFeeBP, ) = stakingContract.poolInfo(PID);
       uint withdrawFee = depositTokenAmount.mul(withdrawFeeBP).div(BIPS_DIVISOR);
       _safeTransfer(address(depositToken), msg.sender, depositTokenAmount.sub(withdrawFee));
       _burn(msg.sender, amount);
@@ -157,7 +158,7 @@ contract StormStrategyForLP is YakStrategy {
     * @param amount deposit tokens to reinvest
     */
   function _reinvest(uint amount) private {
-    stakingContract.deposit(PID, 0, address(0));
+    stakingContract.deposit(PID, 0, devAddr);
 
     uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
     if (devFee > 0) {
@@ -190,7 +191,7 @@ contract StormStrategyForLP is YakStrategy {
     
   function _stakeDepositTokens(uint amount) private {
     require(amount > 0, "StormStrategyForLP::_stakeDepositTokens");
-    stakingContract.deposit(PID, amount, address(0));
+    stakingContract.deposit(PID, amount, devAddr);
   }
 
   /**
@@ -201,7 +202,7 @@ contract StormStrategyForLP is YakStrategy {
     * @param value amount
     */
   function _safeTransfer(address token, address to, uint256 value) private {
-    require(IERC20(token).transfer(to, value), 'DexStrategyV6::TRANSFER_FROM_FAILED');
+    require(IERC20(token).transfer(to, value), 'StormStrategyForLP::TRANSFER_FROM_FAILED');
   }
   
   function checkReward() public override view returns (uint) {
@@ -216,7 +217,7 @@ contract StormStrategyForLP is YakStrategy {
    */
   function estimateDeployedBalance() external override view returns (uint) {
     (uint depositBalance, ) = stakingContract.userInfo(PID, address(this));
-    (,,,, uint withdrawFeeBP) = stakingContract.poolInfo(PID);
+    (,,,, uint withdrawFeeBP, ) = stakingContract.poolInfo(PID);
     uint withdrawFee = depositBalance.mul(withdrawFeeBP).div(BIPS_DIVISOR);
     return depositBalance.sub(withdrawFee);
   }
