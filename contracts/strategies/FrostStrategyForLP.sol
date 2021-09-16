@@ -2,29 +2,29 @@
 pragma solidity ^0.7.0;
 
 import "../YakStrategy.sol";
-import "../interfaces/IJoeChef.sol";
-import "../interfaces/IJoeBar.sol";
+import "../interfaces/IFrostChef.sol";
 import "../interfaces/IPair.sol";
+import "../lib/DexLibrary.sol";
 
 /**
- * @notice Single asset strategy for Joe
+ * @notice Strategy for Frost
  */
-contract CompoundingJoe is YakStrategy {
+contract FrostStrategyForLP is YakStrategy {
   using SafeMath for uint;
 
-  IJoeChef public stakingContract;
-  IJoeBar public conversionContract;
-  IERC20 public xJoe;
+  IFrostChef public stakingContract;
+  IPair private swapPairToken0;
+  IPair private swapPairToken1;
 
   uint public PID;
 
   constructor(
     string memory _name,
-    string memory _symbol,
     address _depositToken, 
     address _rewardToken, 
     address _stakingContract,
-    address _conversionContract,
+    address _swapPairToken0,
+    address _swapPairToken1,
     address _timelock,
     uint _pid,
     uint _minTokensToReinvest,
@@ -33,15 +33,13 @@ contract CompoundingJoe is YakStrategy {
     uint _reinvestRewardBips
   ) {
     name = _name;
-    symbol = _symbol;
     depositToken = IPair(_depositToken);
     rewardToken = IERC20(_rewardToken);
-    stakingContract = IJoeChef(_stakingContract);
-    conversionContract = IJoeBar(_conversionContract);
-    xJoe = IERC20(_conversionContract);
+    stakingContract = IFrostChef(_stakingContract);
     PID = _pid;
     devAddr = msg.sender;
 
+    assignSwapPairSafely(_swapPairToken0, _swapPairToken1, _rewardToken);
     setAllowances();
     updateMinTokensToReinvest(_minTokensToReinvest);
     updateAdminFee(_adminFeeBips);
@@ -53,13 +51,40 @@ contract CompoundingJoe is YakStrategy {
     emit Reinvest(0, 0);
   }
 
+    /**
+     * @notice Initialization helper for Pair deposit tokens
+     * @dev Checks that selected Pairs are valid for trading reward tokens
+     * @dev Assigns values to swapPairToken0 and swapPairToken1
+     */
+    function assignSwapPairSafely(address _swapPairToken0, address _swapPairToken1, address _rewardToken) private {
+        if (_rewardToken != IPair(address(depositToken)).token0() && _rewardToken != IPair(address(depositToken)).token1()) {
+            // deployment checks for non-pool2
+            require(_swapPairToken0 > address(0), "Swap pair 0 is necessary but not supplied");
+            require(_swapPairToken1 > address(0), "Swap pair 1 is necessary but not supplied");
+            swapPairToken0 = IPair(_swapPairToken0);
+            swapPairToken1 = IPair(_swapPairToken1);
+            require(swapPairToken0.token0() == _rewardToken || swapPairToken0.token1() == _rewardToken, "Swap pair supplied does not have the reward token as one of it's pair");
+            require(
+                swapPairToken0.token0() == IPair(address(depositToken)).token0() || swapPairToken0.token1() == IPair(address(depositToken)).token0(),
+                "Swap pair 0 supplied does not match the pair in question"
+            );
+            require(
+                swapPairToken1.token0() == IPair(address(depositToken)).token1() || swapPairToken1.token1() == IPair(address(depositToken)).token1(),
+                "Swap pair 1 supplied does not match the pair in question"
+            );
+        } else if (_rewardToken == IPair(address(depositToken)).token0()) {
+            swapPairToken1 = IPair(address(depositToken));
+        } else if (_rewardToken == IPair(address(depositToken)).token1()) {
+            swapPairToken0 = IPair(address(depositToken));
+        }
+    }
+
   /**
    * @notice Approve tokens for use in Strategy
    * @dev Restricted to avoid griefing attacks
    */
   function setAllowances() public override onlyOwner {
-    depositToken.approve(address(conversionContract), MAX_UINT);
-    xJoe.approve(address(stakingContract), MAX_UINT);
+    depositToken.approve(address(stakingContract), MAX_UINT);
   }
 
   /**
@@ -87,20 +112,14 @@ contract CompoundingJoe is YakStrategy {
       _deposit(account, amount);
   }
 
-  /**
-   * @notice Deposit Joe
-   * @param account address
-   * @param amount token amount
-   */
   function _deposit(address account, uint amount) internal {
-    require(DEPOSITS_ENABLED == true, "CompoundingJoe::_deposit");
+    require(DEPOSITS_ENABLED == true, "FrostStrategyForLP::_deposit");
     if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
         uint unclaimedRewards = checkReward();
         if (unclaimedRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
             _reinvest(unclaimedRewards);
         }
     }
-
     require(depositToken.transferFrom(msg.sender, address(this), amount));
     _stakeDepositTokens(amount);
     _mint(account, getSharesForDepositTokens(amount));
@@ -112,27 +131,23 @@ contract CompoundingJoe is YakStrategy {
     uint depositTokenAmount = getDepositTokensForShares(amount);
     if (depositTokenAmount > 0) {
       _withdrawDepositTokens(depositTokenAmount);
-      require(depositToken.transfer(msg.sender, depositTokenAmount), "CompoundingJoe::withdraw");
+      (,,,, uint withdrawFeeBP) = stakingContract.poolInfo(PID);
+      uint withdrawFee = depositTokenAmount.mul(withdrawFeeBP).div(BIPS_DIVISOR);
+      _safeTransfer(address(depositToken), msg.sender, depositTokenAmount.sub(withdrawFee));
       _burn(msg.sender, amount);
       totalDeposits = totalDeposits.sub(depositTokenAmount);
       emit Withdraw(msg.sender, depositTokenAmount);
     }
   }
 
-  /**
-   * @notice Withdraw Joe
-   * @param amount deposit tokens
-   */
   function _withdrawDepositTokens(uint amount) private {
-    require(amount > 0, "CompoundingJoe::_withdrawDepositTokens");
-    uint xJoeAmount = _getXJoeForJoe(amount);
-    stakingContract.withdraw(PID, xJoeAmount);
-    conversionContract.leave(xJoeAmount);
+    require(amount > 0, "FrostStrategyForLP::_withdrawDepositTokens");
+    stakingContract.withdraw(PID, amount);
   }
 
   function reinvest() external override onlyEOA {
     uint unclaimedRewards = checkReward();
-    require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "CompoundingJoe::reinvest");
+    require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "FrostStrategyForLP::reinvest");
     _reinvest(unclaimedRewards);
   }
 
@@ -146,103 +161,71 @@ contract CompoundingJoe is YakStrategy {
 
     uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
     if (devFee > 0) {
-      require(rewardToken.transfer(devAddr, devFee), "CompoundingJoe::_reinvest, dev");
+      _safeTransfer(address(rewardToken), devAddr, devFee);
     }
 
     uint adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
     if (adminFee > 0) {
-      require(rewardToken.transfer(owner(), adminFee), "CompoundingJoe::_reinvest, admin");
+      _safeTransfer(address(rewardToken), owner(), adminFee);
     }
 
     uint reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
     if (reinvestFee > 0) {
-      require(rewardToken.transfer(msg.sender, reinvestFee), "CompoundingJoe::_reinvest, reward");
+      _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
     }
 
-    uint depositTokenAmount = amount.sub(devFee).sub(adminFee).sub(reinvestFee);
+    uint depositTokenAmount = DexLibrary.convertRewardTokensToDepositTokens(
+      amount.sub(devFee).sub(adminFee).sub(reinvestFee),
+      address(rewardToken),
+      address(depositToken),
+      swapPairToken0,
+      swapPairToken1
+    );
+
     _stakeDepositTokens(depositTokenAmount);
     totalDeposits = totalDeposits.add(depositTokenAmount);
 
     emit Reinvest(totalDeposits, totalSupply);
   }
-  
-  /**
-   * @notice Convert and stake Joe
-   * @param amount deposit tokens
-   */
+    
   function _stakeDepositTokens(uint amount) private {
-    uint xJoeAmount = _getXJoeForJoe(amount);
-    _convertJoeToXJoe(amount);
-    _stakeXJoe(xJoeAmount);
-  }
-
-  /**
-   * @notice Convert joe to xJoe
-   * @param amount deposit token
-   */
-  function _convertJoeToXJoe(uint amount) private {
-    require(amount > 0, "CompoundingJoe::_convertJoeToXJoe");
-    conversionContract.enter(amount);
-  }
-
-  /**
-   * @notice Stake xJoe
-   * @param amount xJoe
-   */
-  function _stakeXJoe(uint amount) private {
-    require(amount > 0, "CompoundingJoe::_stakeXJoe");
+    require(amount > 0, "FrostStrategyForLP::_stakeDepositTokens");
     stakingContract.deposit(PID, amount);
   }
 
+  /**
+    * @notice Safely transfer using an anonymosu ERC20 token
+    * @dev Requires token to return true on transfer
+    * @param token address
+    * @param to recipient address
+    * @param value amount
+    */
+  function _safeTransfer(address token, address to, uint256 value) private {
+    require(IERC20(token).transfer(to, value), 'DexStrategyV6::TRANSFER_FROM_FAILED');
+  }
+  
   function checkReward() public override view returns (uint) {
-    (uint pendingReward, , , ) = stakingContract.pendingTokens(PID, address(this));
+    uint pendingReward = stakingContract.pendingTUNDRA(PID, address(this));
     uint contractBalance = rewardToken.balanceOf(address(this));
     return pendingReward.add(contractBalance);
   }
 
   /**
-   * @notice Estimate recoverable balance
-   * @return deposit tokens
+   * @notice Estimate recoverable balance after withdraw fee
+   * @return deposit tokens after withdraw fee
    */
   function estimateDeployedBalance() external override view returns (uint) {
     (uint depositBalance, ) = stakingContract.userInfo(PID, address(this));
-    return _getJoeForXJoe(depositBalance);
-  }
-
-  /**
-   * @notice Conversion rate for Joe to xJoe
-   * @param amount Joe tokens
-   * @return xJoe shares
-   */
-  function _getXJoeForJoe(uint amount) private view returns (uint) {
-    uint joeBalance = depositToken.balanceOf(address(conversionContract));
-    uint xJoeShares = xJoe.totalSupply();
-    if (joeBalance.mul(xJoeShares) == 0) {
-      return amount;
-    }
-    return amount.mul(xJoeShares).div(joeBalance);
-  }
-
-  /**
-   * @notice Conversion rate for xJoe to Joe
-   * @param amount xJoe shares
-   * @return Joe tokens
-   */
-  function _getJoeForXJoe(uint amount) private view returns (uint) {
-    uint joeBalance = depositToken.balanceOf(address(conversionContract));
-    uint xJoeShares = xJoe.totalSupply();
-    if (joeBalance.mul(xJoeShares) == 0) {
-      return amount;
-    }
-    return amount.mul(joeBalance).div(xJoeShares);
+    (,,,, uint withdrawFeeBP) = stakingContract.poolInfo(PID);
+    uint withdrawFee = depositBalance.mul(withdrawFeeBP).div(BIPS_DIVISOR);
+    return depositBalance.sub(withdrawFee);
   }
 
   function rescueDeployedFunds(uint minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
     uint balanceBefore = depositToken.balanceOf(address(this));
     stakingContract.emergencyWithdraw(PID);
-    conversionContract.leave(xJoe.balanceOf(address(this)));
     uint balanceAfter = depositToken.balanceOf(address(this));
-    require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "CompoundingJoe::rescueDeployedFunds");
+    require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "FrostStrategyForLP::rescueDeployedFunds");
     totalDeposits = balanceAfter;
     emit Reinvest(totalDeposits, totalSupply);
     if (DEPOSITS_ENABLED == true && disableDeposits == true) {

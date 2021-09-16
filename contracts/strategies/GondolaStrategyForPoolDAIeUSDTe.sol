@@ -2,29 +2,33 @@
 pragma solidity ^0.7.0;
 
 import "../YakStrategy.sol";
-import "../interfaces/IJoeChef.sol";
-import "../interfaces/IJoeBar.sol";
+import "../interfaces/IGondolaChef.sol";
+import "../interfaces/IRouter.sol";
 import "../interfaces/IPair.sol";
+import "../interfaces/IGondolaPool.sol";
 
 /**
- * @notice Single asset strategy for Joe
+ * @notice StableSwap strategy for Gondola DAIe/USDTe
  */
-contract CompoundingJoe is YakStrategy {
+contract GondolaStrategyForPoolDAIeUSDTe is YakStrategy {
   using SafeMath for uint;
 
-  IJoeChef public stakingContract;
-  IJoeBar public conversionContract;
-  IERC20 public xJoe;
+  IGondolaChef public stakingContract;
+  IGondolaPool public poolContract;
+
+  address private constant WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
+  address private constant USDTe = 0xc7198437980c041c805A1EDcbA50c1Ce5db95118;
+  address private constant DAIe = 0xd586E7F844cEa2F87f50152665BCbc2C279D8d70;
+  IRouter private constant ROUTER = IRouter(0xE54Ca86531e17Ef3616d22Ca28b0D458b6C89106);
 
   uint public PID;
 
   constructor(
     string memory _name,
-    string memory _symbol,
     address _depositToken, 
     address _rewardToken, 
     address _stakingContract,
-    address _conversionContract,
+    address _poolContract,
     address _timelock,
     uint _pid,
     uint _minTokensToReinvest,
@@ -33,12 +37,10 @@ contract CompoundingJoe is YakStrategy {
     uint _reinvestRewardBips
   ) {
     name = _name;
-    symbol = _symbol;
     depositToken = IPair(_depositToken);
     rewardToken = IERC20(_rewardToken);
-    stakingContract = IJoeChef(_stakingContract);
-    conversionContract = IJoeBar(_conversionContract);
-    xJoe = IERC20(_conversionContract);
+    stakingContract = IGondolaChef(_stakingContract);
+    poolContract = IGondolaPool(_poolContract);
     PID = _pid;
     devAddr = msg.sender;
 
@@ -58,8 +60,10 @@ contract CompoundingJoe is YakStrategy {
    * @dev Restricted to avoid griefing attacks
    */
   function setAllowances() public override onlyOwner {
-    depositToken.approve(address(conversionContract), MAX_UINT);
-    xJoe.approve(address(stakingContract), MAX_UINT);
+    depositToken.approve(address(stakingContract), MAX_UINT);
+    rewardToken.approve(address(ROUTER), MAX_UINT);
+    IERC20(USDTe).approve(address(poolContract), MAX_UINT);
+    IERC20(DAIe).approve(address(poolContract), MAX_UINT);
   }
 
   /**
@@ -87,20 +91,14 @@ contract CompoundingJoe is YakStrategy {
       _deposit(account, amount);
   }
 
-  /**
-   * @notice Deposit Joe
-   * @param account address
-   * @param amount token amount
-   */
   function _deposit(address account, uint amount) internal {
-    require(DEPOSITS_ENABLED == true, "CompoundingJoe::_deposit");
+    require(DEPOSITS_ENABLED == true, "GondolaStrategyForStableSwap::_deposit");
     if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
         uint unclaimedRewards = checkReward();
         if (unclaimedRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
             _reinvest(unclaimedRewards);
         }
     }
-
     require(depositToken.transferFrom(msg.sender, address(this), amount));
     _stakeDepositTokens(amount);
     _mint(account, getSharesForDepositTokens(amount));
@@ -112,27 +110,21 @@ contract CompoundingJoe is YakStrategy {
     uint depositTokenAmount = getDepositTokensForShares(amount);
     if (depositTokenAmount > 0) {
       _withdrawDepositTokens(depositTokenAmount);
-      require(depositToken.transfer(msg.sender, depositTokenAmount), "CompoundingJoe::withdraw");
+      require(depositToken.transfer(msg.sender, depositTokenAmount), "GondolaStrategyForStableSwap::withdraw");
       _burn(msg.sender, amount);
       totalDeposits = totalDeposits.sub(depositTokenAmount);
       emit Withdraw(msg.sender, depositTokenAmount);
     }
   }
 
-  /**
-   * @notice Withdraw Joe
-   * @param amount deposit tokens
-   */
   function _withdrawDepositTokens(uint amount) private {
-    require(amount > 0, "CompoundingJoe::_withdrawDepositTokens");
-    uint xJoeAmount = _getXJoeForJoe(amount);
-    stakingContract.withdraw(PID, xJoeAmount);
-    conversionContract.leave(xJoeAmount);
+    require(amount > 0, "GondolaStrategyForStableSwap::_withdrawDepositTokens");
+    stakingContract.withdraw(PID, amount);
   }
 
   function reinvest() external override onlyEOA {
     uint unclaimedRewards = checkReward();
-    require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "CompoundingJoe::reinvest");
+    require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "GondolaStrategyForStableSwap::reinvest");
     _reinvest(unclaimedRewards);
   }
 
@@ -146,58 +138,74 @@ contract CompoundingJoe is YakStrategy {
 
     uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
     if (devFee > 0) {
-      require(rewardToken.transfer(devAddr, devFee), "CompoundingJoe::_reinvest, dev");
+      require(rewardToken.transfer(devAddr, devFee), "GondolaStrategyForStableSwap::_reinvest, dev");
     }
 
     uint adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
     if (adminFee > 0) {
-      require(rewardToken.transfer(owner(), adminFee), "CompoundingJoe::_reinvest, admin");
+      require(rewardToken.transfer(owner(), adminFee), "GondolaStrategyForStableSwap::_reinvest, admin");
     }
 
     uint reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
     if (reinvestFee > 0) {
-      require(rewardToken.transfer(msg.sender, reinvestFee), "CompoundingJoe::_reinvest, reward");
+      require(rewardToken.transfer(msg.sender, reinvestFee), "GondolaStrategyForStableSwap::_reinvest, reward");
     }
 
-    uint depositTokenAmount = amount.sub(devFee).sub(adminFee).sub(reinvestFee);
+    uint depositTokenAmount = _convertRewardTokensToDepositTokens(
+      amount.sub(devFee).sub(adminFee).sub(reinvestFee)
+    );
+
     _stakeDepositTokens(depositTokenAmount);
     totalDeposits = totalDeposits.add(depositTokenAmount);
 
     emit Reinvest(totalDeposits, totalSupply);
   }
-  
-  /**
-   * @notice Convert and stake Joe
-   * @param amount deposit tokens
-   */
+    
   function _stakeDepositTokens(uint amount) private {
-    uint xJoeAmount = _getXJoeForJoe(amount);
-    _convertJoeToXJoe(amount);
-    _stakeXJoe(xJoeAmount);
-  }
-
-  /**
-   * @notice Convert joe to xJoe
-   * @param amount deposit token
-   */
-  function _convertJoeToXJoe(uint amount) private {
-    require(amount > 0, "CompoundingJoe::_convertJoeToXJoe");
-    conversionContract.enter(amount);
-  }
-
-  /**
-   * @notice Stake xJoe
-   * @param amount xJoe
-   */
-  function _stakeXJoe(uint amount) private {
-    require(amount > 0, "CompoundingJoe::_stakeXJoe");
+    require(amount > 0, "GondolaStrategyForStableSwap::_stakeDepositTokens");
     stakingContract.deposit(PID, amount);
   }
 
   function checkReward() public override view returns (uint) {
-    (uint pendingReward, , , ) = stakingContract.pendingTokens(PID, address(this));
+    uint pendingReward = stakingContract.pendingGondola(PID, address(this));
     uint contractBalance = rewardToken.balanceOf(address(this));
     return pendingReward.add(contractBalance);
+  }
+
+  /**
+    * @notice Converts reward tokens to deposit tokens
+    * @dev Always converts through router; there are no price checks enabled
+    * @return deposit tokens received
+    */
+  function _convertRewardTokensToDepositTokens(uint amount) private returns (uint) {
+    require(amount > 0, "GondolaStrategyForStableSwap::_convertRewardTokensToDepositTokens");
+
+    uint[] memory liquidityAmounts = new uint[](2);
+    address[] memory path = new address[](3);
+    path[0] = address(rewardToken);
+
+    // find route for bonus token
+    if (poolContract.getTokenBalance(0) < poolContract.getTokenBalance(1)) {
+      // convert to 0
+      path[1] = WAVAX;
+      path[2] = DAIe;
+      uint[] memory amountsOutToken = ROUTER.getAmountsOut(amount, path);
+      uint amountOutToken = amountsOutToken[amountsOutToken.length - 1];
+      ROUTER.swapExactTokensForTokens(amount, amountOutToken, path, address(this), block.timestamp);
+      liquidityAmounts[0] = amountOutToken;
+    }
+    else {
+      // convert to 1
+      path[1] = WAVAX;
+      path[2] = USDTe;
+      uint[] memory amountsOutToken = ROUTER.getAmountsOut(amount, path);
+      uint amountOutToken = amountsOutToken[amountsOutToken.length - 1];
+      ROUTER.swapExactTokensForTokens(amount, amountOutToken, path, address(this), block.timestamp);
+      liquidityAmounts[1] = amountOutToken;
+    }
+
+    uint liquidity = poolContract.addLiquidity(liquidityAmounts, 0, block.timestamp);
+    return liquidity;
   }
 
   /**
@@ -206,43 +214,14 @@ contract CompoundingJoe is YakStrategy {
    */
   function estimateDeployedBalance() external override view returns (uint) {
     (uint depositBalance, ) = stakingContract.userInfo(PID, address(this));
-    return _getJoeForXJoe(depositBalance);
-  }
-
-  /**
-   * @notice Conversion rate for Joe to xJoe
-   * @param amount Joe tokens
-   * @return xJoe shares
-   */
-  function _getXJoeForJoe(uint amount) private view returns (uint) {
-    uint joeBalance = depositToken.balanceOf(address(conversionContract));
-    uint xJoeShares = xJoe.totalSupply();
-    if (joeBalance.mul(xJoeShares) == 0) {
-      return amount;
-    }
-    return amount.mul(xJoeShares).div(joeBalance);
-  }
-
-  /**
-   * @notice Conversion rate for xJoe to Joe
-   * @param amount xJoe shares
-   * @return Joe tokens
-   */
-  function _getJoeForXJoe(uint amount) private view returns (uint) {
-    uint joeBalance = depositToken.balanceOf(address(conversionContract));
-    uint xJoeShares = xJoe.totalSupply();
-    if (joeBalance.mul(xJoeShares) == 0) {
-      return amount;
-    }
-    return amount.mul(joeBalance).div(xJoeShares);
+    return depositBalance;
   }
 
   function rescueDeployedFunds(uint minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
     uint balanceBefore = depositToken.balanceOf(address(this));
     stakingContract.emergencyWithdraw(PID);
-    conversionContract.leave(xJoe.balanceOf(address(this)));
     uint balanceAfter = depositToken.balanceOf(address(this));
-    require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "CompoundingJoe::rescueDeployedFunds");
+    require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "GondolaStrategyForStableSwap::rescueDeployedFunds");
     totalDeposits = balanceAfter;
     emit Reinvest(totalDeposits, totalSupply);
     if (DEPOSITS_ENABLED == true && disableDeposits == true) {

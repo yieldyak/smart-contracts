@@ -31,6 +31,9 @@ task("checkFarmState", "Gives a nice output of the state of the farm")
  */
 
 module.exports = {
+  mocha: {
+    timeout: 1e10,
+  },
   solidity: {
     version: "0.7.3",
     settings: {
