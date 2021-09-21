@@ -28,6 +28,7 @@ interface IPenguinIglooChef {
     );
     function setIpefiDistributionBips(uint256 _ipefiDistributionBips) external;
     function emergencyWithdraw(uint256 pid, address to) external;
+    function harvest(uint256 pid, address to) external;
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);

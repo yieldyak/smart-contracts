@@ -3,7 +3,6 @@ pragma solidity ^0.7.0;
 
 import "../YakStrategyV2.sol";
 import "../interfaces/IPenguinIglooChef.sol";
-import "../interfaces/IRouter.sol";
 import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
 
@@ -49,7 +48,7 @@ contract PenguinIglooStrategyV2 is YakStrategyV2 {
     updateDevFee(_devFeeBips);
     updateReinvestReward(_reinvestRewardBips);
     updateDepositsEnabled(true);
-    transferOwnership(_timelock);
+    //transferOwnership(_timelock);
 
     emit Reinvest(0, 0);
   }
@@ -78,7 +77,7 @@ contract PenguinIglooStrategyV2 is YakStrategyV2 {
     function assignSwapPairSafely(address _swapPairWAVAXPEFI, address _swapPairToken0, address _swapPairToken1, address _rewardToken) private {
         require(
             DexLibrary.checkSwapPairCompatibility(IPair(_swapPairWAVAXPEFI), address(WAVAX), address(_rewardToken)),
-            "_swapPairWAVAXSnob is not a WAVAX-Pefi pair"
+            "_swapPairWAVAXPEFI is not a WAVAX-Pefi pair"
         );
         require(
             _swapPairToken0 == address(0)
@@ -163,10 +162,11 @@ contract PenguinIglooStrategyV2 is YakStrategyV2 {
   /**
     * @notice Reinvest rewards from staking contract to deposit tokens
     * @dev Reverts if the expected amount of tokens are not returned from `stakingContract`
-    * @param amount deposit tokens to reinvest
+    * @param unclaimedRewards deposit tokens to reinvest
     */
-  function _reinvest(uint amount) private {
-    stakingContract.deposit(PID, 0,address(this));
+  function _reinvest(uint unclaimedRewards) private {
+    stakingContract.harvest(PID, address(this));
+    uint amount = _convertRewardIntoWAVAX(unclaimedRewards);
     uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
             _safeTransfer(address(WAVAX), devAddr, devFee);
@@ -203,6 +203,14 @@ contract PenguinIglooStrategyV2 is YakStrategyV2 {
     uint contractBalance = rewardToken.balanceOf(address(this));
     return pendingReward.add(contractBalance);
   }
+
+  function _convertRewardIntoWAVAX(uint pendingReward) private returns (uint) {
+        return DexLibrary.swap(
+            pendingReward,
+            address(rewardToken), address(WAVAX),
+            swapPairWAVAXPEFI
+        );
+    }
 
   /**
      * @notice Safely transfer using an anonymosu ERC20 token
