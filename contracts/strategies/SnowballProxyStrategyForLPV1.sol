@@ -112,7 +112,7 @@ contract SnowballProxyStrategyForLPV1 is YakStrategyV2 {
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
             uint unclaimedRewards = checkReward();
             if (unclaimedRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
-                _reinvest(unclaimedRewards);
+                _reinvest(_convertRewardIntoWAVAX(unclaimedRewards));
             }
         }
         _stakeDepositTokens(msg.sender, amount);
