@@ -92,7 +92,7 @@ contract BenqiStrategyForLP is YakStrategy {
                 _reinvest(avaxAmount, qiAmount);
             }
         }
-        require(depositToken.transferFrom(msg.sender, address(this), amount));
+        require(depositToken.transferFrom(account, address(this), amount));
         _stakeDepositTokens(amount);
         _mint(account, getSharesForDepositTokens(amount));
         totalDeposits = totalDeposits.add(amount);
@@ -148,6 +148,10 @@ contract BenqiStrategyForLP is YakStrategy {
     }
 
     function _reinvestToken(IERC20 token, uint amount) private returns (uint depositTokenAmount) {
+        // This check is important, because avax rewards will end one day!
+        if (amount == 0) {
+            return 0;
+        }
         uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
             _safeTransfer(address(token), devAddr, devFee);
@@ -189,14 +193,14 @@ contract BenqiStrategyForLP is YakStrategy {
     }
 
     function _checkRewards() internal view returns (uint avaxAmount, uint qiAmount, uint totalAvaxAmount) {
-        uint avaxRewards = stakingContract.getClaimableRewards(0);
-        uint qiRewards = stakingContract.getClaimableRewards(1);
+        avaxAmount = stakingContract.getClaimableRewards(0);
+        qiAmount = stakingContract.getClaimableRewards(1);
 
         uint qiAsWavax = DexLibrary.estimateConversionThroughPair(
-            qiRewards, address(qiRewardToken),
+            qiAmount, address(qiRewardToken),
             address(wavaxRewardToken), swapPairToken
         );
-        return (avaxAmount, qiAmount, avaxRewards.add(qiAsWavax));
+        totalAvaxAmount = avaxAmount.add(qiAsWavax);
     }
 
     function checkReward() public override view returns (uint) {
