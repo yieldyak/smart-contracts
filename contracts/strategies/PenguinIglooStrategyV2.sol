@@ -5,7 +5,6 @@ import "../YakStrategyV2.sol";
 import "../interfaces/IPenguinIglooChef.sol";
 import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
-import "hardhat/console.sol";
 
 /**
  * @notice Pool2 strategy for Penguin Igloos V2
@@ -54,7 +53,7 @@ contract PenguinIglooStrategyV2 is YakStrategyV2 {
         updateDevFee(_devFeeBips);
         updateReinvestReward(_reinvestRewardBips);
         updateDepositsEnabled(true);
-        //transferOwnership(_timelock);
+        transferOwnership(_timelock);
 
         emit Reinvest(0, 0);
     }
@@ -203,7 +202,6 @@ contract PenguinIglooStrategyV2 is YakStrategyV2 {
 
     function reinvest() external override onlyEOA {
         uint256 unclaimedRewards = checkReward();
-        console.log("Amount of Unclaimed Rewards in PEFI", unclaimedRewards);
         require(
             unclaimedRewards >= MIN_TOKENS_TO_REINVEST,
             "PenguinIglooStrategyV2::reinvest"
@@ -220,10 +218,6 @@ contract PenguinIglooStrategyV2 is YakStrategyV2 {
         stakingContract.harvest(PID, address(this));
         stakingContract.deposit(PID, 0, address(this));
         uint256 amount = _convertRewardIntoWAVAX(unclaimedRewards);
-        console.log(
-            "amount of WAVAX we got after swapping reward token for WAVAX",
-            amount
-        );
         uint256 devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
             _safeTransfer(address(WAVAX), devAddr, devFee);
@@ -249,10 +243,6 @@ contract PenguinIglooStrategyV2 is YakStrategyV2 {
                 swapPairToken0,
                 swapPairToken1
             );
-        console.log(
-            "Deposit Tokens that came out of Reinvest method",
-            depositTokenAmount
-        );
         _stakeDepositTokens(depositTokenAmount);
         emit Reinvest(totalDeposits(), totalSupply);
     }
@@ -264,12 +254,7 @@ contract PenguinIglooStrategyV2 is YakStrategyV2 {
 
     function checkReward() public view override returns (uint256) {
         uint256 pendingReward = stakingContract.pendingPEFI(PID, address(this));
-        console.log("Pending Reward part:", pendingReward);
         uint256 contractBalance = rewardToken.balanceOf(address(this));
-        console.log(
-            "Pefi already Existing on the Contract part:",
-            contractBalance
-        );
         return pendingReward.add(contractBalance);
     }
 
