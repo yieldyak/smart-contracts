@@ -16,11 +16,11 @@ contract BenqiStrategyForLP is YakStrategy {
     IERC20 private wavaxRewardToken;
     IERC20 private qiRewardToken;
     IPair private swapPairToken; // WAVAX-QI LP
+    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
 
     constructor (
         string memory _name,
         address _depositToken,
-        address _wavaxRewardToken,
         address _qiRewardToken,
         address _stakingContract,
         address _swapPairToken,
@@ -32,7 +32,8 @@ contract BenqiStrategyForLP is YakStrategy {
     ) {
         name = _name;
         depositToken = IERC20(_depositToken);
-        wavaxRewardToken = IERC20(_wavaxRewardToken);
+        wavaxRewardToken = IERC20(address(WAVAX));
+        rewardToken = wavaxRewardToken;
         qiRewardToken = IERC20(_qiRewardToken);
         stakingContract = IBenqiStakingContract(_stakingContract);
         devAddr = msg.sender;
@@ -57,8 +58,13 @@ contract BenqiStrategyForLP is YakStrategy {
     function assignSwapPairSafely(address _swapPairToken) private {
         require(_swapPairToken > address(0), "Swap pair is necessary but not supplied");
         swapPairToken = IPair(_swapPairToken);
-        require(address(wavaxRewardToken) == swapPairToken.token0(), "Swap pair does not match WAVAX reward");
-        require(address(qiRewardToken) == swapPairToken.token1(), "Swap pair does not match QI reward");
+        require(isPairEquals(swapPairToken, wavaxRewardToken, qiRewardToken)
+            || isPairEquals(swapPairToken, qiRewardToken, wavaxRewardToken),
+            "Swap pair does not match WAVAX or QI.");
+    }
+
+    function isPairEquals(IPair pair, IERC20 left, IERC20 right) private returns (bool) {
+        return pair.token0() == address(left) && pair.token1() == address(right);
     }
 
     function setAllowances() public override onlyOwner {
@@ -109,6 +115,14 @@ contract BenqiStrategyForLP is YakStrategy {
         stakingContract.redeem(amount);
     }
 
+    receive() external payable {
+        require(
+            msg.sender == address(WAVAX) ||
+            msg.sender == address(stakingContract),
+            "BenqiStrategyForLP::payments not allowed"
+        );
+    }
+
     function reinvest() external override onlyEOA {
         (uint avaxAmount, uint qiAmount, uint totalAvaxAmount) = _checkRewards();
         require(totalAvaxAmount >= MIN_TOKENS_TO_REINVEST, "BenqiStrategyForLP::reinvest");
@@ -123,6 +137,10 @@ contract BenqiStrategyForLP is YakStrategy {
      */
     function _reinvest(uint avaxAmount, uint qiAmount) private {
         stakingContract.claimRewards();
+        // wrap avax reward to wavax.
+        if (avaxAmount > 0) {
+            WAVAX.deposit{value: avaxAmount}();
+        }
         uint amount = _reinvestToken(wavaxRewardToken, avaxAmount) + _reinvestToken(qiRewardToken, qiAmount);
         _stakeDepositTokens(amount);
         totalDeposits = totalDeposits.add(amount);
