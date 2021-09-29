@@ -115,13 +115,8 @@ contract BenqiStrategyForLP is YakStrategy {
         stakingContract.redeem(amount);
     }
 
-    receive() external payable {
-        require(
-            msg.sender == address(WAVAX) ||
-            msg.sender == address(stakingContract),
-            "BenqiStrategyForLP::payments not allowed"
-        );
-    }
+    // For Benqi to `recipient.transfer`. Keep this empty to reduce failures due to insufficient gas fee.
+    receive() external payable {}
 
     function reinvest() external override onlyEOA {
         (uint avaxAmount, uint qiAmount, uint totalAvaxAmount) = _checkRewards();
