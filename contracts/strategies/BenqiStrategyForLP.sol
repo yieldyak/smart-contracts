@@ -132,21 +132,24 @@ contract BenqiStrategyForLP is YakStrategy {
      */
     function _reinvest(uint avaxAmount, uint qiAmount) private {
         stakingContract.claimRewards();
-        // wrap avax reward to wavax.
+        // wrap avax reward to wavax and check if avax reward has ended.
         if (avaxAmount > 0) {
             WAVAX.deposit{value: avaxAmount}();
         }
-        uint amount = _reinvestToken(wavaxRewardToken, avaxAmount) + _reinvestToken(qiRewardToken, qiAmount);
+
+        require(qiAmount > 0, "BenqiStrategyForLP::_reinvest");
+        uint qiAsWavax = DexLibrary.swap(
+            qiAmount, address(qiRewardToken),
+            address(wavaxRewardToken), swapPairToken
+        );
+        uint totalWavaxAmount = avaxAmount.add(qiAsWavax);
+        uint amount = _reinvestToken(wavaxRewardToken, totalWavaxAmount);
         _stakeDepositTokens(amount);
         totalDeposits = totalDeposits.add(amount);
         emit Reinvest(totalDeposits, totalSupply);
     }
 
     function _reinvestToken(IERC20 token, uint amount) private returns (uint depositTokenAmount) {
-        // This check is important, because avax rewards will end one day!
-        if (amount == 0) {
-            return 0;
-        }
         uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
             _safeTransfer(address(token), devAddr, devFee);
