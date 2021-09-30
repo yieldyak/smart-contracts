@@ -87,9 +87,9 @@ contract BenqiStrategyForLP is YakStrategy {
     function _deposit(address account, uint amount) private onlyAllowedDeposits {
         require(DEPOSITS_ENABLED == true, "BenqiStrategyForLP::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
-            (uint avaxAmount, uint qiAmount, uint totalAvaxAmount) = _checkRewards();
+            (, uint qiAmount, uint totalAvaxAmount) = _checkRewards();
             if (totalAvaxAmount > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
-                _reinvest(avaxAmount, qiAmount);
+                _reinvest(qiAmount);
             }
         }
         require(depositToken.transferFrom(account, address(this), amount));
@@ -119,20 +119,21 @@ contract BenqiStrategyForLP is YakStrategy {
     receive() external payable {}
 
     function reinvest() external override onlyEOA {
-        (uint avaxAmount, uint qiAmount, uint totalAvaxAmount) = _checkRewards();
+        (, uint qiAmount, uint totalAvaxAmount) = _checkRewards();
         require(totalAvaxAmount >= MIN_TOKENS_TO_REINVEST, "BenqiStrategyForLP::reinvest");
-        _reinvest(avaxAmount, qiAmount);
+        _reinvest(qiAmount);
     }
 
     /**
      * @notice Reinvest rewards from staking contract to deposit tokens
      * @dev Reverts if the expected amount of tokens are not returned from `stakingContract`
-     * @param avaxAmount amount of WAVAX token to reinvest
      * @param qiAmount amount of QI token to reinvest
      */
-    function _reinvest(uint avaxAmount, uint qiAmount) private {
+    function _reinvest(uint qiAmount) private {
         stakingContract.claimRewards();
         // wrap avax reward to wavax and check if avax reward has ended.
+        // note: use balance to collect any left-over avax.
+        uint avaxAmount = address(this).balance;
         if (avaxAmount > 0) {
             WAVAX.deposit{value: avaxAmount}();
         }
