@@ -17,6 +17,7 @@ contract PenguinIglooStrategyV2 is YakStrategyV2 {
     IPair private swapPairWAVAXPEFI;
     IPair private swapPairToken0;
     IPair private swapPairToken1;
+    uint public PID_FEE_DIVISOR;
 
     constructor(
         string memory _name,
@@ -31,7 +32,8 @@ contract PenguinIglooStrategyV2 is YakStrategyV2 {
         uint256 _minTokensToReinvest,
         uint256 _adminFeeBips,
         uint256 _devFeeBips,
-        uint256 _reinvestRewardBips
+        uint256 _reinvestRewardBips,
+        uint256 _pidFeeBips
     ) {
         name = _name;
         depositToken = IPair(_depositToken);
@@ -54,6 +56,7 @@ contract PenguinIglooStrategyV2 is YakStrategyV2 {
         updateReinvestReward(_reinvestRewardBips);
         updateDepositsEnabled(true);
         transferOwnership(_timelock);
+        updatePIDFeeBips(_pidFeeBips);
 
         emit Reinvest(0, 0);
     }
@@ -72,6 +75,14 @@ contract PenguinIglooStrategyV2 is YakStrategyV2 {
      */
     function setAllowances() public override onlyOwner {
         depositToken.approve(address(stakingContract), MAX_UINT);
+    }
+
+    /**
+     * @notice Update pidBipsDivisor fee
+     * @param newValue pid fee divisor in BIPS
+     */
+    function updatePIDFeeBips(uint newValue) public onlyOwner {
+        PID_FEE_DIVISOR = newValue;
     }
 
     /**
@@ -183,7 +194,7 @@ contract PenguinIglooStrategyV2 is YakStrategyV2 {
                 PID
             );
             uint256 withdrawFee = depositTokenAmount.mul(withdrawFeeBP).div(
-                BIPS_DIVISOR
+                PID_FEE_DIVISOR
             );
             _safeTransfer(
                 address(depositToken),
@@ -290,8 +301,8 @@ contract PenguinIglooStrategyV2 is YakStrategyV2 {
     }
 
     /**
-     * @notice Estimate recoverable balance after withdraw fee
-     * @return deposit tokens after withdraw fee
+     * @notice Estimate recoverable balance
+     * @return deposit tokens
      */
     function estimateDeployedBalance()
         external
@@ -303,11 +314,7 @@ contract PenguinIglooStrategyV2 is YakStrategyV2 {
             PID,
             address(this)
         );
-        (, , , , , , uint256 withdrawFeeBP, , ) = stakingContract.poolInfo(PID);
-        uint256 withdrawFee = depositBalance.mul(withdrawFeeBP).div(
-            BIPS_DIVISOR
-        );
-        return depositBalance.sub(withdrawFee);
+        return depositBalance;
     }
 
     function rescueDeployedFunds(
