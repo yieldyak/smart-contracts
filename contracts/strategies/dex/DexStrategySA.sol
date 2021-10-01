@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
-import "../YakStrategy.sol";
-import "../interfaces/IStakingRewards.sol";
+import "../../YakStrategy.sol";
+import "./interfaces/IStakingRewards.sol";
 
 /**
  * @notice Single Asset strategy for StakingRewards
@@ -19,10 +19,7 @@ contract DexStrategySA is YakStrategy {
         address _rewardToken,
         address _stakingContract,
         address _timelock,
-        uint _minTokensToReinvest,
-        uint _adminFeeBips,
-        uint _devFeeBips,
-        uint _reinvestRewardBips
+        StrategySettings memory _strategySettings
     ) {
         name = _name;
         symbol = _symbol;
@@ -32,10 +29,7 @@ contract DexStrategySA is YakStrategy {
         devAddr = msg.sender;
 
         setAllowances();
-        updateMinTokensToReinvest(_minTokensToReinvest);
-        updateAdminFee(_adminFeeBips);
-        updateDevFee(_devFeeBips);
-        updateReinvestReward(_reinvestRewardBips);
+        applyStrategySettings(_strategySettings);
         updateDepositsEnabled(true);
         transferOwnership(_timelock);
 

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
-import "../YakStrategyV2.sol";
-import "../interfaces/ISnowGlobe.sol";
-import "../interfaces/IGauge.sol";
-import "../interfaces/IPair.sol";
-import "../interfaces/ISnowballProxy.sol";
-import "../lib/DexLibrary.sol";
+import "../../YakStrategyV2.sol";
+import "./interfaces/ISnowGlobe.sol";
+import "./interfaces/IGauge.sol";
+import "../../interfaces/IPair.sol";
+import "./interfaces/ISnowballProxy.sol";
+import "../../lib/DexLibrary.sol";
 
 /**
  * @notice Snowball strategy
@@ -33,10 +33,7 @@ contract SnowballProxyStrategyForLPV1 is YakStrategyV2 {
         address _swapPairToken0,
         address _swapPairToken1,
         address _timelock,
-        uint _minTokensToReinvest,
-        uint _adminFeeBips,
-        uint _devFeeBips,
-        uint _reinvestRewardBips
+        StrategySettings memory _strategySettings
     ) {
         name = _name;
         depositToken = IERC20(_depositToken);
@@ -48,10 +45,7 @@ contract SnowballProxyStrategyForLPV1 is YakStrategyV2 {
 
         assignSwapPairSafely(_swapPairWAVAXSnob, _swapPairToken0, _swapPairToken1, _rewardToken);
         setAllowances();
-        updateMinTokensToReinvest(_minTokensToReinvest);
-        updateAdminFee(_adminFeeBips);
-        updateDevFee(_devFeeBips);
-        updateReinvestReward(_reinvestRewardBips);
+        applyStrategySettings(_strategySettings);
         updateDepositsEnabled(true);
         transferOwnership(_timelock);
 

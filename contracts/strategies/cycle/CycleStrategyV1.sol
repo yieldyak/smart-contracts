@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
-import "../YakStrategyV2.sol";
-import "../interfaces/ICycleVaultV3.sol";
-import "../interfaces/ICycleRewards.sol";
-import "../interfaces/IPair.sol";
-import "../lib/DexLibrary.sol";
+import "../../YakStrategyV2.sol";
+import "./interfaces/ICycleVaultV3.sol";
+import "./interfaces/ICycleRewards.sol";
+import "../../interfaces/IPair.sol";
+import "../../lib/DexLibrary.sol";
 
 /**
  * @notice Strategy for CycleVaults
@@ -29,10 +29,8 @@ contract CycleStrategyV1 is YakStrategyV2 {
         address _swapPairWAVAXCYCLE,
         address _swapPairToken0,
         address _swapPairToken1,
-        uint _minTokensToReinvest,
-        uint _adminFeeBips,
-        uint _devFeeBips,
-        uint _reinvestRewardBips
+        address _timelock,
+        StrategySettings memory _strategySettings
     ) {
         name = _name;
         depositToken = IERC20(_depositToken);
@@ -46,11 +44,9 @@ contract CycleStrategyV1 is YakStrategyV2 {
         swapPairWAVAXCYCLE = IPair(_swapPairWAVAXCYCLE);
 
         setAllowances();
-        updateMinTokensToReinvest(_minTokensToReinvest);
-        updateAdminFee(_adminFeeBips);
-        updateDevFee(_devFeeBips);
-        updateReinvestReward(_reinvestRewardBips);
+        applyStrategySettings(_strategySettings);
         updateDepositsEnabled(true);
+        transferOwnership(_timelock);
 
         emit Reinvest(0, 0);
     }
@@ -100,7 +96,7 @@ contract CycleStrategyV1 is YakStrategyV2 {
         emit Withdraw(msg.sender, depositTokenAmount);
     }
 
-    function _convertSharesToCycleShares(uint amount) private returns (uint) {
+    function _convertSharesToCycleShares(uint amount) private view returns (uint) {
         uint cycleShareBalance = rewardsContract.balanceOf(address(this));
         return amount.mul(cycleShareBalance).div(totalSupply);
     }

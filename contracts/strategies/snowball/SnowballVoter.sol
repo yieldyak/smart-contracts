@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
-import "../interfaces/IGauge.sol";
-import "../interfaces/IVoteEscrow.sol";
-import "../lib/SafeERC20.sol";
-import "../lib/Ownable.sol";
+import "./interfaces/IGauge.sol";
+import "./interfaces/IVoteEscrow.sol";
+import "../../lib/SafeERC20.sol";
+import "../../lib/Ownable.sol";
+import "../../lib/SafeMath.sol";
 
 contract SnowballVoter is Ownable {
     using SafeERC20 for IERC20;

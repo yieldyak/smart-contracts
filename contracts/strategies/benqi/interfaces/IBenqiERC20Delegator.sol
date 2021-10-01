@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
-import "./IERC20.sol";
+import "../../../interfaces/IERC20.sol";
 
 interface IBenqiERC20Delegator is IERC20 {
     function exchangeRateStored() external view returns (uint256);
@@ -14,6 +14,6 @@ interface IBenqiERC20Delegator is IERC20 {
     function balanceOfUnderlying(address owner) external returns (uint256);
     function borrowBalanceCurrent(address owner) external returns (uint256);
     function borrowBalanceStored(address owner) external view returns (uint256);
-    function getAccountSnapshot(address account) external view returns (uint256 error, uint256 balance, uint256 borrow, uint256 mantissa);
+    function getAccountSnapshot(address account) external view returns (uint256 _error, uint256 _balance, uint256 _borrow, uint256 _mantissa);
     function getCash() external returns (uint);
 }

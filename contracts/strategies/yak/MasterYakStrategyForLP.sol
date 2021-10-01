@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
-import "../YakStrategy.sol";
-import "../interfaces/IYakChef.sol";
-import "../interfaces/IPair.sol";
-import "../interfaces/IERC20.sol";
-import "../interfaces/IWAVAX.sol";
-import "../lib/DexLibrary.sol";
+import "../../YakStrategy.sol";
+import "./interfaces/IYakChef.sol";
+import "../../interfaces/IPair.sol";
+import "../../interfaces/IERC20.sol";
+import "../../interfaces/IWAVAX.sol";
+import "../../lib/DexLibrary.sol";
 
 /**
  * @notice Strategy for Master Yak, which pays rewards in AVAX
@@ -30,10 +30,7 @@ contract MasterYakStrategyForLP is YakStrategy {
         address _swapPairToken1,
         uint pid,
         address _timelock,
-        uint _minTokensToReinvest,
-        uint _adminFeeBips,
-        uint _devFeeBips,
-        uint _reinvestRewardBips
+        StrategySettings memory _strategySettings
     ) {
         name = _name;
         depositToken = IERC20(_depositToken);
@@ -45,10 +42,7 @@ contract MasterYakStrategyForLP is YakStrategy {
         PID = pid;
 
         setAllowances();
-        updateMinTokensToReinvest(_minTokensToReinvest);
-        updateAdminFee(_adminFeeBips);
-        updateDevFee(_devFeeBips);
-        updateReinvestReward(_reinvestRewardBips);
+        applyStrategySettings(_strategySettings);
         updateDepositsEnabled(true);
         transferOwnership(_timelock);
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
 import "./YakERC20.sol";
@@ -152,7 +152,7 @@ contract YakVault is YakERC20, Ownable {
      */
     function setActiveStrategy(address strategy) public onlyOwner {
         require(supportedDepositTokens[strategy] == true, "YakVault::setActiveStrategy, not found");
-        require(depositToken.approve(strategy, uint(-1)));
+        require(depositToken.approve(strategy, type(uint256).max));
         activeStrategy = strategy;
         emit SetActiveStrategy(strategy);
     }
@@ -202,7 +202,7 @@ contract YakVault is YakERC20, Ownable {
         YakStrategy(strategy).withdraw(strategyShares);
         uint balanceAfter = depositToken.balanceOf(address(this));
         require(balanceAfter > balanceBefore, "YakVault::withdrawFromStrategy");
-        resetTotalDeposits();
+        //resetTotalDeposits();
     }
 
     /**

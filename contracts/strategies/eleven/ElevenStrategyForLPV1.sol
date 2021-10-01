@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
-import "../YakStrategyV2.sol";
-import "../interfaces/IElevenChef.sol";
-import "../interfaces/IElevenGrowthVault.sol";
-import "../interfaces/IElevenQuickStrat.sol";
-import "../interfaces/IPair.sol";
-import "../lib/DexLibrary.sol";
+import "../../YakStrategyV2.sol";
+import "./interfaces/IElevenChef.sol";
+import "./interfaces/IElevenGrowthVault.sol";
+import "./interfaces/IElevenQuickStrat.sol";
+import "../../interfaces/IPair.sol";
+import "../../lib/DexLibrary.sol";
 
 /**
  * @notice Strategy for ElevenVaults
@@ -33,10 +33,7 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
         address _swapPairToken1,
         address _timelock,
         uint _pid,
-        uint _minTokensToReinvest,
-        uint _adminFeeBips,
-        uint _devFeeBips,
-        uint _reinvestRewardBips
+        StrategySettings memory _strategySettings
     ) {
         name = _name;
         depositToken = IERC20(_depositToken);
@@ -65,10 +62,7 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
         swapPairToken1 = IPair(_swapPairToken1);
 
         setAllowances();
-        updateMinTokensToReinvest(_minTokensToReinvest);
-        updateAdminFee(_adminFeeBips);
-        updateDevFee(_devFeeBips);
-        updateReinvestReward(_reinvestRewardBips);
+        applyStrategySettings(_strategySettings);
         updateDepositsEnabled(true);
         transferOwnership(_timelock);
 

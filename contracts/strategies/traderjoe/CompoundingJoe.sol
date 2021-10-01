@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
-import "../YakStrategy.sol";
-import "../interfaces/IJoeChef.sol";
-import "../interfaces/IJoeBar.sol";
-import "../interfaces/IPair.sol";
+import "../../YakStrategy.sol";
+import "./interfaces/IJoeChef.sol";
+import "./interfaces/IJoeBar.sol";
+import "../../interfaces/IPair.sol";
 
 /**
  * @notice Single asset strategy for Joe
@@ -27,10 +27,7 @@ contract CompoundingJoe is YakStrategy {
     address _conversionContract,
     address _timelock,
     uint _pid,
-    uint _minTokensToReinvest,
-    uint _adminFeeBips,
-    uint _devFeeBips,
-    uint _reinvestRewardBips
+    StrategySettings memory _strategySettings
   ) {
     name = _name;
     symbol = _symbol;
@@ -43,10 +40,7 @@ contract CompoundingJoe is YakStrategy {
     devAddr = msg.sender;
 
     setAllowances();
-    updateMinTokensToReinvest(_minTokensToReinvest);
-    updateAdminFee(_adminFeeBips);
-    updateDevFee(_devFeeBips);
-    updateReinvestReward(_reinvestRewardBips);
+    applyStrategySettings(_strategySettings);
     updateDepositsEnabled(true);
     transferOwnership(_timelock);
 

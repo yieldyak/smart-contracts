@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
-import "../YakStrategyV2Payable.sol";
-import "../interfaces/IBenqiUnitroller.sol";
-import "../interfaces/IBenqiAVAXDelegator.sol";
-import "../interfaces/IWAVAX.sol";
+import "../../YakStrategyV2Payable.sol";
+import "./interfaces/IBenqiUnitroller.sol";
+import "./interfaces/IBenqiAVAXDelegator.sol";
+import "../../interfaces/IWAVAX.sol";
 
-import "../interfaces/IERC20.sol";
-import "../lib/DexLibrary.sol";
-import "../lib/ReentrancyGuard.sol";
+import "../../interfaces/IERC20.sol";
+import "../../lib/DexLibrary.sol";
+import "../../lib/ReentrancyGuard.sol";
 
 contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
     using SafeMath for uint;
@@ -32,10 +32,7 @@ contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         uint _minMinting,
         uint _leverageLevel,
         uint _leverageBips,
-        uint _minTokensToReinvest,
-        uint _adminFeeBips,
-        uint _devFeeBips,
-        uint _reinvestRewardBips
+        StrategySettings memory _strategySettings
     ) {
         name = _name;
         depositToken = IERC20(address(0));
@@ -51,10 +48,7 @@ contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
 
         assignSwapPairSafely(_swapPairToken0);
         setAllowances();
-        updateMinTokensToReinvest(_minTokensToReinvest);
-        updateAdminFee(_adminFeeBips);
-        updateDevFee(_devFeeBips);
-        updateReinvestReward(_reinvestRewardBips);
+        applyStrategySettings(_strategySettings);
         updateDepositsEnabled(true);
         transferOwnership(_timelock);
 
@@ -127,24 +121,24 @@ contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
          _deposit(account, msg.value);
     }
 
-    function deposit(uint amount) external override {
+    function deposit(uint /* amount */) external pure override {
         revert();
     }
 
-    function depositWithPermit(uint amount, uint deadline, uint8 v, bytes32 r, bytes32 s) external override {
+    function depositWithPermit(uint /* amount */, uint /* deadline */, uint8 /* v */, bytes32 /* r */, bytes32 /* s */) external pure override {
         revert();
     }
 
-    function depositFor(address account, uint amount) external override {
+    function depositFor(address /* account */, uint /* amount */) external pure override {
         revert();
     }
 
     function _deposit(address account, uint amount) private onlyAllowedDeposits {
         require(DEPOSITS_ENABLED == true, "BenqiStrategyV1::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
-            (uint qiRewards, uint avaxRewards, uint totalAvaxRewards) = _checkRewards();
+            (uint qiRewards, /* uint avaxRewards */, uint totalAvaxRewards) = _checkRewards();
             if (totalAvaxRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
-                _reinvest(qiRewards, avaxRewards, totalAvaxRewards);
+                _reinvest(qiRewards, totalAvaxRewards);
             }
         }
         uint depositTokenAmount = amount;
@@ -179,9 +173,9 @@ contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
     }
 
     function reinvest() external override onlyEOA nonReentrant {
-        (uint qiRewards, uint avaxRewards, uint totalAvaxRewards) = _checkRewards();
+        (uint qiRewards, /* uint avaxRewards */, uint totalAvaxRewards) = _checkRewards();
         require(totalAvaxRewards >= MIN_TOKENS_TO_REINVEST, "BenqiStrategyV1::reinvest");
-        _reinvest(qiRewards, avaxRewards, totalAvaxRewards);
+        _reinvest(qiRewards, totalAvaxRewards);
     }
 
     receive() external payable {
@@ -198,7 +192,7 @@ contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
      * @dev Reverts if the expected amount of tokens are not returned from `stakingContract`
      * @param amount deposit tokens to reinvest
      */
-    function _reinvest(uint qiRewards, uint avaxRewards, uint amount) private {
+    function _reinvest(uint qiRewards, uint amount) private {
         rewardController.claimReward(0, address(this));
         rewardController.claimReward(1, address(this));
     

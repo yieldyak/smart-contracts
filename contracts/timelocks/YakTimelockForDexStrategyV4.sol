@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 interface IERC20 {
     function transfer(address recipient, uint256 amount) external returns (bool);
@@ -221,7 +221,7 @@ contract YakTimelockForDexStrategyV4 {
      */
     function sweepAVAX(uint amount) external hasPermission (PermissionedTimelockFunctions.sweepAVAX,msg.sender) {
         require(amount > 0, 'YakTimelockManager::sweepAVAX, amount too low');
-        msg.sender.transfer(amount);
+        payable(msg.sender).transfer(amount);
         emit Sweep(address(0), amount);
     }
 

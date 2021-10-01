@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
-import "./YakERC20.sol";
-import "./lib/SafeMath.sol";
+import "../../YakERC20.sol";
+import "../../lib/SafeMath.sol";
 import "./interfaces/IOliveChef.sol";
-import "./interfaces/IRouter.sol";
-import "./interfaces/IPair.sol";
-import "./interfaces/IERC20.sol";
-import "./lib/Ownable.sol";
+import "../../interfaces/IRouter.sol";
+import "../../interfaces/IPair.sol";
+import "../../interfaces/IERC20.sol";
+import "../../lib/Ownable.sol";
 
 contract OliveStrategyForLPc is YakERC20, Ownable {
   using SafeMath for uint;
@@ -27,7 +27,7 @@ contract OliveStrategyForLPc is YakERC20, Ownable {
   uint public REINVEST_REWARD_BIPS = 500;
   uint public ADMIN_FEE_BIPS = 500;
   uint constant private BIPS_DIVISOR = 10000;
-  uint constant private UINT_MAX = uint256(-1);
+  uint constant private UINT_MAX = type(uint256).max;
   address constant private WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
 
   bool public REQUIRE_REINVEST_BEFORE_DEPOSIT;
@@ -379,7 +379,7 @@ contract OliveStrategyForLPc is YakERC20, Ownable {
    */
   function recoverAVAX(uint amount) external onlyOwner {
     require(amount > 0, 'amount too low');
-    msg.sender.transfer(amount);
+    payable(msg.sender).transfer(amount);
     emit Recovered(address(0), amount);
   }
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 import "./lib/SafeMath.sol";
 import "./lib/Ownable.sol";
@@ -27,7 +27,14 @@ abstract contract YakStrategyV2 is YakERC20, Ownable, Permissioned {
     uint public DEV_FEE_BIPS;
 
     uint constant internal BIPS_DIVISOR = 10000;
-    uint constant internal MAX_UINT = uint(-1);
+    uint constant internal MAX_UINT = type(uint256).max;
+
+    struct StrategySettings {
+        uint minTokensToReinvest;
+        uint adminFeeBips;
+        uint devFeeBips;
+        uint reinvestRewardBips;
+    }
 
     event Deposit(address indexed account, uint amount);
     event Withdraw(address indexed account, uint amount);
@@ -171,6 +178,13 @@ abstract contract YakStrategyV2 is YakERC20, Ownable, Permissioned {
         return amount.mul(totalDeposits()).div(totalSupply);
     }
 
+    function applyStrategySettings(StrategySettings memory _strategySettings) internal {
+        updateMinTokensToReinvest(_strategySettings.minTokensToReinvest);
+        updateAdminFee(_strategySettings.adminFeeBips);
+        updateDevFee(_strategySettings.devFeeBips);
+        updateReinvestReward(_strategySettings.reinvestRewardBips);
+    }
+
     /**
      * @notice Update reinvest min threshold
      * @param newValue threshold
@@ -255,7 +269,7 @@ abstract contract YakStrategyV2 is YakERC20, Ownable, Permissioned {
      */
     function recoverAVAX(uint amount) external onlyOwner {
         require(amount > 0);
-        msg.sender.transfer(amount);
+        payable(msg.sender).transfer(amount);
         emit Recovered(address(0), amount);
     }
 }

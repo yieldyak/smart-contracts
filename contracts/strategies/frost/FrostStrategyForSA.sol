@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
-import "../YakStrategy.sol";
-import "../interfaces/IFrostChef.sol";
-import "../interfaces/IPair.sol";
-import "../lib/DexLibrary.sol";
+import "../../YakStrategy.sol";
+import "./interfaces/IFrostChef.sol";
+import "../../interfaces/IPair.sol";
+import "../../lib/DexLibrary.sol";
 
 /**
  * @notice Strategy for Frost
@@ -28,10 +28,7 @@ contract FrostStrategyForSA is YakStrategy {
     address _swapPairToken,
     address _timelock,
     uint _pid,
-    uint _minTokensToReinvest,
-    uint _adminFeeBips,
-    uint _devFeeBips,
-    uint _reinvestRewardBips
+    StrategySettings memory _strategySettings
   ) {
     name = _name;
     depositToken = IPair(_depositToken);
@@ -43,10 +40,7 @@ contract FrostStrategyForSA is YakStrategy {
     devAddr = msg.sender;
 
     setAllowances();
-    updateMinTokensToReinvest(_minTokensToReinvest);
-    updateAdminFee(_adminFeeBips);
-    updateDevFee(_devFeeBips);
-    updateReinvestReward(_reinvestRewardBips);
+    applyStrategySettings(_strategySettings);
     updateDepositsEnabled(true);
     transferOwnership(_timelock);
 

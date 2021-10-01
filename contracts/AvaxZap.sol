@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 import "./interfaces/IWAVAX.sol";
 import "./lib/Ownable.sol";
@@ -38,7 +38,7 @@ contract AvaxZap is Ownable {
    */
   function recoverAVAX(uint amount) external onlyOwner {
     require(amount > 0, 'amount too low');
-    msg.sender.transfer(amount);
+    payable(msg.sender).transfer(amount);
     emit Recovered(address(0), amount);
   }
 
