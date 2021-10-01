@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
-import "../YakStrategy.sol";
-import "../interfaces/IStakingRewards.sol";
-import "../interfaces/IPair.sol";
+import "../../YakStrategy.sol";
+import "./interfaces/IStakingRewards.sol";
+import "../../interfaces/IPair.sol";
 
 /**
  * @notice Pool2 strategy for StakingRewards
@@ -27,10 +27,7 @@ contract DexStrategyV5ReflectionV2 is YakStrategy {
         address _swapPairToken1,
         address _reflectionToken,
         address _timelock,
-        uint _minTokensToReinvest,
-        uint _adminFeeBips,
-        uint _devFeeBips,
-        uint _reinvestRewardBips,
+        StrategySettings memory _strategySettings,
         uint _burnFeeBips
     ) {
         name = _name;
@@ -42,10 +39,7 @@ contract DexStrategyV5ReflectionV2 is YakStrategy {
         reflectionToken = _reflectionToken;
         assignSwapPairSafely(_swapPairToken0, _swapPairToken1, _rewardToken);
         setAllowances();
-        updateMinTokensToReinvest(_minTokensToReinvest);
-        updateAdminFee(_adminFeeBips);
-        updateDevFee(_devFeeBips);
-        updateReinvestReward(_reinvestRewardBips);
+        applyStrategySettings(_strategySettings);
         updateDepositsEnabled(true);
         updateBurnFee(_burnFeeBips);
         transferOwnership(_timelock);

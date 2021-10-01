@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
-import "../YakStrategyV2.sol";
-import "../interfaces/marginswap/ILending.sol";
-import "../interfaces/IWAVAX.sol";
+import "../../YakStrategyV2.sol";
+import "./interfaces/ILending.sol";
+import "../../interfaces/IWAVAX.sol";
 
-import "../interfaces/IERC20.sol";
-import "../lib/DexLibrary.sol";
+import "../../interfaces/IERC20.sol";
+import "../../lib/DexLibrary.sol";
 
 contract MarginswapStrategyV1 is YakStrategyV2 {
     using SafeMath for uint;
@@ -28,10 +28,7 @@ contract MarginswapStrategyV1 is YakStrategyV2 {
         address _swapPairWAVAXMfi,
         address _swapPairToken,
         address _timelock,
-        uint _minTokensToReinvest,
-        uint _adminFeeBips,
-        uint _devFeeBips,
-        uint _reinvestRewardBips
+        StrategySettings memory _strategySettings
     ) {
         name = _name;
         depositToken = IERC20(_depositToken);
@@ -43,12 +40,9 @@ contract MarginswapStrategyV1 is YakStrategyV2 {
         devAddr = msg.sender;
 
         setAllowances();
-        updateMinTokensToReinvest(_minTokensToReinvest);
-        updateAdminFee(_adminFeeBips);
-        updateDevFee(_devFeeBips);
-        updateReinvestReward(_reinvestRewardBips);
+        applyStrategySettings(_strategySettings);
         updateDepositsEnabled(true);
-        // transferOwnership(_timelock);
+        transferOwnership(_timelock);
 
         emit Reinvest(0, 0);
     }
@@ -186,8 +180,8 @@ contract MarginswapStrategyV1 is YakStrategyV2 {
 
     function _calculateIncentiveAllocation() private view returns (uint) {
         (uint256 totalLending,
-        uint256 totalBorrowed,
-        uint256 lendingCap,
+        /* uint256 totalBorrowed */,
+        /* uint256 lendingCap */,
         uint256 cumulIncentiveAllocationFP,
         uint256 incentiveLastUpdated,
         uint256 incentiveEnd,

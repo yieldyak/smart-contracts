@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
-import "../interfaces/ISnowballVoter.sol";
-import "../interfaces/IGauge.sol";
-import "../interfaces/ISnowGlobe.sol";
-import "../lib/SafeERC20.sol";
+import "./interfaces/ISnowballVoter.sol";
+import "./interfaces/IGauge.sol";
+import "./interfaces/ISnowGlobe.sol";
+import "../../lib/SafeERC20.sol";
+import "../../lib/SafeMath.sol";
 
 library SafeProxy {
     function safeExecute(
@@ -19,7 +20,7 @@ library SafeProxy {
 }
 
 contract SnowballProxy {
-    using SafeMath for uint256;
+    using SafeMath for uint;
     using SafeProxy for ISnowballVoter;
     using SafeERC20 for IERC20;
 

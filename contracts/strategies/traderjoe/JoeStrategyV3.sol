@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
-import "../YakStrategy.sol";
-import "../interfaces/IJoeChef.sol";
-import "../interfaces/IPair.sol";
-import "../interfaces/IWAVAX.sol";
-import "../interfaces/IERC20.sol";
-import "../lib/DexLibrary.sol";
+import "../../YakStrategy.sol";
+import "./interfaces/IJoeChef.sol";
+import "../../interfaces/IPair.sol";
+import "../../interfaces/IWAVAX.sol";
+import "../../interfaces/IERC20.sol";
+import "../../lib/DexLibrary.sol";
 
 /**
  * @notice Strategy for Trader Joe, which includes optional and variable extra rewards
@@ -24,22 +24,23 @@ contract JoeStrategyV3 is YakStrategy {
     uint public PID;
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
 
+    struct SwapPairs {
+        address WAVAXJoe;
+        address token0;
+        address token1;
+        address extraToken;
+    }
+
     constructor (
         string memory _name,
         address _depositToken,
         address _poolRewardToken,
         address _rewardToken,
         address _stakingContract,
-        address _swapPairWAVAXJoe,
-        address _swapPairToken0,
-        address _swapPairToken1,
-        address _extraTokenSwapPair,
+        SwapPairs memory _swapPairs,
         uint pid,
         address _timelock,
-        uint _minTokensToReinvest,
-        uint _adminFeeBips,
-        uint _devFeeBips,
-        uint _reinvestRewardBips
+        StrategySettings memory _strategySettings
     ) {
         name = _name;
         depositToken = IERC20(_depositToken);
@@ -49,12 +50,9 @@ contract JoeStrategyV3 is YakStrategy {
         devAddr = msg.sender;
         PID = pid;
 
-        assignSwapPairSafely(_swapPairWAVAXJoe, _extraTokenSwapPair, _swapPairToken0, _swapPairToken1);
+        assignSwapPairSafely(_swapPairs);
         setAllowances();
-        updateMinTokensToReinvest(_minTokensToReinvest);
-        updateAdminFee(_adminFeeBips);
-        updateDevFee(_devFeeBips);
-        updateReinvestReward(_reinvestRewardBips);
+        applyStrategySettings(_strategySettings);
         updateDepositsEnabled(true);
         transferOwnership(_timelock);
 
@@ -66,35 +64,35 @@ contract JoeStrategyV3 is YakStrategy {
      * @dev Checks that selected Pairs are valid for trading reward tokens
      * @dev Assigns values to swapPairToken0 and swapPairToken1
      */
-    function assignSwapPairSafely(address _swapPairWAVAXJoe, address _extraTokenSwapPair, address _swapPairToken0, address _swapPairToken1) private {
+    function assignSwapPairSafely(SwapPairs memory _swapPairs) private {
         require(
-            DexLibrary.checkSwapPairCompatibility(IPair(_swapPairWAVAXJoe), address(WAVAX), address(poolRewardToken)),
+            DexLibrary.checkSwapPairCompatibility(IPair(_swapPairs.WAVAXJoe), address(WAVAX), address(poolRewardToken)),
             "_swapPairWAVAXJoe is not a WAVAX-Joe pair"
         );
         require(
-            _swapPairToken0 == address(0)
-            || DexLibrary.checkSwapPairCompatibility(IPair(_swapPairToken0), address(WAVAX), IPair(address(depositToken)).token0()),
+            _swapPairs.token0 == address(0)
+            || DexLibrary.checkSwapPairCompatibility(IPair(_swapPairs.token0), address(WAVAX), IPair(address(depositToken)).token0()),
             "_swapPairToken0 is not a WAVAX+deposit token0"
         );
         require(
-            _swapPairToken1 == address(0)
-            || DexLibrary.checkSwapPairCompatibility(IPair(_swapPairToken1), address(WAVAX), IPair(address(depositToken)).token1()),
+            _swapPairs.token1 == address(0)
+            || DexLibrary.checkSwapPairCompatibility(IPair(_swapPairs.token1), address(WAVAX), IPair(address(depositToken)).token1()),
             "_swapPairToken0 is not a WAVAX+deposit token1"
         );
         ( ,address extraRewardToken, , ) = stakingContract.pendingTokens(PID, address(this));
         require(
-            _extraTokenSwapPair == address(0)
-            || DexLibrary.checkSwapPairCompatibility(IPair(_extraTokenSwapPair), address(WAVAX), extraRewardToken),
+            _swapPairs.extraToken == address(0)
+            || DexLibrary.checkSwapPairCompatibility(IPair(_swapPairs.extraToken), address(WAVAX), extraRewardToken),
             "_swapPairWAVAXJoe is not a WAVAX-extra reward pair, check stakingContract.pendingTokens"
         );
         // converts Joe to WAVAX
-        swapPairWAVAXJoe = IPair(_swapPairWAVAXJoe);
+        swapPairWAVAXJoe = IPair(_swapPairs.WAVAXJoe);
         // converts extra reward to WAVAX
-        swapPairExtraToken = IPair(_extraTokenSwapPair);
+        swapPairExtraToken = IPair(_swapPairs.extraToken);
         // converts WAVAX to pair token0
-        swapPairToken0 = IPair(_swapPairToken0);
+        swapPairToken0 = IPair(_swapPairs.token0);
         // converts WAVAX to pair token1
-        swapPairToken1 = IPair(_swapPairToken1);
+        swapPairToken1 = IPair(_swapPairs.token1);
     }
 
     function setAllowances() public override onlyOwner {

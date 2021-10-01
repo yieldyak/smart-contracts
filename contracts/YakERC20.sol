@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
 import "./lib/SafeMath.sol";
@@ -87,7 +87,7 @@ abstract contract YakERC20 {
         address spender = msg.sender;
         uint256 spenderAllowance = allowances[src][spender];
 
-        if (spender != src && spenderAllowance != uint256(-1)) {
+        if (spender != src && spenderAllowance != type(uint256).max) {
             uint256 newAllowance = spenderAllowance.sub(amount, "transferFrom: transfer amount exceeds allowance");
             allowances[src][spender] = newAllowance;
 
@@ -188,7 +188,7 @@ abstract contract YakERC20 {
                 DOMAIN_TYPEHASH,
                 keccak256(bytes(name)),
                 VERSION_HASH,
-                _getChainId(),
+                block.chainid,
                 address(this)
             )
         );
@@ -198,9 +198,9 @@ abstract contract YakERC20 {
      * @notice Current id of the chain where this contract is deployed
      * @return Chain id
      */
-    function _getChainId() internal pure returns (uint) {
-        uint256 chainId;
-        assembly { chainId := chainid() }
-        return chainId;
-    }
+    // function _getChainId() internal view returns (uint) {
+    //     uint256 chainId;
+    //     assembly { chainId := chainid() }
+    //     return chainId;
+    // }
 }

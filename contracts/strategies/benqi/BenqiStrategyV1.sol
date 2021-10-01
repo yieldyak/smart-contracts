@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
-import "../YakStrategyV2.sol";
-import "../interfaces/IBenqiUnitroller.sol";
-import "../interfaces/IBenqiERC20Delegator.sol";
-import "../interfaces/IWAVAX.sol";
+import "../../YakStrategyV2.sol";
+import "./interfaces/IBenqiUnitroller.sol";
+import "./interfaces/IBenqiERC20Delegator.sol";
+import "../../interfaces/IWAVAX.sol";
 
-import "../interfaces/IERC20.sol";
-import "../lib/DexLibrary.sol";
+import "../../interfaces/IERC20.sol";
+import "../../lib/DexLibrary.sol";
 
 contract BenqiStrategyV1 is YakStrategyV2 {
     using SafeMath for uint;
@@ -23,30 +23,35 @@ contract BenqiStrategyV1 is YakStrategyV2 {
     uint private leverageBips;
     uint private minMinting;
 
+    struct SwapPairs {
+        address token0;
+        address token1;
+    }
+
+    struct RewardTokens {
+        address token0;
+        address token1;
+    }
+
     constructor (
         string memory _name,
         address _depositToken,
         address _rewardController,
         address _tokenDelegator,
-        address _rewardToken0,
-        address _rewardToken1,
-        address _swapPairToken0,
-        address _swapPairToken1,
+        RewardTokens memory _rewardTokens,
+        SwapPairs memory _swapPairs,
         address _timelock,
         uint _minMinting,
         uint _leverageLevel,
         uint _leverageBips,
-        uint _minTokensToReinvest,
-        uint _adminFeeBips,
-        uint _devFeeBips,
-        uint _reinvestRewardBips
+        StrategySettings memory _strategySettings
     ) {
         name = _name;
         depositToken = IERC20(_depositToken);
         rewardController = IBenqiUnitroller(_rewardController);
         tokenDelegator = IBenqiERC20Delegator(_tokenDelegator);
-        rewardToken0 = IERC20(_rewardToken0);
-        rewardToken1 = IERC20(_rewardToken1);
+        rewardToken0 = IERC20(_rewardTokens.token0);
+        rewardToken1 = IERC20(_rewardTokens.token1);
         rewardToken = rewardToken1;
         minMinting = _minMinting;
         _updateLeverage(_leverageLevel, _leverageBips);
@@ -54,12 +59,9 @@ contract BenqiStrategyV1 is YakStrategyV2 {
 
         _enterMarket();
 
-        assignSwapPairSafely(_swapPairToken0, _swapPairToken1);
+        assignSwapPairSafely(_swapPairs);
         setAllowances();
-        updateMinTokensToReinvest(_minTokensToReinvest);
-        updateAdminFee(_adminFeeBips);
-        updateDevFee(_devFeeBips);
-        updateReinvestReward(_reinvestRewardBips);
+        applyStrategySettings(_strategySettings);
         updateDepositsEnabled(true);
         transferOwnership(_timelock);
 
@@ -102,36 +104,36 @@ contract BenqiStrategyV1 is YakStrategyV2 {
      * @dev Checks that selected Pairs are valid for trading deposit tokens
      * @dev Assigns values to swapPairToken0 and swapPairToken1
      */
-    function assignSwapPairSafely(address _swapPairToken0, address _swapPairToken1) private {
-        require(_swapPairToken0 > address(0), "Swap pair 0 is necessary but not supplied");
-        require(_swapPairToken1 > address(0), "Swap pair 1 is necessary but not supplied");
+    function assignSwapPairSafely(SwapPairs memory _swapPairs) private {
+        require(_swapPairs.token0 > address(0), "Swap pair 0 is necessary but not supplied");
+        require(_swapPairs.token1 > address(0), "Swap pair 1 is necessary but not supplied");
 
         require(
-            address(rewardToken0) == IPair(address(_swapPairToken0)).token0() ||
-            address(rewardToken0) == IPair(address(_swapPairToken0)).token1(),
+            address(rewardToken0) == IPair(address(_swapPairs.token0)).token0() ||
+            address(rewardToken0) == IPair(address(_swapPairs.token0)).token1(),
             "Swap pair 0 does not match rewardToken0"
         );
 
         require(
-            address(rewardToken1) == IPair(address(_swapPairToken0)).token0() ||
-            address(rewardToken1) == IPair(address(_swapPairToken0)).token1(),
+            address(rewardToken1) == IPair(address(_swapPairs.token0)).token0() ||
+            address(rewardToken1) == IPair(address(_swapPairs.token0)).token1(),
             "Swap pair 0 does not match rewardToken1"
         );
 
         require(
-            address(depositToken) == IPair(address(_swapPairToken1)).token0() ||
-            address(depositToken) == IPair(address(_swapPairToken1)).token1(),
+            address(depositToken) == IPair(address(_swapPairs.token1)).token0() ||
+            address(depositToken) == IPair(address(_swapPairs.token1)).token1(),
             "Swap pair 1 does not match depositToken"
         );
 
         require(
-            address(rewardToken1) == IPair(address(_swapPairToken1)).token0() ||
-            address(rewardToken1) == IPair(address(_swapPairToken1)).token1(),
+            address(rewardToken1) == IPair(address(_swapPairs.token1)).token0() ||
+            address(rewardToken1) == IPair(address(_swapPairs.token1)).token1(),
             "Swap pair 1 does not match rewardToken1"
         );
 
-        swapPairToken0 = IPair(_swapPairToken0);
-        swapPairToken1 = IPair(_swapPairToken1);
+        swapPairToken0 = IPair(_swapPairs.token0);
+        swapPairToken1 = IPair(_swapPairs.token1);
     }
 
     function setAllowances() public override onlyOwner {

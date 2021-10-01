@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity >=0.6.0 <0.8.0;
+pragma solidity ^0.8.0;
 
 /**
  * @dev Contract module that helps prevent reentrant calls to a function.
@@ -35,7 +35,7 @@ abstract contract ReentrancyGuard {
 
     uint256 private _status;
 
-    constructor () internal {
+    constructor() {
         _status = _NOT_ENTERED;
     }
 
@@ -43,7 +43,7 @@ abstract contract ReentrancyGuard {
      * @dev Prevents a contract from calling itself, directly or indirectly.
      * Calling a `nonReentrant` function from another `nonReentrant`
      * function is not supported. It is possible to prevent this from happening
-     * by making the `nonReentrant` function external, and make it call a
+     * by making the `nonReentrant` function external, and making it call a
      * `private` function that does the actual work.
      */
     modifier nonReentrant() {
