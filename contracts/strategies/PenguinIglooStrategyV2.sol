@@ -17,7 +17,7 @@ contract PenguinIglooStrategyV2 is YakStrategyV2 {
     IPair private swapPairWAVAXPEFI;
     IPair private swapPairToken0;
     IPair private swapPairToken1;
-    uint public PID_FEE_DIVISOR;
+    uint256 public PID_FEE_DIVISOR;
 
     constructor(
         string memory _name,
@@ -81,7 +81,7 @@ contract PenguinIglooStrategyV2 is YakStrategyV2 {
      * @notice Update pidBipsDivisor fee
      * @param newValue pid fee divisor in BIPS
      */
-    function updatePIDFeeBips(uint newValue) public onlyOwner {
+    function updatePIDFeeBips(uint256 newValue) public onlyOwner {
         PID_FEE_DIVISOR = newValue;
     }
 
@@ -314,7 +314,11 @@ contract PenguinIglooStrategyV2 is YakStrategyV2 {
             PID,
             address(this)
         );
-        return depositBalance;
+        (, , , , , , uint256 withdrawFeeBP, , ) = stakingContract.poolInfo(PID);
+        uint256 withdrawFee = depositBalance.mul(withdrawFeeBP).div(
+            PID_FEE_DIVISOR
+        );
+        return depositBalance.sub(withdrawFee);
     }
 
     function rescueDeployedFunds(
