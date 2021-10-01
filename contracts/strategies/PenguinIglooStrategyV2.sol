@@ -181,8 +181,8 @@ contract PenguinIglooStrategyV2 is YakStrategyV2 {
             depositToken.transferFrom(msg.sender, address(this), amount),
             "PenguinIglooStrategyV2::transfer failed"
         );
-        _stakeDepositTokens(amount);
         _mint(account, getSharesForDepositTokens(amount));
+        _stakeDepositTokens(amount);
         emit Deposit(account, amount);
     }
 
