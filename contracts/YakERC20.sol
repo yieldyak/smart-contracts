@@ -193,14 +193,4 @@ abstract contract YakERC20 {
             )
         );
     }
-
-    /**
-     * @notice Current id of the chain where this contract is deployed
-     * @return Chain id
-     */
-    // function _getChainId() internal view returns (uint) {
-    //     uint256 chainId;
-    //     assembly { chainId := chainid() }
-    //     return chainId;
-    // }
 }
