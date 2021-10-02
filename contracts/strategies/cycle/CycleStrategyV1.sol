@@ -6,12 +6,14 @@ import "./interfaces/ICycleVaultV3.sol";
 import "./interfaces/ICycleRewards.sol";
 import "../../interfaces/IPair.sol";
 import "../../lib/DexLibrary.sol";
+import "../../lib/SafeERC20.sol";
 
 /**
  * @notice Strategy for CycleVaults
  */
 contract CycleStrategyV1 is YakStrategyV2 {
     using SafeMath for uint;
+    using SafeERC20 for IERC20;
 
     ICycleVaultV3 public stakingContract;
     ICycleRewards public rewardsContract;
@@ -91,7 +93,7 @@ contract CycleStrategyV1 is YakStrategyV2 {
         uint cycleShares = _convertSharesToCycleShares(amount);
         uint depositTokenAmount = stakingContract.getLPamountForShares(cycleShares);
         stakingContract.withdrawLP(cycleShares);
-        _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
+        IERC20(address(depositToken)).safeTransfer(msg.sender, depositTokenAmount);
         _burn(msg.sender, amount);
         emit Withdraw(msg.sender, depositTokenAmount);
     }
@@ -117,17 +119,17 @@ contract CycleStrategyV1 is YakStrategyV2 {
 
         uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
-            _safeTransfer(address(rewardToken), devAddr, devFee);
+            IERC20(address(rewardToken)).safeTransfer(devAddr, devFee);
         }
 
         uint adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
         if (adminFee > 0) {
-            _safeTransfer(address(rewardToken), owner(), adminFee);
+            IERC20(address(rewardToken)).safeTransfer(owner(), adminFee);
         }
 
         uint reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
-            _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
+            IERC20(address(rewardToken)).safeTransfer(msg.sender, reinvestFee);
         }
 
         uint convertedAmountWAVAX = DexLibrary.swap(
@@ -151,17 +153,6 @@ contract CycleStrategyV1 is YakStrategyV2 {
     function _stakeDepositTokens(uint amount) private {
         require(amount > 0, "CycleStrategyV1::_stakeDepositTokens");
         stakingContract.depositLP(amount);
-    }
-
-    /**
-     * @notice Safely transfer using an anonymous ERC20 token
-     * @dev Requires token to return true on transfer
-     * @param token address
-     * @param to recipient address
-     * @param value amount
-     */
-    function _safeTransfer(address token, address to, uint256 value) private {
-        require(IERC20(token).transfer(to, value), 'CycleStrategyV1::TRANSFER_FROM_FAILED');
     }
 
     function checkReward() public override view returns (uint) {

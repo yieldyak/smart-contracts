@@ -7,12 +7,14 @@ import "./interfaces/IElevenGrowthVault.sol";
 import "./interfaces/IElevenQuickStrat.sol";
 import "../../interfaces/IPair.sol";
 import "../../lib/DexLibrary.sol";
+import "../../lib/SafeERC20.sol";
 
 /**
  * @notice Strategy for ElevenVaults
  */
 contract ElevenStrategyForLPV1 is YakStrategyV2 {
     using SafeMath for uint;
+    using SafeERC20 for IERC20;
 
     IElevenChef public stakingContract;
     IElevenGrowthVault public vaultContract;
@@ -107,7 +109,7 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
         uint depositTokenAmount = _convertElevenSharesToDepositTokens(elevenShares);
         stakingContract.withdraw(PID, elevenShares);
         vaultContract.withdraw(elevenShares);
-        _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
+        IERC20(address(depositToken)).safeTransfer(msg.sender, depositTokenAmount);
         _burn(msg.sender, amount);
         emit Withdraw(msg.sender, depositTokenAmount);
     }
@@ -140,17 +142,17 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
 
         uint devFee = avaxAmount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
-            _safeTransfer(address(WAVAX), devAddr, devFee);
+            IERC20(address(WAVAX)).safeTransfer(devAddr, devFee);
         }
 
         uint adminFee = avaxAmount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
         if (adminFee > 0) {
-            _safeTransfer(address(WAVAX), owner(), adminFee);
+            IERC20(address(WAVAX)).safeTransfer(owner(), adminFee);
         }
 
         uint reinvestFee = avaxAmount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
-            _safeTransfer(address(WAVAX), msg.sender, reinvestFee);
+            IERC20(address(WAVAX)).safeTransfer(msg.sender, reinvestFee);
         }
 
         uint depositTokenAmount = DexLibrary.convertRewardTokensToDepositTokens(
@@ -179,17 +181,6 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
         uint elevenShares = amount.mul(vaultContract.totalSupply()).div(vaultContract.balance());
         vaultContract.deposit(amount);
         stakingContract.deposit(PID, elevenShares);
-    }
-
-    /**
-     * @notice Safely transfer using an anonymous ERC20 token
-     * @dev Requires token to return true on transfer
-     * @param token address
-     * @param to recipient address
-     * @param value amount
-     */
-    function _safeTransfer(address token, address to, uint256 value) private {
-        require(IERC20(token).transfer(to, value), "ElevenStrategyForLPV1::TRANSFER_FROM_FAILED");
     }
 
     function _checkReward() private view returns (uint) {

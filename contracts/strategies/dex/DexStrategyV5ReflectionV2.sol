@@ -4,12 +4,14 @@ pragma solidity ^0.8.0;
 import "../../YakStrategy.sol";
 import "./interfaces/IStakingRewards.sol";
 import "../../interfaces/IPair.sol";
+import "../../lib/SafeERC20.sol";
 
 /**
  * @notice Pool2 strategy for StakingRewards
  */
 contract DexStrategyV5ReflectionV2 is YakStrategy {
     using SafeMath for uint;
+    using SafeERC20 for IERC20;
 
     IStakingRewards public stakingContract;
     IPair public swapPairToken0;
@@ -195,17 +197,6 @@ contract DexStrategyV5ReflectionV2 is YakStrategy {
     }
 
     /**
-     * @notice Safely transfer using an anonymous ERC20 token
-     * @dev Requires token to return true on transfer
-     * @param token address
-     * @param to recipient address
-     * @param value amount
-     */
-    function _safeTransfer(address token, address to, uint256 value) internal {
-        require(IERC20(token).transfer(address(to), value), 'TransferHelper: TRANSFER_FROM_FAILED');
-    }
-
-    /**
      * @notice Quote liquidity amount out
      * @param amountIn input tokens
      * @param reserve0 size of input asset reserve
@@ -234,8 +225,8 @@ contract DexStrategyV5ReflectionV2 is YakStrategy {
             amountIn1 = maxAmountIn1;
             maxAmountIn0 = _quoteLiquidityAmountOut(maxAmountIn1, reserve1, reserve0);
         }
-        _safeTransfer(token0, address(depositToken), maxAmountIn0);
-        _safeTransfer(token1, address(depositToken), amountIn1);
+        IERC20(token0).safeTransfer(address(depositToken), maxAmountIn0);
+        IERC20(token1).safeTransfer(address(depositToken), amountIn1);
         uint minted = IPair(address(depositToken)).mint(address(this));
         IPair(address(depositToken)).sync();
         return minted;
@@ -259,7 +250,7 @@ contract DexStrategyV5ReflectionV2 is YakStrategy {
         uint amountOut2 = getAmountOut(amountIn, reserve0, reserve1);
         if (token0 != fromToken) (amountOut1, amountOut2) = (amountOut2, amountOut1);
         // sends the input of the swap
-        _safeTransfer(fromToken, address(pair), amountIn);
+        IERC20(fromToken).safeTransfer(address(pair), amountIn);
         // gets the output of the swap
         pair.swap(amountOut1, amountOut2, address(this), zeroBytes);
         if (toToken == reflectionToken) pair.sync();

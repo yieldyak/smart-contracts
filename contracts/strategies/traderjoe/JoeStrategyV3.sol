@@ -7,6 +7,7 @@ import "../../interfaces/IPair.sol";
 import "../../interfaces/IWAVAX.sol";
 import "../../interfaces/IERC20.sol";
 import "../../lib/DexLibrary.sol";
+import "../../lib/SafeERC20.sol";
 
 /**
  * @notice Strategy for Trader Joe, which includes optional and variable extra rewards
@@ -14,6 +15,7 @@ import "../../lib/DexLibrary.sol";
  */
 contract JoeStrategyV2 is YakStrategy {
     using SafeMath for uint;
+    using SafeERC20 for IERC20;
 
     IJoeChef public stakingContract;
     IPair private swapPairWAVAXJoe;
@@ -133,7 +135,7 @@ contract JoeStrategyV2 is YakStrategy {
         uint depositTokenAmount = getDepositTokensForShares(amount);
         if (depositTokenAmount > 0) {
             _withdrawDepositTokens(depositTokenAmount);
-            _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
+            IERC20(address(depositToken)).safeTransfer(msg.sender, depositTokenAmount);
             _burn(msg.sender, amount);
             totalDeposits = totalDeposits.sub(depositTokenAmount);
             emit Withdraw(msg.sender, depositTokenAmount);
@@ -193,17 +195,17 @@ contract JoeStrategyV2 is YakStrategy {
 
         uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
-            _safeTransfer(address(WAVAX), devAddr, devFee);
+            IERC20(address(WAVAX)).safeTransfer(devAddr, devFee);
         }
 
         uint adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
         if (adminFee > 0) {
-            _safeTransfer(address(WAVAX), owner(), adminFee);
+            IERC20(address(WAVAX)).safeTransfer(owner(), adminFee);
         }
 
         uint reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
-            _safeTransfer(address(WAVAX), msg.sender, reinvestFee);
+            IERC20(address(WAVAX)).safeTransfer(msg.sender, reinvestFee);
         }
 
         uint depositTokenAmount = DexLibrary.convertRewardTokensToDepositTokens(
@@ -223,17 +225,6 @@ contract JoeStrategyV2 is YakStrategy {
     function _stakeDepositTokens(uint amount) private {
         require(amount > 0, "JoeStrategyV3::_stakeDepositTokens");
         stakingContract.deposit(PID, amount);
-    }
-
-    /**
-     * @notice Safely transfer using an anonymosu ERC20 token
-     * @dev Requires token to return true on transfer
-     * @param token address
-     * @param to recipient address
-     * @param value amount
-     */
-    function _safeTransfer(address token, address to, uint256 value) private {
-        require(IERC20(token).transfer(to, value), 'TransferHelper: TRANSFER_FROM_FAILED');
     }
 
     function setExtraRewardSwapPair(address swapPair) external onlyDev {

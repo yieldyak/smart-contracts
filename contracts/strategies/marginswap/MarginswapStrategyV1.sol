@@ -6,10 +6,12 @@ import "./interfaces/ILending.sol";
 import "../../interfaces/IWAVAX.sol";
 
 import "../../interfaces/IERC20.sol";
+import "../../lib/SafeERC20.sol";
 import "../../lib/DexLibrary.sol";
 
 contract MarginswapStrategyV1 is YakStrategyV2 {
     using SafeMath for uint;
+    using SafeERC20 for IERC20;
 
     ILending public stakingContract;
     address private fundContract;
@@ -91,7 +93,7 @@ contract MarginswapStrategyV1 is YakStrategyV2 {
         if (depositTokenAmount > 0) {
             _burn(msg.sender, amount);
             _withdrawDepositTokens(depositTokenAmount);
-            _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
+            IERC20(address(depositToken)).safeTransfer(msg.sender, depositTokenAmount);
             emit Withdraw(msg.sender, depositTokenAmount);
         }
     }
@@ -117,17 +119,17 @@ contract MarginswapStrategyV1 is YakStrategyV2 {
 
         uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
-            _safeTransfer(address(rewardToken), devAddr, devFee);
+            IERC20(address(rewardToken)).safeTransfer(devAddr, devFee);
         }
 
         uint adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
         if (adminFee > 0) {
-            _safeTransfer(address(rewardToken), owner(), adminFee);
+            IERC20(address(rewardToken)).safeTransfer(owner(), adminFee);
         }
 
         uint reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
-            _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
+            IERC20(address(rewardToken)).safeTransfer(msg.sender, reinvestFee);
         }
 
         uint depositTokenAmount = amount.sub(devFee).sub(adminFee).sub(reinvestFee);
@@ -152,17 +154,6 @@ contract MarginswapStrategyV1 is YakStrategyV2 {
     function _stakeDepositTokens(uint amount) private {
         require(amount > 0, "MarginswapStrategyV1::_stakeDepositTokens");
         stakingContract.buyHourlyBondSubscription(address(depositToken), amount);
-    }
-
-    /**
-     * @notice Safely transfer using an anonymosu ERC20 token
-     * @dev Requires token to return true on transfer
-     * @param token address
-     * @param to recipient address
-     * @param value amount
-     */
-    function _safeTransfer(address token, address to, uint256 value) private {
-        require(IERC20(token).transfer(to, value), 'MarginswapStrategyV1::TRANSFER_FROM_FAILED');
     }
 
     function checkReward() public override view returns (uint) {

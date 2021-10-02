@@ -5,12 +5,14 @@ import "../../YakStrategy.sol";
 import "./interfaces/IFrostChef.sol";
 import "../../interfaces/IPair.sol";
 import "../../lib/DexLibrary.sol";
+import "../../lib/SafeERC20.sol";
 
 /**
  * @notice Strategy for Frost
  */
 contract FrostStrategyForSA is YakStrategy {
   using SafeMath for uint;
+  using SafeERC20 for IERC20;
 
   IFrostChef public stakingContract;
   IPair private swapPairToken;
@@ -101,7 +103,7 @@ contract FrostStrategyForSA is YakStrategy {
       _withdrawDepositTokens(depositTokenAmount);
       (,,,, uint withdrawFeeBP) = stakingContract.poolInfo(PID);
       uint withdrawFee = depositTokenAmount.mul(withdrawFeeBP).div(BIPS_DIVISOR);
-      _safeTransfer(address(depositToken), msg.sender, depositTokenAmount.sub(withdrawFee));
+      IERC20(address(depositToken)).safeTransfer(msg.sender, depositTokenAmount.sub(withdrawFee));
       _burn(msg.sender, amount);
       totalDeposits = totalDeposits.sub(depositTokenAmount);
       emit Withdraw(msg.sender, depositTokenAmount);
@@ -129,17 +131,17 @@ contract FrostStrategyForSA is YakStrategy {
 
     uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
     if (devFee > 0) {
-      _safeTransfer(address(rewardToken), devAddr, devFee);
+      IERC20(address(rewardToken)).safeTransfer(devAddr, devFee);
     }
 
     uint adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
     if (adminFee > 0) {
-      _safeTransfer(address(rewardToken), owner(), adminFee);
+      IERC20(address(rewardToken)).safeTransfer(owner(), adminFee);
     }
 
     uint reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
     if (reinvestFee > 0) {
-      _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
+      IERC20(address(rewardToken)).safeTransfer(msg.sender, reinvestFee);
     }
     
     uint depositTokenAmount = amount.sub(devFee).sub(adminFee).sub(reinvestFee);
@@ -164,17 +166,6 @@ contract FrostStrategyForSA is YakStrategy {
     stakingContract.deposit(PID, amount);
   }
 
-  /**
-    * @notice Safely transfer using an anonymosu ERC20 token
-    * @dev Requires token to return true on transfer
-    * @param token address
-    * @param to recipient address
-    * @param value amount
-    */
-  function _safeTransfer(address token, address to, uint256 value) private {
-    require(IERC20(token).transfer(to, value), 'DexStrategyV6::TRANSFER_FROM_FAILED');
-  }
-  
   function checkReward() public override view returns (uint) {
     uint pendingReward = stakingContract.pendingTUNDRA(PID, address(this));
     uint contractBalance = rewardToken.balanceOf(address(this));
