@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "../../YakStrategy.sol";
 import "./interfaces/IStakingRewards.sol";
 import "../../interfaces/IPair.sol";
+import "../../lib/SafeERC20.sol";
 
 /**
  * @notice Single-asset strategy for StakingRewards with different reward token
@@ -11,6 +12,7 @@ import "../../interfaces/IPair.sol";
  */
 contract DexStrategySAWithSwapV2 is YakStrategy {
     using SafeMath for uint;
+    using SafeERC20 for IERC20;
 
     IStakingRewards public stakingContract;
     IPair private swapPair;
@@ -78,7 +80,7 @@ contract DexStrategySAWithSwapV2 is YakStrategy {
         uint depositTokenAmount = getDepositTokensForShares(amount);
         if (depositTokenAmount > 0) {
             _withdrawDepositTokens(depositTokenAmount);
-            _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
+            IERC20(address(depositToken)).safeTransfer(msg.sender, depositTokenAmount);
             _burn(msg.sender, amount);
             totalDeposits = totalDeposits.sub(depositTokenAmount);
             emit Withdraw(msg.sender, depositTokenAmount);
@@ -106,17 +108,17 @@ contract DexStrategySAWithSwapV2 is YakStrategy {
 
         uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
-            _safeTransfer(address(rewardToken), devAddr, devFee);
+            IERC20(address(rewardToken)).safeTransfer(devAddr, devFee);
         }
 
         uint adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
         if (adminFee > 0) {
-            _safeTransfer(address(rewardToken), owner(), adminFee);
+            IERC20(address(rewardToken)).safeTransfer(owner(), adminFee);
         }
 
         uint reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
-            _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
+            IERC20(address(rewardToken)).safeTransfer(msg.sender, reinvestFee);
         }
 
         uint depositTokenAmount = _convertRewardTokensToDepositTokens(
@@ -161,17 +163,6 @@ contract DexStrategySAWithSwapV2 is YakStrategy {
     }
 
     /**
-     * @notice Safely transfer using an anonymosu ERC20 token
-     * @dev Requires token to return true on transfer
-     * @param token address
-     * @param to recipient address
-     * @param value amount
-     */
-    function _safeTransfer(address token, address to, uint256 value) private {
-        require(IERC20(token).transfer(to, value), 'TransferHelper: TRANSFER_FROM_FAILED');
-    }
-
-    /**
      * @notice Swap directly through a Pair
      * @param amountIn input amount
      * @param fromToken address
@@ -186,7 +177,7 @@ contract DexStrategySAWithSwapV2 is YakStrategy {
         uint amountOut1 = 0;
         uint amountOut2 = _getAmountOut(amountIn, reserve0, reserve1);
         if (token0 != fromToken) (amountOut1, amountOut2) = (amountOut2, amountOut1);
-        _safeTransfer(fromToken, address(pair), amountIn);
+        IERC20(fromToken).safeTransfer(address(pair), amountIn);
         pair.swap(amountOut1, amountOut2, address(this), zeroBytes);
         return amountOut2 > amountOut1 ? amountOut2 : amountOut1;
     }

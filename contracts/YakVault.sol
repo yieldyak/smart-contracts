@@ -4,6 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import "./YakERC20.sol";
 import "./lib/SafeMath.sol";
+import "./lib/SafeERC20.sol";
 import "./lib/Ownable.sol";
 import "./interfaces/IERC20.sol";
 import "./YakRegistry.sol";
@@ -15,6 +16,7 @@ import "./YakStrategy.sol";
  */
 contract YakVault is YakERC20, Ownable {
     using SafeMath for uint;
+    using SafeERC20 for IERC20;
 
     /// @notice Vault version number
     string public constant version = "0.0.1";
@@ -117,7 +119,7 @@ contract YakVault is YakERC20, Ownable {
                 }
             }
         }
-        _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
+        IERC20(depositToken).safeTransfer(msg.sender, depositTokenAmount);
         _burn(msg.sender, amount);
         totalDeposits = totalDeposits.sub(depositTokenAmount);
         emit Withdraw(msg.sender, depositTokenAmount);
@@ -132,17 +134,6 @@ contract YakVault is YakERC20, Ownable {
      */
     function _revokeApproval(address token, address spender) private {
         require(IERC20(token).approve(spender, 0), "YakVault::revokeApproval");
-    }
-
-    /**
-     * @notice Safely transfer using an anonymosu ERC20 token
-     * @dev Requires token to return true on transfer
-     * @param token address
-     * @param to recipient address
-     * @param value amount
-     */
-    function _safeTransfer(address token, address to, uint256 value) private {
-        require(IERC20(token).transfer(to, value), 'YakVault::TRANSFER_FROM_FAILED');
     }
 
     /**

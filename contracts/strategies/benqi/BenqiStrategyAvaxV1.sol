@@ -7,11 +7,13 @@ import "./interfaces/IBenqiAVAXDelegator.sol";
 import "../../interfaces/IWAVAX.sol";
 
 import "../../interfaces/IERC20.sol";
+import "../../lib/SafeERC20.sol";
 import "../../lib/DexLibrary.sol";
 import "../../lib/ReentrancyGuard.sol";
 
 contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
     using SafeMath for uint;
+    using SafeERC20 for IERC20;
 
     IBenqiUnitroller private rewardController;
     IBenqiAVAXDelegator private tokenDelegator;
@@ -208,13 +210,13 @@ contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         uint reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         WAVAX.deposit{value: devFee.add(adminFee).add(reinvestFee)}();
         if (devFee > 0) {
-            _safeTransfer(address(rewardToken), devAddr, devFee);
+            IERC20(address(rewardToken)).safeTransfer(devAddr, devFee);
         }
         if (adminFee > 0) {
-            _safeTransfer(address(rewardToken), owner(), adminFee);
+            IERC20(address(rewardToken)).safeTransfer(owner(), adminFee);
         }
         if (reinvestFee > 0) {
-            _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
+            IERC20(address(rewardToken)).safeTransfer(msg.sender, reinvestFee);
         }
 
         _stakeDepositTokens(amount.sub(devFee).sub(adminFee).sub(reinvestFee));
@@ -279,17 +281,6 @@ contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         uint borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
         uint principal = tokenDelegator.balanceOfUnderlying(address(this));
         _rollupDebt(principal, borrowed);
-    }
-
-    /**
-     * @notice Safely transfer using an anonymosu ERC20 token
-     * @dev Requires token to return true on transfer
-     * @param token address
-     * @param to recipient address
-     * @param value amount
-     */
-    function _safeTransfer(address token, address to, uint256 value) private {
-        require(IERC20(token).transfer(to, value), 'BenqiStrategyV1::TRANSFER_FROM_FAILED');
     }
 
     function _checkRewards() internal view returns (uint qiAmount, uint avaxAmount, uint totalAvaxAmount) {

@@ -7,12 +7,14 @@ import "./interfaces/IGauge.sol";
 import "../../interfaces/IPair.sol";
 import "./interfaces/ISnowballProxy.sol";
 import "../../lib/DexLibrary.sol";
+import "../../lib/SafeERC20.sol";
 
 /**
  * @notice Snowball strategy
  */
 contract SnowballProxyStrategyForLPV1 is YakStrategyV2 {
     using SafeMath for uint;
+    using SafeERC20 for IERC20;
 
     address public immutable stakingContract;
     address public immutable snowGlobe;
@@ -124,7 +126,7 @@ contract SnowballProxyStrategyForLPV1 is YakStrategyV2 {
         uint depositTokenAmount = getDepositTokensForShares(amount);
         if (depositTokenAmount > 0) {
             uint amountReceived = _withdrawDepositTokens(depositTokenAmount);
-            _safeTransfer(address(depositToken), msg.sender, amountReceived);
+            IERC20(address(depositToken)).safeTransfer(msg.sender, amountReceived);
             _burn(msg.sender, amount);
             emit Withdraw(msg.sender, depositTokenAmount);
         }
@@ -158,17 +160,17 @@ contract SnowballProxyStrategyForLPV1 is YakStrategyV2 {
     function _reinvest(uint amount) private {
         uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
-            _safeTransfer(address(WAVAX), devAddr, devFee);
+            IERC20(address(WAVAX)).safeTransfer(devAddr, devFee);
         }
 
         uint adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
         if (adminFee > 0) {
-            _safeTransfer(address(WAVAX), owner(), adminFee);
+            IERC20(address(WAVAX)).safeTransfer(owner(), adminFee);
         }
 
         uint reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
-            _safeTransfer(address(WAVAX), msg.sender, reinvestFee);
+            IERC20(address(WAVAX)).safeTransfer(msg.sender, reinvestFee);
         }
 
         uint depositTokenAmount = DexLibrary.convertRewardTokensToDepositTokens(
@@ -184,17 +186,6 @@ contract SnowballProxyStrategyForLPV1 is YakStrategyV2 {
         emit Reinvest(totalDeposits(), totalSupply);
     }
     
-    /**
-     * @notice Safely transfer using an anonymosu ERC20 token
-     * @dev Requires token to return true on transfer
-     * @param token address
-     * @param to recipient address
-     * @param value amount
-     */
-    function _safeTransfer(address token, address to, uint256 value) private {
-        require(IERC20(token).transfer(to, value), 'SnowballStrategyForLPV1::_safeTransfer');
-    }
-
     function checkReward() public override view returns (uint) {
         uint pendingReward = proxy.checkReward(stakingContract);
         return DexLibrary.estimateConversionThroughPair(

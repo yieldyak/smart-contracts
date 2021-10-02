@@ -2,11 +2,14 @@
 pragma solidity ^0.8.0;
 
 import "./SafeMath.sol";
+import "./SafeERC20.sol";
 import "../interfaces/IPair.sol";
 import "../interfaces/IWAVAX.sol";
 
 library DexLibrary {
     using SafeMath for uint;
+    using SafeERC20 for IERC20;
+    
     bytes private constant zeroBytes = new bytes(0);
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
 
@@ -25,7 +28,7 @@ library DexLibrary {
         uint amountOut1 = 0;
         uint amountOut2 = getAmountOut(amountIn, reserve0, reserve1);
         if (token0 != fromToken) (amountOut1, amountOut2) = (amountOut2, amountOut1);
-        safeTransfer(fromToken, address(pair), amountIn);
+        IERC20(fromToken).safeTransfer(address(pair), amountIn);
         pair.swap(amountOut1, amountOut2, address(this), zeroBytes);
         return amountOut2 > amountOut1 ? amountOut2 : amountOut1;
     }
@@ -82,8 +85,8 @@ library DexLibrary {
             maxAmountIn0 = _quoteLiquidityAmountOut(maxAmountIn1, reserve1, reserve0);
         }
 
-        safeTransfer(IPair(depositToken).token0(), depositToken, maxAmountIn0);
-        safeTransfer(IPair(depositToken).token1(), depositToken, amountIn1);
+        IERC20(IPair(depositToken).token0()).safeTransfer(depositToken, maxAmountIn0);
+        IERC20(IPair(depositToken).token1()).safeTransfer(depositToken, amountIn1);
         return IPair(depositToken).mint(address(this));
     }
 
@@ -122,16 +125,5 @@ library DexLibrary {
         uint numerator = amountInWithFee.mul(reserveOut);
         uint denominator = reserveIn.mul(1000).add(amountInWithFee);
         return numerator.div(denominator);
-    }
-
-    /**
-     * @notice Safely transfer using an anonymous ERC20 token
-     * @dev Requires token to return true on transfer
-     * @param token address
-     * @param to recipient address
-     * @param value amount
-     */
-    function safeTransfer(address token, address to, uint256 value) internal {
-        require(IERC20(token).transfer(to, value), "DexLibrary::TRANSFER_FROM_FAILED");
     }
 }

@@ -7,23 +7,25 @@ import "./interfaces/IElevenGrowthVault.sol";
 import "./interfaces/IElevenQuickStrat.sol";
 import "../../interfaces/IPair.sol";
 import "../../lib/DexLibrary.sol";
+import "../../lib/SafeERC20.sol";
 
 /**
  * @notice Strategy for ElevenVaults
  */
 contract ElevenStrategyForLPV1 is YakStrategyV2 {
-    using SafeMath for uint;
+    using SafeMath for uint256;
+    using SafeERC20 for IERC20;
 
     IElevenChef public stakingContract;
     IElevenGrowthVault public vaultContract;
     IPair private immutable swapPairToken0;
     IPair private immutable swapPairToken1;
     IPair private immutable swapPairWAVAXELE;
-    uint public immutable PID;
+    uint256 public immutable PID;
     address private constant WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
     IERC20 private immutable poolRewardToken;
 
-    constructor (
+    constructor(
         string memory _name,
         address _depositToken,
         address _poolRewardToken,
@@ -34,7 +36,7 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
         address _swapPairToken0,
         address _swapPairToken1,
         address _timelock,
-        uint _pid,
+        uint256 _pid,
         StrategySettings memory _strategySettings
     ) {
         name = _name;
@@ -47,17 +49,29 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
         devAddr = msg.sender;
 
         require(
-            DexLibrary.checkSwapPairCompatibility(IPair(_swapPairWAVAXELE), address(WAVAX), _poolRewardToken),
+            DexLibrary.checkSwapPairCompatibility(
+                IPair(_swapPairWAVAXELE),
+                address(WAVAX),
+                _poolRewardToken
+            ),
             "_swapPairWAVAXELE is not a WAVAX-ELE pair"
         );
         require(
-            _swapPairToken0 == address(0)
-            || DexLibrary.checkSwapPairCompatibility(IPair(_swapPairToken0), address(WAVAX), IPair(address(depositToken)).token0()),
+            _swapPairToken0 == address(0) ||
+                DexLibrary.checkSwapPairCompatibility(
+                    IPair(_swapPairToken0),
+                    address(WAVAX),
+                    IPair(address(depositToken)).token0()
+                ),
             "_swapPairToken0 is not a WAVAX+deposit token0"
         );
         require(
-            _swapPairToken1 == address(0)
-            || DexLibrary.checkSwapPairCompatibility(IPair(_swapPairToken1), address(WAVAX), IPair(address(depositToken)).token1()),
+            _swapPairToken1 == address(0) ||
+                DexLibrary.checkSwapPairCompatibility(
+                    IPair(_swapPairToken1),
+                    address(WAVAX),
+                    IPair(address(depositToken)).token1()
+                ),
             "_swapPairToken0 is not a WAVAX+deposit token1"
         );
         swapPairWAVAXELE = IPair(_swapPairWAVAXELE);
@@ -74,60 +88,87 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
 
     function setAllowances() public override onlyOwner {
         depositToken.approve(address(vaultContract), type(uint256).max);
-        IERC20(address(vaultContract)).approve(address(stakingContract), type(uint256).max);
+        IERC20(address(vaultContract)).approve(
+            address(stakingContract),
+            type(uint256).max
+        );
     }
 
-    function deposit(uint amount) external override {
+    function deposit(uint256 amount) external override {
         _deposit(msg.sender, amount);
     }
 
-    function depositWithPermit(uint amount, uint deadline, uint8 v, bytes32 r, bytes32 s) external override {
+    function depositWithPermit(
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external override {
         depositToken.permit(msg.sender, address(this), amount, deadline, v, r, s);
         _deposit(msg.sender, amount);
     }
 
-    function depositFor(address account, uint amount) external override {
+    function depositFor(address account, uint256 amount) external override {
         _deposit(account, amount);
     }
 
-    function _deposit(address account, uint amount) private onlyAllowedDeposits {
+    function _deposit(address account, uint256 amount) private onlyAllowedDeposits {
         require(DEPOSITS_ENABLED == true, "ElevenStrategyForLPV1::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
-            (uint poolTokenAmount, uint unclaimedRewards) = _checkReward();
+            (uint256 poolTokenAmount, uint256 unclaimedRewards) = _checkReward();
             if (unclaimedRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
                 _reinvest(poolTokenAmount);
             }
         }
-        require(depositToken.transferFrom(msg.sender, address(this), amount), "ElevenStrategyForLPV1::transfer failed");
+        require(
+            depositToken.transferFrom(msg.sender, address(this), amount),
+            "ElevenStrategyForLPV1::transfer failed"
+        );
         _mint(account, getSharesForDepositTokens(amount));
         _stakeDepositTokens(amount);
         emit Deposit(account, amount);
     }
 
-    function withdraw(uint amount) external override {
-        uint elevenShares = _convertSharesToElevenShares(amount);
-        uint depositTokenAmount = _convertElevenSharesToDepositTokens(elevenShares);
+    function withdraw(uint256 amount) external override {
+        uint256 elevenShares = _convertSharesToElevenShares(amount);
+        uint256 depositTokenAmount = _convertElevenSharesToDepositTokens(elevenShares);
         require(depositTokenAmount > 0, "ElevenStrategyForLPV1::withdraw");
         stakingContract.withdraw(PID, elevenShares);
         vaultContract.withdraw(elevenShares);
-        uint withdrawFee = _calculateWithdrawalFee(depositTokenAmount);
-        _safeTransfer(address(depositToken), msg.sender, depositTokenAmount.sub(withdrawFee));
+        uint256 withdrawFee = _calculateWithdrawalFee(depositTokenAmount);
+        _safeTransfer(
+            address(depositToken),
+            msg.sender,
+            depositTokenAmount.sub(withdrawFee)
+        );
         _burn(msg.sender, amount);
         emit Withdraw(msg.sender, depositTokenAmount);
     }
-    
-    function _convertElevenSharesToDepositTokens(uint amount) private view returns (uint) {
+
+    function _convertElevenSharesToDepositTokens(uint256 amount)
+        private
+        view
+        returns (uint256)
+    {
         return amount.mul(vaultContract.balance()).div(vaultContract.totalSupply());
     }
 
-    function _convertSharesToElevenShares(uint amount) private view returns (uint) {
-        (uint elevenShareBalance, ) = stakingContract.userInfo(PID, address(this));
+    function _convertSharesToElevenShares(uint256 amount)
+        private
+        view
+        returns (uint256)
+    {
+        (uint256 elevenShareBalance, ) = stakingContract.userInfo(PID, address(this));
         return amount.mul(elevenShareBalance).div(totalSupply);
     }
 
     function reinvest() external override onlyEOA {
-        (uint poolTokenAmount, uint unclaimedRewards) = _checkReward();
-        require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "ElevenStrategyForLPV1::reinvest");
+        (uint256 poolTokenAmount, uint256 unclaimedRewards) = _checkReward();
+        require(
+            unclaimedRewards >= MIN_TOKENS_TO_REINVEST,
+            "ElevenStrategyForLPV1::reinvest"
+        );
         _reinvest(poolTokenAmount);
     }
 
@@ -136,27 +177,27 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
      * @dev Reverts if the expected amount of tokens are not returned from `stakingContract`
      * @param amount pool reward tokens to reinvest
      */
-    function _reinvest(uint amount) private {
+    function _reinvest(uint256 amount) private {
         stakingContract.deposit(PID, 0);
 
-        uint avaxAmount = _convertRewardIntoWAVAX(amount);
+        uint256 avaxAmount = _convertRewardIntoWAVAX(amount);
 
-        uint devFee = avaxAmount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
+        uint256 devFee = avaxAmount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
-            _safeTransfer(address(WAVAX), devAddr, devFee);
+            IERC20(address(WAVAX)).safeTransfer(devAddr, devFee);
         }
 
-        uint adminFee = avaxAmount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
+        uint256 adminFee = avaxAmount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
         if (adminFee > 0) {
-            _safeTransfer(address(WAVAX), owner(), adminFee);
+            IERC20(address(WAVAX)).safeTransfer(owner(), adminFee);
         }
 
-        uint reinvestFee = avaxAmount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
+        uint256 reinvestFee = avaxAmount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
-            _safeTransfer(address(WAVAX), msg.sender, reinvestFee);
+            IERC20(address(WAVAX)).safeTransfer(msg.sender, reinvestFee);
         }
 
-        uint depositTokenAmount = DexLibrary.convertRewardTokensToDepositTokens(
+        uint256 depositTokenAmount = DexLibrary.convertRewardTokensToDepositTokens(
             avaxAmount.sub(devFee).sub(adminFee).sub(reinvestFee),
             address(WAVAX),
             address(depositToken),
@@ -169,17 +210,21 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
         emit Reinvest(totalDeposits(), totalSupply);
     }
 
-    function _convertRewardIntoWAVAX(uint pendingReward) private returns (uint) {
-        return DexLibrary.swap(
-            pendingReward,
-            address(poolRewardToken), address(WAVAX),
-            swapPairWAVAXELE
-        );
+    function _convertRewardIntoWAVAX(uint256 pendingReward) private returns (uint256) {
+        return
+            DexLibrary.swap(
+                pendingReward,
+                address(poolRewardToken),
+                address(WAVAX),
+                swapPairWAVAXELE
+            );
     }
-    
-    function _stakeDepositTokens(uint amount) private {
+
+    function _stakeDepositTokens(uint256 amount) private {
         require(amount > 0, "ElevenStrategyForLPV1::_stakeDepositTokens");
-        uint elevenShares = amount.mul(vaultContract.totalSupply()).div(vaultContract.balance());
+        uint256 elevenShares = amount.mul(vaultContract.totalSupply()).div(
+            vaultContract.balance()
+        );
         vaultContract.deposit(amount);
         stakingContract.deposit(PID, elevenShares);
     }
@@ -191,50 +236,74 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
      * @param to recipient address
      * @param value amount
      */
-    function _safeTransfer(address token, address to, uint256 value) private {
-        require(IERC20(token).transfer(to, value), "ElevenStrategyForLPV1::TRANSFER_FROM_FAILED");
+    function _safeTransfer(
+        address token,
+        address to,
+        uint256 value
+    ) private {
+        require(
+            IERC20(token).transfer(to, value),
+            "ElevenStrategyForLPV1::TRANSFER_FROM_FAILED"
+        );
     }
 
-    function _checkReward() private view returns (uint poolTokenAmount, uint rewardTokenAmount) {
-        uint poolTokenAmount = stakingContract.pendingEleven(PID, address(this));
-        uint poolTokenBalance = poolRewardToken.balanceOf(address(this));
-        uint wavaxAmount = DexLibrary.estimateConversionThroughPair(
+    function _checkReward()
+        private
+        view
+        returns (uint256 poolTokenAmount, uint256 rewardTokenAmount)
+    {
+        uint256 poolTokenAmount = stakingContract.pendingEleven(PID, address(this));
+        uint256 poolTokenBalance = poolRewardToken.balanceOf(address(this));
+        uint256 wavaxAmount = DexLibrary.estimateConversionThroughPair(
             poolTokenAmount.add(poolTokenBalance),
-            address(poolRewardToken), address(WAVAX),
+            address(poolRewardToken),
+            address(WAVAX),
             swapPairWAVAXELE
         );
-        uint wavaxBalance = IERC20(address(WAVAX)).balanceOf(address(this));
+        uint256 wavaxBalance = IERC20(address(WAVAX)).balanceOf(address(this));
         return (poolTokenAmount.add(poolTokenBalance), wavaxAmount.add(wavaxBalance));
     }
 
-    function checkReward() public override view returns (uint) {
-        (,uint pendingReward) = _checkReward();
+    function checkReward() public view override returns (uint256) {
+        (, uint256 pendingReward) = _checkReward();
         return pendingReward;
     }
 
-    function totalDeposits() public override view returns (uint) {
-        (uint sharesAmount, ) = stakingContract.userInfo(PID, address(this));
+    function totalDeposits() public view override returns (uint256) {
+        (uint256 sharesAmount, ) = stakingContract.userInfo(PID, address(this));
         return _convertElevenSharesToDepositTokens(sharesAmount);
     }
 
-    function _calculateWithdrawalFee(uint _withdrawalAmount) private view returns (uint) {
-        return _withdrawalAmount
-            .mul(IElevenQuickStrat(vaultContract.strategy()).WITHDRAWAL_FEE())
-            .div(IElevenQuickStrat(vaultContract.strategy()).WITHDRAWAL_MAX());
+    function _calculateWithdrawalFee(uint256 _withdrawalAmount)
+        private
+        view
+        returns (uint256)
+    {
+        return
+            _withdrawalAmount
+                .mul(IElevenQuickStrat(vaultContract.strategy()).WITHDRAWAL_FEE())
+                .div(IElevenQuickStrat(vaultContract.strategy()).WITHDRAWAL_MAX());
     }
 
-    function estimateDeployedBalance() external override view returns (uint) {
-        uint deployedLP = totalDeposits();
-        uint withdrawalFee = _calculateWithdrawalFee(deployedLP);
+    function estimateDeployedBalance() external view override returns (uint256) {
+        uint256 deployedLP = totalDeposits();
+        uint256 withdrawalFee = _calculateWithdrawalFee(deployedLP);
         return deployedLP.sub(withdrawalFee);
     }
 
-    function rescueDeployedFunds(uint minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
-        uint balanceBefore = depositToken.balanceOf(address(this));
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits)
+        external
+        override
+        onlyOwner
+    {
+        uint256 balanceBefore = depositToken.balanceOf(address(this));
         stakingContract.emergencyWithdraw(PID);
         vaultContract.withdrawAll();
-        uint balanceAfter = depositToken.balanceOf(address(this));
-        require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "ElevenStrategyForLPV1::rescueDeployedFunds");
+        uint256 balanceAfter = depositToken.balanceOf(address(this));
+        require(
+            balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
+            "ElevenStrategyForLPV1::rescueDeployedFunds"
+        );
         emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
             updateDepositsEnabled(false);
