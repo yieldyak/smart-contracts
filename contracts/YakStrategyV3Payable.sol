@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.0;
 
-import "./lib/Ownable.sol";
 import "./YakStrategyV3.sol";
-import "./utilities/RecoverFundsAVAX.sol";
 
 /**
  * @notice YakStrategy should be inherited by new strategies
@@ -27,9 +25,7 @@ abstract contract YakStrategyV3Payable is YakStrategyV3 {
      * @param amount amount
      */
     function recoverAVAX(uint256 amount) external override onlyOwner {
-        revert(
-            "Can't withdraw AVAX as it is depositToken, use emergency withdraw instead"
-        );
+        revert("not allowed");
     }
 
     function emergencyRescueFunds(uint256 minReturnAmountAccepted)
@@ -37,16 +33,14 @@ abstract contract YakStrategyV3Payable is YakStrategyV3 {
         override
         onlyOwner
     {
-        rescueDeployedFunds(minReturnAmountAccepted, true);
-        uint256 balance = address(this).balance;
-        recoverFunds = IRecoverFunds(
-            address(
-                new RecoverFundsAVAX{value: balance}(
-                    owner(),
-                    address(this),
-                    balance
-                )
-            )
-        );
+        rescueDeployedFunds(minReturnAmountAccepted);
+        //stops deposits
+        if (DEPOSITS_ENABLED == true) {
+            updateDepositsEnabled(false);
+        }
+
+        recoverFunds = recoverFundsManager.recoverFundsAVAX{
+            value: address(this).balance
+        }(owner());
     }
 }

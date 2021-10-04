@@ -2,6 +2,8 @@
 pragma solidity ^0.7.0;
 
 interface IYakStrategy {
+    function owner() external view returns (address);
+
     function balanceOf(address account) external view returns (uint256);
 
     function totalSupply() external view returns (uint256);

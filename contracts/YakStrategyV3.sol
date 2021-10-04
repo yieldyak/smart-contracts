@@ -5,9 +5,8 @@ import "./lib/SafeMath.sol";
 import "./lib/Ownable.sol";
 import "./lib/Permissioned.sol";
 import "./interfaces/IERC20.sol";
-import "./interfaces/IRecoverFunds.sol";
+import "./interfaces/IRecoverFundsManager.sol";
 import "./YakERC20.sol";
-import "./utilities/RecoverFunds.sol";
 
 /**
  * @notice YakStrategy should be inherited by new strategies
@@ -29,7 +28,8 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
 
     uint256 internal constant BIPS_DIVISOR = 10000;
     uint256 internal constant MAX_UINT = uint256(-1);
-    IRecoverFunds public recoverFunds;
+    address public recoverFunds;
+    IRecoverFundsManager internal recoverFundsManager;
 
     event Deposit(address indexed account, uint256 amount);
     event Withdraw(address indexed account, uint256 amount);
@@ -150,12 +150,10 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
     /**
      * @notice Rescue all available deployed deposit tokens back to Strategy to booststrap rescue strategy
      * @param minReturnAmountAccepted min deposit tokens to receive
-     * @param disableDeposits bool
      */
-    function rescueDeployedFunds(
-        uint256 minReturnAmountAccepted,
-        bool disableDeposits
-    ) internal virtual;
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted)
+        internal
+        virtual;
 
     /**
      * @notice This function returns a snapshot of last available quotes
@@ -204,6 +202,16 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
     function updateMinTokensToReinvest(uint256 newValue) public onlyOwner {
         emit UpdateMinTokensToReinvest(MIN_TOKENS_TO_REINVEST, newValue);
         MIN_TOKENS_TO_REINVEST = newValue;
+    }
+
+    function updateRecoverFundsManager(address newRecoverFundsManagerAddress)
+        public
+        onlyOwner
+    {
+        require(recoverFunds == address(0), "recover funds already triggered");
+        recoverFundsManager = IRecoverFundsManager(
+            newRecoverFundsManagerAddress
+        );
     }
 
     /**
@@ -309,16 +317,27 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
         virtual
         onlyOwner
     {
-        rescueDeployedFunds(minReturnAmountAccepted, true);
-        recoverFunds = IRecoverFunds(
-            address(
-                new RecoverFunds(
-                    owner(),
-                    address(depositToken),
-                    address(this),
-                    depositToken.balanceOf(address(this))
-                )
-            )
+        require(
+            address(recoverFunds) == address(0),
+            "Emergency Rescue is already triggered"
+        );
+        rescueDeployedFunds(minReturnAmountAccepted);
+        //stops deposits
+        if (DEPOSITS_ENABLED == true) {
+            updateDepositsEnabled(false);
+        }
+        recoverFunds = recoverFundsManager.recoverFundsERC20(
+            owner(),
+            address(depositToken),
+            address(this),
+            depositToken.balanceOf(address(this))
+        );
+        require(
+            depositToken.transfer(
+                address(recoverFunds),
+                depositToken.balanceOf(address(this))
+            ),
+            "funds transfer failed"
         );
     }
 }

@@ -20,15 +20,10 @@ contract RecoverFundsAVAX is Ownable, ReentrancyGuard {
         uint256 receiptTokenAmount
     );
 
-    constructor(
-        address _owner,
-        address _strategy,
-        uint256 amountRecovered
-    ) payable nonReentrant {
-        require(msg.value == amountRecovered, "Funds were not sent");
+    constructor(address _owner, address _strategy) payable nonReentrant {
         strategy = IYakStrategy(_strategy);
         totalSupply = strategy.totalSupply();
-        recoveredFunds = amountRecovered;
+        recoveredFunds = msg.value;
         ownerRecoveryLock = block.timestamp + 14 days;
         transferOwnership(_owner);
     }
@@ -44,6 +39,8 @@ contract RecoverFundsAVAX is Ownable, ReentrancyGuard {
         if (amount > strategy.balanceOf(msg.sender)) {
             amount = strategy.balanceOf(msg.sender);
         }
+
+        require(amount > 0, "not funds");
 
         uint256 recoveredAmount = recoveredFunds.mul(amount).div(totalSupply);
 

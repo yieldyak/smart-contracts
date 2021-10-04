@@ -30,7 +30,6 @@ contract RecoverFunds is Ownable {
         depositToken = IERC20(_depositToken);
         strategy = IYakStrategy(_strategy);
         totalSupply = strategy.totalSupply();
-        depositToken.transferFrom(msg.sender, address(this), amountRecovered);
         recoveredFunds = amountRecovered;
         ownerRecoveryLock = block.timestamp + 14 days;
         transferOwnership(_owner);
@@ -41,6 +40,7 @@ contract RecoverFunds is Ownable {
             amount = strategy.balanceOf(msg.sender);
         }
 
+        require(amount > 0, "no funds");
         uint256 recoveredAmount = recoveredFunds.mul(amount).div(totalSupply);
 
         // transfers the receipt tokens to this contract
