@@ -11,18 +11,13 @@ interface IStormChef {
         address lpToken,
         uint allocPoint,
         uint lastRewardBlock,
-        uint accTUNDRAPerShare,
-        uint16 withdrawFeeBP
+        uint accStormPerShare,
+        uint16 withdrawFeeBP,
+        uint lpSupply
     );
-
-    // Return reward multiplier over the given _from to _to block.
-    function getMultiplier(uint256 _from, uint256 _to) external pure returns (uint256);
 
     // View function to see pending Stormes on frontend.
     function pendingStorm(uint256 _pid, address _user) external view returns (uint256);
-
-    // Update reward variables of the given pool to be up-to-date.
-    function updatePool(uint256 _pid) external;
 
     // Deposit LP tokens to MasterChef for Storm allocation.
     function deposit(uint256 _pid, uint256 _amount, address _referrer) external;
