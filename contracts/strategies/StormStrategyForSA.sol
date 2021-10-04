@@ -7,14 +7,15 @@ import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
 
 /**
- * @notice Strategy for Storm
+ * @notice Strategy for Storm single assets
+ * @dev Referall fee is collected by devAddr on `deposit`
  */
 contract StormStrategyForSA is YakStrategy {
   using SafeMath for uint;
 
   IStormChef public stakingContract;
   IPair private swapPairToken;
-  IPair private swapPairWAVAXTundra;
+  IPair private swapPairWAVAXStorm;
   address private constant WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
 
   uint public PID;
@@ -24,7 +25,7 @@ contract StormStrategyForSA is YakStrategy {
     address _depositToken, 
     address _rewardToken, 
     address _stakingContract,
-    address _swapPairWAVAXTundra,
+    address _swapPairWAVAXStorm,
     address _swapPairToken,
     address _timelock,
     uint _pid,
@@ -37,7 +38,7 @@ contract StormStrategyForSA is YakStrategy {
     depositToken = IPair(_depositToken);
     rewardToken = IERC20(_rewardToken);
     stakingContract = IStormChef(_stakingContract);
-    swapPairWAVAXTundra = IPair(_swapPairWAVAXTundra);
+    swapPairWAVAXStorm = IPair(_swapPairWAVAXStorm);
     swapPairToken = IPair(_swapPairToken);
     PID = _pid;
     devAddr = msg.sender;
@@ -105,7 +106,7 @@ contract StormStrategyForSA is YakStrategy {
     uint depositTokenAmount = getDepositTokensForShares(amount);
     if (depositTokenAmount > 0) {
       _withdrawDepositTokens(depositTokenAmount);
-      (,,,, uint withdrawFeeBP) = stakingContract.poolInfo(PID);
+      (,,,, uint withdrawFeeBP, ) = stakingContract.poolInfo(PID);
       uint withdrawFee = depositTokenAmount.mul(withdrawFeeBP).div(BIPS_DIVISOR);
       _safeTransfer(address(depositToken), msg.sender, depositTokenAmount.sub(withdrawFee));
       _burn(msg.sender, amount);
@@ -131,7 +132,7 @@ contract StormStrategyForSA is YakStrategy {
     * @param amount deposit tokens to reinvest
     */
   function _reinvest(uint amount) private {
-    stakingContract.deposit(PID, 0, address(0));
+    stakingContract.deposit(PID, 0, devAddr);
 
     uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
     if (devFee > 0) {
@@ -149,10 +150,13 @@ contract StormStrategyForSA is YakStrategy {
     }
     
     uint depositTokenAmount = amount.sub(devFee).sub(adminFee).sub(reinvestFee);
-    if (address(swapPairWAVAXTundra) != address(0)) {
-      uint amountWavax = DexLibrary.swap(depositTokenAmount, address(rewardToken), address(WAVAX), swapPairWAVAXTundra);
+    if (address(swapPairWAVAXStorm) != address(0)) {
       if (address(swapPairToken) != address(0)) {
+        uint amountWavax = DexLibrary.swap(depositTokenAmount, address(rewardToken), address(WAVAX), swapPairWAVAXStorm);
         depositTokenAmount = DexLibrary.swap(amountWavax, address(WAVAX), address(depositToken), swapPairToken);
+      }
+      else {
+        depositTokenAmount = DexLibrary.swap(depositTokenAmount, address(rewardToken), address(WAVAX), swapPairWAVAXStorm);
       }
     }
     else if (address(swapPairToken) != address(0)) {
@@ -167,7 +171,7 @@ contract StormStrategyForSA is YakStrategy {
     
   function _stakeDepositTokens(uint amount) private {
     require(amount > 0, "StormStrategyForSA::_stakeDepositTokens");
-    stakingContract.deposit(PID, amount, address(0));
+    stakingContract.deposit(PID, amount, devAddr);
   }
 
   /**
@@ -178,7 +182,7 @@ contract StormStrategyForSA is YakStrategy {
     * @param value amount
     */
   function _safeTransfer(address token, address to, uint256 value) private {
-    require(IERC20(token).transfer(to, value), 'DexStrategyV6::TRANSFER_FROM_FAILED');
+    require(IERC20(token).transfer(to, value), 'StormStrategyForSA::TRANSFER_FROM_FAILED');
   }
   
   function checkReward() public override view returns (uint) {
@@ -193,7 +197,7 @@ contract StormStrategyForSA is YakStrategy {
    */
   function estimateDeployedBalance() external override view returns (uint) {
     (uint depositBalance, ) = stakingContract.userInfo(PID, address(this));
-    (,,,, uint withdrawFeeBP) = stakingContract.poolInfo(PID);
+    (,,,, uint withdrawFeeBP, ) = stakingContract.poolInfo(PID);
     uint withdrawFee = depositBalance.mul(withdrawFeeBP).div(BIPS_DIVISOR);
     return depositBalance.sub(withdrawFee);
   }
