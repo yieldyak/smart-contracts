@@ -21,11 +21,11 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
     IPair private immutable swapPairWAVAXELE;
     uint private immutable PID;
     address private constant WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
+    address private constant ELE = 0xAcD7B3D9c10e97d0efA418903C0c7669E702E4C0;
 
     constructor (
         string memory _name,
         address _depositToken,
-        address _rewardToken,
         address _stakingContract,
         address _vaultContract,
         address _swapPairWAVAXELE,
@@ -40,24 +40,24 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
     ) {
         name = _name;
         depositToken = IERC20(_depositToken);
-        rewardToken = IERC20(_rewardToken);
+        rewardToken = IERC20(WAVAX);
         stakingContract = IElevenChef(_stakingContract);
         vaultContract = IElevenGrowthVault(_vaultContract);
         PID = _pid;
         devAddr = msg.sender;
 
         require(
-            DexLibrary.checkSwapPairCompatibility(IPair(_swapPairWAVAXELE), address(WAVAX), address(rewardToken)),
+            DexLibrary.checkSwapPairCompatibility(IPair(_swapPairWAVAXELE), WAVAX, ELE),
             "_swapPairWAVAXELE is not a WAVAX-ELE pair"
         );
         require(
             _swapPairToken0 == address(0)
-            || DexLibrary.checkSwapPairCompatibility(IPair(_swapPairToken0), address(WAVAX), IPair(address(depositToken)).token0()),
+            || DexLibrary.checkSwapPairCompatibility(IPair(_swapPairToken0), WAVAX, IPair(address(depositToken)).token0()),
             "_swapPairToken0 is not a WAVAX+deposit token0"
         );
         require(
             _swapPairToken1 == address(0)
-            || DexLibrary.checkSwapPairCompatibility(IPair(_swapPairToken1), address(WAVAX), IPair(address(depositToken)).token1()),
+            || DexLibrary.checkSwapPairCompatibility(IPair(_swapPairToken1), WAVAX, IPair(address(depositToken)).token1()),
             "_swapPairToken0 is not a WAVAX+deposit token1"
         );
         swapPairWAVAXELE = IPair(_swapPairWAVAXELE);
@@ -146,22 +146,22 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
 
         uint devFee = avaxAmount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
-            _safeTransfer(address(WAVAX), devAddr, devFee);
+            _safeTransfer(WAVAX, devAddr, devFee);
         }
 
         uint adminFee = avaxAmount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
         if (adminFee > 0) {
-            _safeTransfer(address(WAVAX), owner(), adminFee);
+            _safeTransfer(WAVAX, owner(), adminFee);
         }
 
         uint reinvestFee = avaxAmount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
-            _safeTransfer(address(WAVAX), msg.sender, reinvestFee);
+            _safeTransfer(WAVAX, msg.sender, reinvestFee);
         }
 
         uint depositTokenAmount = DexLibrary.convertRewardTokensToDepositTokens(
             avaxAmount.sub(devFee).sub(adminFee).sub(reinvestFee),
-            address(WAVAX),
+            WAVAX,
             address(depositToken),
             swapPairToken0,
             swapPairToken1
@@ -175,7 +175,7 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
     function _convertRewardIntoWAVAX(uint pendingReward) private returns (uint) {
         return DexLibrary.swap(
             pendingReward,
-            address(rewardToken), address(WAVAX),
+            ELE, WAVAX,
             swapPairWAVAXELE
         );
     }
@@ -206,7 +206,7 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
         uint pendingReward = _checkReward();
         return DexLibrary.estimateConversionThroughPair(
             pendingReward,
-            address(rewardToken), address(WAVAX),
+            ELE, WAVAX,
             swapPairWAVAXELE
         );
     }
