@@ -19,13 +19,13 @@ contract SnowballProxyStrategyForLPV1 is YakStrategyV2 {
     IPair private swapPairWAVAXSnob;
     IPair private swapPairToken0;
     IPair private swapPairToken1;
-    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    address private constant WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
+    address private constant SNOB = 0xC38f41A296A4493Ff429F1238e030924A1542e50;
     ISnowballProxy private proxy;
 
     constructor (
         string memory _name,
         address _depositToken,
-        address _rewardToken,
         address _snowballProxy,
         address _stakingContract,
         address _snowGlobeContract,
@@ -40,13 +40,13 @@ contract SnowballProxyStrategyForLPV1 is YakStrategyV2 {
     ) {
         name = _name;
         depositToken = IERC20(_depositToken);
-        rewardToken = IERC20(_rewardToken);
+        rewardToken = IERC20(WAVAX);
         proxy = ISnowballProxy(_snowballProxy);
         stakingContract = _stakingContract;
         snowGlobe = _snowGlobeContract;
         devAddr = msg.sender;
 
-        assignSwapPairSafely(_swapPairWAVAXSnob, _swapPairToken0, _swapPairToken1, _rewardToken);
+        assignSwapPairSafely(_swapPairWAVAXSnob, _swapPairToken0, _swapPairToken1);
         setAllowances();
         updateMinTokensToReinvest(_minTokensToReinvest);
         updateAdminFee(_adminFeeBips);
@@ -63,19 +63,19 @@ contract SnowballProxyStrategyForLPV1 is YakStrategyV2 {
      * @dev Checks that selected Pairs are valid for trading reward tokens
      * @dev Assigns values to swapPairToken0 and swapPairToken1
      */
-    function assignSwapPairSafely(address _swapPairWAVAXSnob, address _swapPairToken0, address _swapPairToken1, address _rewardToken) private {
+    function assignSwapPairSafely(address _swapPairWAVAXSnob, address _swapPairToken0, address _swapPairToken1) private {
         require(
-            DexLibrary.checkSwapPairCompatibility(IPair(_swapPairWAVAXSnob), address(WAVAX), address(_rewardToken)),
+            DexLibrary.checkSwapPairCompatibility(IPair(_swapPairWAVAXSnob), WAVAX, SNOB),
             "_swapPairWAVAXSnob is not a WAVAX-Snob pair"
         );
         require(
             _swapPairToken0 == address(0)
-            || DexLibrary.checkSwapPairCompatibility(IPair(_swapPairToken0), address(WAVAX), IPair(address(depositToken)).token0()),
+            || DexLibrary.checkSwapPairCompatibility(IPair(_swapPairToken0), WAVAX, IPair(address(depositToken)).token0()),
             "_swapPairToken0 is not a WAVAX+deposit token0"
         );
         require(
             _swapPairToken1 == address(0)
-            || DexLibrary.checkSwapPairCompatibility(IPair(_swapPairToken1), address(WAVAX), IPair(address(depositToken)).token1()),
+            || DexLibrary.checkSwapPairCompatibility(IPair(_swapPairToken1), WAVAX, IPair(address(depositToken)).token1()),
             "_swapPairToken0 is not a WAVAX+deposit token1"
         );
         // converts Snob to WAVAX
@@ -151,7 +151,7 @@ contract SnowballProxyStrategyForLPV1 is YakStrategyV2 {
         proxy.claimReward(stakingContract);
         return DexLibrary.swap(
             pendingReward,
-            address(rewardToken), address(WAVAX),
+            SNOB, WAVAX,
             swapPairWAVAXSnob
         );
     }
@@ -164,22 +164,22 @@ contract SnowballProxyStrategyForLPV1 is YakStrategyV2 {
     function _reinvest(uint amount) private {
         uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
-            _safeTransfer(address(WAVAX), devAddr, devFee);
+            _safeTransfer(WAVAX, devAddr, devFee);
         }
 
         uint adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
         if (adminFee > 0) {
-            _safeTransfer(address(WAVAX), owner(), adminFee);
+            _safeTransfer(WAVAX, owner(), adminFee);
         }
 
         uint reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
-            _safeTransfer(address(WAVAX), msg.sender, reinvestFee);
+            _safeTransfer(WAVAX, msg.sender, reinvestFee);
         }
 
         uint depositTokenAmount = DexLibrary.convertRewardTokensToDepositTokens(
             amount.sub(devFee).sub(adminFee).sub(reinvestFee),
-            address(WAVAX),
+            WAVAX,
             address(depositToken),
             swapPairToken0,
             swapPairToken1
@@ -205,7 +205,7 @@ contract SnowballProxyStrategyForLPV1 is YakStrategyV2 {
         uint pendingReward = proxy.checkReward(stakingContract);
         return DexLibrary.estimateConversionThroughPair(
             pendingReward,
-            address(rewardToken), address(WAVAX),
+            SNOB, WAVAX,
             swapPairWAVAXSnob
         );
     }
