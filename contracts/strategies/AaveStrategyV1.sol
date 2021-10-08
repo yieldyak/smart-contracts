@@ -7,13 +7,11 @@ import "../interfaces/ILendingPool.sol";
 import "../interfaces/IWAVAX.sol";
 import "../interfaces/IERC20.sol";
 import "../lib/SafeMath.sol";
-import "../lib/WadRayMath.sol";
 import "../lib/DexLibrary.sol";
 import "../lib/ReentrancyGuard.sol";
 
 contract AaveStrategyV1 is YakStrategyV2 {
     using SafeMath for uint256;
-    using WadRayMath for uint256;
 
     IAaveIncentivesController private rewardController;
     ILendingPool private tokenDelegator;
@@ -69,12 +67,18 @@ contract AaveStrategyV1 is YakStrategyV2 {
     function assignSwapPairSafely(address _swapPairToken) private {
         require(_swapPairToken > address(0), "Swap pair is necessary but not supplied");
         swapPairToken = IPair(_swapPairToken);
-        require(isPairEquals(swapPairToken, depositToken, rewardToken)
-            || isPairEquals(swapPairToken, rewardToken, depositToken),
-            "Swap pair does not match depositToken and rewardToken.");
+        require(
+            isPairEquals(swapPairToken, depositToken, rewardToken) ||
+                isPairEquals(swapPairToken, rewardToken, depositToken),
+            "Swap pair does not match depositToken and rewardToken."
+        );
     }
 
-    function isPairEquals(IPair pair, IERC20 left, IERC20 right) private returns (bool) {
+    function isPairEquals(
+        IPair pair,
+        IERC20 left,
+        IERC20 right
+    ) private returns (bool) {
         return pair.token0() == address(left) && pair.token1() == address(right);
     }
 
@@ -133,15 +137,21 @@ contract AaveStrategyV1 is YakStrategyV2 {
         IERC20(avToken).approve(address(tokenDelegator), type(uint256).max);
     }
 
-    function deposit(uint amount) external override {
+    function deposit(uint256 amount) external override {
         _deposit(msg.sender, amount);
     }
 
-    function depositFor(address account, uint amount) external override {
+    function depositFor(address account, uint256 amount) external override {
         _deposit(account, amount);
     }
 
-    function depositWithPermit(uint amount, uint deadline, uint8 v, bytes32 r, bytes32 s) external override {
+    function depositWithPermit(
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external override {
         depositToken.permit(msg.sender, address(this), amount, deadline, v, r, s);
         _deposit(msg.sender, amount);
     }
@@ -154,8 +164,16 @@ contract AaveStrategyV1 is YakStrategyV2 {
                 _reinvest(avaxRewards);
             }
         }
-        require(depositToken.transferFrom(account, address(this), amount), "AaveStrategyV1::transfer failed");
-        _mint(account, amount);
+        require(
+            depositToken.transferFrom(account, address(this), amount),
+            "AaveStrategyV1::transfer failed"
+        );
+        uint256 shareAmount = amount;
+        uint256 balance = totalDeposits();
+        if (totalSupply.mul(balance) > 0) {
+            shareAmount = amount.mul(totalSupply).div(balance);
+        }
+        _mint(account, shareAmount);
         _stakeDepositTokens(amount);
         emit Deposit(account, amount);
     }
@@ -170,8 +188,8 @@ contract AaveStrategyV1 is YakStrategyV2 {
             _burn(msg.sender, amount);
             // actual amount withdrawn may change with time.
             uint256 withdrawnAmount = _withdrawDepositTokens(depositTokenAmount);
-            _safeTransfer(address(depositToken), msg.sender, withdrawnAmount );
-            emit Withdraw(msg.sender, withdrawnAmount );
+            _safeTransfer(address(depositToken), msg.sender, withdrawnAmount);
+            emit Withdraw(msg.sender, withdrawnAmount);
         }
     }
 
@@ -310,7 +328,11 @@ contract AaveStrategyV1 is YakStrategyV2 {
      * @param to recipient address
      * @param value amount
      */
-    function _safeTransfer(address token, address to, uint256 value) private {
+    function _safeTransfer(
+        address token,
+        address to,
+        uint256 value
+    ) private {
         require(
             IERC20(token).transfer(to, value),
             "AaveStrategyV1::TRANSFER_FROM_FAILED"
@@ -337,7 +359,11 @@ contract AaveStrategyV1 is YakStrategyV2 {
         return totalDeposits();
     }
 
-    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits)
+        external
+        override
+        onlyOwner
+    {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         (uint256 balance, uint256 borrowed, ) = _getAccountData();
         _unrollDebt(balance.sub(borrowed));

@@ -11,12 +11,29 @@
     "hardhat-contract-sizer": "^2.0.3",
     "hardhat-deploy": "^0.7.5",
     "hardhat-deploy-ethers": "^0.3.0-beta.7",
-    "mocha": "^7.2.0"
+    "mocha": "^7.2.0",
+    "prettier": "^2.4.1",
+    "prettier-plugin-solidity": "^1.0.0-beta.18"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^3.4.0",
     "@pangolindex/governance": "^1.0.5",
     "dotenv": "^8.2.0"
+  },
+  "prettier": {
+    "overrides": [
+      {
+        "files": "*.sol",
+        "options": {
+          "printWidth": 89,
+          "tabWidth": 4,
+          "useTabs": false,
+          "singleQuote": false,
+          "bracketSpacing": false,
+          "explicitTypes": "always"
+        }
+      }
+    ]
   },
   "scripts": {
     "compile": "npx hardhat compile",
