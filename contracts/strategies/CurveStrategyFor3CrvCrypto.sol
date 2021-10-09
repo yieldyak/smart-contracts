@@ -14,7 +14,6 @@ contract CurveStrategyFor3CrvCrypto is YakStrategyV2 {
   using SafeMath for uint;
 
   ILiquidityGuage public stakingContract;
-  IGondolaPool public poolContract;
   IDepositZap public depositZap;
   IPair private swapPairWAVAXCRV;
   IPair private swapPairToken0;
@@ -37,7 +36,6 @@ contract CurveStrategyFor3CrvCrypto is YakStrategyV2 {
     address _depositToken, 
     address _rewardToken, 
     address _stakingContract,
-    address _poolContract,
     address _depositZap,
     address _swapPairWAVAXCRV,
     PoolTokenForSwap memory _swapToken0,
