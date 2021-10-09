@@ -7,13 +7,11 @@ import "../interfaces/ILendingPool.sol";
 import "../interfaces/IWAVAX.sol";
 import "../interfaces/IERC20.sol";
 import "../lib/SafeMath.sol";
-import "../lib/WadRayMath.sol";
 import "../lib/DexLibrary.sol";
 import "../lib/ReentrancyGuard.sol";
 
 contract AaveStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
     using SafeMath for uint256;
-    using WadRayMath for uint256;
 
     IAaveIncentivesController private rewardController;
     ILendingPool private tokenDelegator;
@@ -92,11 +90,6 @@ contract AaveStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         return balance.sub(borrowed);
     }
 
-    function _totalDepositsFresh() internal view returns (uint256) {
-        (uint256 balance, uint256 borrowed, ) = _getAccountData();
-        return balance.sub(borrowed);
-    }
-
     // No need to _enterMarket() as LendingPool already defaults collateral to true.
     // https://github.com/aave/protocol-v2/blob/master/contracts/protocol/lendingpool/LendingPool.sol#L123-L126
     // _enterMarket();
@@ -169,13 +162,18 @@ contract AaveStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
                 _reinvest(avaxRewards);
             }
         }
-        _mint(account, amount);
+        uint256 shareAmount = amount;
+        uint256 balance = totalDeposits();
+        if (totalSupply.mul(balance) > 0) {
+            shareAmount = amount.mul(totalSupply).div(balance);
+        }
+        _mint(account, shareAmount);
         _stakeDepositTokens(amount);
         emit Deposit(account, amount);
     }
 
     function withdraw(uint256 amount) external override nonReentrant {
-        uint256 WAVAXAmount = _totalDepositsFresh().mul(amount).div(totalSupply);
+        uint256 WAVAXAmount = totalDeposits().mul(amount).div(totalSupply);
         require(WAVAXAmount > minMinting, "AaveStrategyAvaxV1::below minimum withdraw");
         if (WAVAXAmount > 0) {
             _burn(msg.sender, amount);
