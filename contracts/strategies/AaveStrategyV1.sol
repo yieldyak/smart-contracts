@@ -10,6 +10,9 @@ import "../lib/SafeMath.sol";
 import "../lib/DexLibrary.sol";
 import "../lib/ReentrancyGuard.sol";
 
+/**
+ * @title Aave strategy for ERC20
+ */
 contract AaveStrategyV1 is YakStrategyV2 {
     using SafeMath for uint256;
 
@@ -82,7 +85,8 @@ contract AaveStrategyV1 is YakStrategyV2 {
         return pair.token0() == address(left) && pair.token1() == address(right);
     }
 
-    // Return balance, borrowed, borrowable in 1e18 (WAD) instead of 1e27 (RAY)
+    /// @notice Internal method to get account state
+    /// @dev Values provided in 1e18 (WAD) instead of 1e27 (RAY)
     function _getAccountData()
         internal
         view
@@ -168,12 +172,7 @@ contract AaveStrategyV1 is YakStrategyV2 {
             depositToken.transferFrom(account, address(this), amount),
             "AaveStrategyV1::transfer failed"
         );
-        uint256 shareAmount = amount;
-        uint256 balance = totalDeposits();
-        if (totalSupply.mul(balance) > 0) {
-            shareAmount = amount.mul(totalSupply).div(balance);
-        }
-        _mint(account, shareAmount);
+        _mint(account, getSharesForDepositTokens(amount));
         _stakeDepositTokens(amount);
         emit Deposit(account, amount);
     }

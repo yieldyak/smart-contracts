@@ -10,12 +10,16 @@ import "../lib/SafeMath.sol";
 import "../lib/DexLibrary.sol";
 import "../lib/ReentrancyGuard.sol";
 
+/**
+ * @title Aave strategy for AVAX
+ * @dev No need to _enterMarket() as LendingPool already defaults collateral to true.
+ * See https://github.com/aave/protocol-v2/blob/master/contracts/protocol/lendingpool/LendingPool.sol#L123-L126
+ */
 contract AaveStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
     using SafeMath for uint256;
 
     IAaveIncentivesController private rewardController;
     ILendingPool private tokenDelegator;
-    IPair private swapPairToken0; // WAVAX to WAVAX
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
     uint256 private leverageLevel;
     uint256 private safetyFactor;
@@ -60,7 +64,8 @@ contract AaveStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         emit Reinvest(0, 0);
     }
 
-    // Return balance, borrowed, borrowable in 1e18 (WAD) instead of 1e27 (RAY)
+    /// @notice Internal method to get account state
+    /// @dev Values provided in 1e18 (WAD) instead of 1e27 (RAY)
     function _getAccountData()
         internal
         view
@@ -88,13 +93,6 @@ contract AaveStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
     function totalDeposits() public view override returns (uint256) {
         (uint256 balance, uint256 borrowed, ) = _getAccountData();
         return balance.sub(borrowed);
-    }
-
-    // No need to _enterMarket() as LendingPool already defaults collateral to true.
-    // https://github.com/aave/protocol-v2/blob/master/contracts/protocol/lendingpool/LendingPool.sol#L123-L126
-    // _enterMarket();
-    function _enterMarket() internal {
-        tokenDelegator.setUserUseReserveAsCollateral(address(WAVAX), true);
     }
 
     function _updateLeverage(
@@ -162,12 +160,7 @@ contract AaveStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
                 _reinvest(avaxRewards);
             }
         }
-        uint256 shareAmount = amount;
-        uint256 balance = totalDeposits();
-        if (totalSupply.mul(balance) > 0) {
-            shareAmount = amount.mul(totalSupply).div(balance);
-        }
-        _mint(account, shareAmount);
+        _mint(account, getSharesForDepositTokens(amount));
         _stakeDepositTokens(amount);
         emit Deposit(account, amount);
     }
