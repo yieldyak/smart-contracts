@@ -124,4 +124,29 @@ interface IJoetroller {
     function rewardDistributor() external view returns (address);
 
     function claimReward(uint8 rewardType, address holder) external; //reward type 0 is joe, 1 is avax
+
+    // rewardType  0 = JOE, 1 = AVAX
+    function rewardSupplyState(uint8 rewardType, address holder)
+        external
+        view
+        returns (uint224, uint32);
+
+    function rewardBorrowState(uint8 rewardType, address holder)
+        external
+        view
+        returns (uint224, uint32);
+
+    function rewardSupplierIndex(
+        uint8 rewardType,
+        address contractAddress,
+        address holder
+    ) external view returns (uint256 supplierIndex);
+
+    function rewardBorrowerIndex(
+        uint8 rewardType,
+        address contractAddress,
+        address holder
+    ) external view returns (uint256 borrowerIndex);
+
+    function rewardAccrued(uint8, address) external view returns (uint256);
 }

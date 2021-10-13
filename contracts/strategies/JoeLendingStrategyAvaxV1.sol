@@ -1,24 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.0;
 
-import "../YakStrategyV2.sol";
+import "../YakStrategyV2Payable.sol";
 import "../interfaces/IJoetroller.sol";
 import "../interfaces/IJoeRewardDistributor.sol";
+import "../interfaces/IJoeAVAXDelegator.sol";
 import "../interfaces/IJoeERC20Delegator.sol";
 import "../interfaces/IWAVAX.sol";
 
 import "../interfaces/IERC20.sol";
 import "../lib/DexLibrary.sol";
+import "../lib/ReentrancyGuard.sol";
+import "hardhat/console.sol";
 
-contract JoeLendingStrategyV1 is YakStrategyV2 {
+contract JoeLendingStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
     using SafeMath for uint256;
 
     IJoetroller private rewardController;
-    IJoeERC20Delegator private tokenDelegator; // jDAI
+    IJoeAVAXDelegator private tokenDelegator; // jAVAX
     IERC20 private rewardToken0; // JOE
-    IERC20 private rewardToken1; // AVAX
+    IERC20 private rewardToken1; // WAVAX
     IPair private swapPairToken0; // JOE-AVAX
-    IPair private swapPairToken1; // AVAX-DAI
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
     uint256 private leverageLevel;
     uint256 private leverageBips;
@@ -26,13 +28,10 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
 
     constructor(
         string memory _name,
-        address _depositToken,
         address _rewardController,
         address _tokenDelegator,
         address _rewardToken0,
-        address _rewardToken1,
         address _swapPairToken0,
-        address _swapPairToken1,
         address _timelock,
         uint256 _minMinting,
         uint256 _leverageLevel,
@@ -43,11 +42,10 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
         uint256 _reinvestRewardBips
     ) {
         name = _name;
-        depositToken = IERC20(_depositToken);
         rewardController = IJoetroller(_rewardController);
-        tokenDelegator = IJoeERC20Delegator(_tokenDelegator);
+        tokenDelegator = IJoeAVAXDelegator(_tokenDelegator);
         rewardToken0 = IERC20(_rewardToken0);
-        rewardToken1 = IERC20(_rewardToken1);
+        rewardToken1 = IERC20(address(WAVAX));
         rewardToken = rewardToken1;
         minMinting = _minMinting;
         _updateLeverage(_leverageLevel, _leverageBips);
@@ -55,7 +53,7 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
 
         _enterMarket();
 
-        assignSwapPairSafely(_swapPairToken0, _swapPairToken1);
+        assignSwapPairSafely(_swapPairToken0);
         setAllowances();
         updateMinTokensToReinvest(_minTokensToReinvest);
         updateAdminFee(_adminFeeBips);
@@ -112,18 +110,11 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
      * @dev Checks that selected Pairs are valid for trading deposit tokens
      * @dev Assigns values to swapPairToken0 and swapPairToken1
      */
-    function assignSwapPairSafely(address _swapPairToken0, address _swapPairToken1)
-        private
-    {
+    function assignSwapPairSafely(address _swapPairToken0) private {
         require(
             _swapPairToken0 > address(0),
             "Swap pair 0 is necessary but not supplied"
         );
-        require(
-            _swapPairToken1 > address(0),
-            "Swap pair 1 is necessary but not supplied"
-        );
-
         require(
             address(rewardToken0) == IPair(address(_swapPairToken0)).token0() ||
                 address(rewardToken0) == IPair(address(_swapPairToken0)).token1(),
@@ -136,29 +127,23 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
             "Swap pair 0 does not match rewardToken1"
         );
 
-        require(
-            address(depositToken) == IPair(address(_swapPairToken1)).token0() ||
-                address(depositToken) == IPair(address(_swapPairToken1)).token1(),
-            "Swap pair 1 does not match depositToken"
-        );
-
-        require(
-            address(rewardToken1) == IPair(address(_swapPairToken1)).token0() ||
-                address(rewardToken1) == IPair(address(_swapPairToken1)).token1(),
-            "Swap pair 1 does not match rewardToken1"
-        );
-
         swapPairToken0 = IPair(_swapPairToken0);
-        swapPairToken1 = IPair(_swapPairToken1);
     }
 
     function setAllowances() public override onlyOwner {
-        depositToken.approve(address(tokenDelegator), type(uint256).max);
         tokenDelegator.approve(address(tokenDelegator), type(uint256).max);
     }
 
+    function deposit() external payable override nonReentrant {
+        _deposit(msg.sender, msg.value);
+    }
+
+    function depositFor(address account) external payable override nonReentrant {
+        _deposit(account, msg.value);
+    }
+
     function deposit(uint256 amount) external override {
-        _deposit(msg.sender, amount);
+        revert();
     }
 
     function depositWithPermit(
@@ -168,27 +153,21 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
         bytes32 r,
         bytes32 s
     ) external override {
-        depositToken.permit(msg.sender, address(this), amount, deadline, v, r, s);
-        _deposit(msg.sender, amount);
+        revert();
     }
 
     function depositFor(address account, uint256 amount) external override {
-        _deposit(account, amount);
+        revert();
     }
 
     function _deposit(address account, uint256 amount) private onlyAllowedDeposits {
-        require(DEPOSITS_ENABLED == true, "JoeLendingStrategyV1::_deposit");
+        require(DEPOSITS_ENABLED == true, "JoeLendingStrategyAvaxV1::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
-            if (
-                WAVAX.balanceOf(address(this)) > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST
-            ) {
-                _reinvest();
+            uint256 balance = address(this).balance;
+            if (balance > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
+                _reinvest(balance);
             }
         }
-        require(
-            depositToken.transferFrom(msg.sender, address(this), amount),
-            "JoeLendingStrategyV1::transfer failed"
-        );
         uint256 depositTokenAmount = amount;
         uint256 balance = _totalDepositsFresh();
         if (totalSupply.mul(balance) > 0) {
@@ -201,7 +180,10 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
     }
 
     function withdraw(uint256 amount) external override {
-        require(amount > minMinting, "JoeLendingStrategyV1:: below minimum withdraw");
+        require(
+            amount > minMinting,
+            "JoeLendingStrategyAvaxV1:: below minimum withdraw"
+        );
         uint256 depositTokenAmount = _totalDepositsFresh().mul(amount).div(totalSupply);
         if (depositTokenAmount > 0) {
             _burn(msg.sender, amount);
@@ -215,8 +197,8 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
     function _withdrawDepositTokens(uint256 amount) private {
         _unrollDebt(amount);
         require(
-            tokenDelegator.redeemUnderlying(amount) == 0,
-            "JoeLendingStrategyV1::redeem failed"
+            tokenDelegator.redeemUnderlyingNative(amount) == 0,
+            "JoeLendingStrategyAvaxV1::redeem failed"
         );
         uint256 balance = tokenDelegator.balanceOfUnderlying(address(this));
         uint256 borrow = tokenDelegator.borrowBalanceCurrent(address(this));
@@ -225,20 +207,22 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
         }
     }
 
-    function reinvest() external override onlyEOA {
+    function reinvest() external override onlyEOA nonReentrant {
         (, , uint256 totalAvaxRewards) = _checkRewards();
         require(
             totalAvaxRewards >= MIN_TOKENS_TO_REINVEST,
-            "JoeLendingStrategyV1::reinvest"
+            "JoeLendingStrategyAvaxV1::reinvest"
         );
-        _reinvest();
+        _reinvest(address(this).balance);
         claimRewards();
     }
 
     receive() external payable {
         require(
-            msg.sender == address(rewardController),
-            "JoeLendingStrategyV1::payments not allowed"
+            msg.sender == address(rewardController) ||
+                msg.sender == address(WAVAX) ||
+                msg.sender == address(tokenDelegator),
+            "JoeLendingStrategyAvaxV1::payments not allowed"
         );
     }
 
@@ -246,8 +230,11 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
      * @notice Reinvest rewards from staking contract to deposit tokens
      * @dev Reverts if the expected amount of tokens are not returned from `stakingContract`
      */
-    function _reinvest() private {
-        uint256 amount = WAVAX.balanceOf(address(this));
+    function _reinvest(uint256 amount) private {
+        uint256 fees = amount.mul(
+            DEV_FEE_BIPS.add(ADMIN_FEE_BIPS).add(REINVEST_REWARD_BIPS)
+        );
+        WAVAX.deposit{value: fees}();
 
         uint256 devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
@@ -264,14 +251,7 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
             _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
         }
 
-        uint256 depositTokenAmount = DexLibrary.swap(
-            amount.sub(devFee).sub(adminFee).sub(reinvestFee),
-            address(rewardToken1),
-            address(depositToken),
-            swapPairToken1
-        );
-
-        _stakeDepositTokens(depositTokenAmount);
+        _stakeDepositTokens(amount.sub(fees));
 
         emit Reinvest(totalDeposits(), totalSupply);
     }
@@ -286,13 +266,11 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
                 address(rewardToken1),
                 swapPairToken0
             );
+            WAVAX.withdraw(WAVAX.balanceOf(address(this)));
         }
+        // this has to be the very last thing as it is native transfer
+        // and only sends 1300 gas back
         rewardController.claimReward(1, address(this));
-
-        uint256 avaxRewards = address(this).balance;
-        if (avaxRewards > 0) {
-            WAVAX.deposit{value: avaxRewards}();
-        }
     }
 
     function _rollupDebt(uint256 principal, uint256 borrowed) internal {
@@ -318,12 +296,12 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
                 break;
             }
             require(
-                tokenDelegator.borrow(toBorrowAmount) == 0,
-                "JoeLendingStrategyV1::borrowing failed"
+                tokenDelegator.borrowNative(toBorrowAmount) == 0,
+                "JoeLendingStrategyAvaxV1::borrowing failed"
             );
             require(
-                tokenDelegator.mint(toBorrowAmount) == 0,
-                "JoeLendingStrategyV1::lending failed"
+                tokenDelegator.mintNative{value: toBorrowAmount}() == 0,
+                "JoeLendingStrategyAvaxV1::lending failed"
             );
             supplied = tokenDelegator.balanceOfUnderlying(address(this));
             totalBorrowed = totalBorrowed.add(toBorrowAmount);
@@ -340,7 +318,6 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
     }
 
     function _getBorrowLimit() internal view returns (uint256, uint256) {
-        // TODO get a specific market
         (, uint256 borrowLimit) = rewardController.markets(address(tokenDelegator));
         return (borrowLimit, 1e18);
     }
@@ -369,11 +346,11 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
             }
             require(
                 tokenDelegator.redeemUnderlying(unrollAmount) == 0,
-                "JoeLendingStrategyV1::failed to redeem"
+                "JoeLendingStrategyAvaxV1::failed to redeem"
             );
             require(
-                tokenDelegator.repayBorrow(unrollAmount) == 0,
-                "JoeLendingStrategyV1::failed to repay borrow"
+                tokenDelegator.repayBorrowNative{value: unrollAmount}() == 0,
+                "JoeLendingStrategyAvaxV1::failed to repay borrow"
             );
             balance = tokenDelegator.balanceOfUnderlying(address(this));
             borrowed = borrowed.sub(unrollAmount);
@@ -385,10 +362,10 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
     }
 
     function _stakeDepositTokens(uint256 amount) private {
-        require(amount > 0, "JoeLendingStrategyV1::_stakeDepositTokens");
+        require(amount > 0, "JoeLendingStrategyAvaxV1::_stakeDepositTokens");
         require(
-            tokenDelegator.mint(amount) == 0,
-            "JoeLendingStrategyV1::Deposit failed"
+            tokenDelegator.mintNative{value: amount}() == 0,
+            "JoeLendingStrategyAvaxV1::Deposit failed"
         );
         uint256 borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
         uint256 principal = tokenDelegator.balanceOfUnderlying(address(this));
@@ -409,7 +386,7 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
     ) private {
         require(
             IERC20(token).transfer(to, value),
-            "JoeLendingStrategyV1::TRANSFER_FROM_FAILED"
+            "JoeLendingStrategyAvaxV1::TRANSFER_FROM_FAILED"
         );
     }
 
@@ -510,7 +487,7 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
         uint256 balanceAfter = depositToken.balanceOf(address(this));
         require(
             balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
-            "JoeLendingStrategyV1::rescueDeployedFunds"
+            "JoeLendingStrategyAvaxV1::rescueDeployedFunds"
         );
         emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
