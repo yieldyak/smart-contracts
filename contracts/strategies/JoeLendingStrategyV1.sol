@@ -340,7 +340,6 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
     }
 
     function _getBorrowLimit() internal view returns (uint256, uint256) {
-        // TODO get a specific market
         (, uint256 borrowLimit) = rewardController.markets(address(tokenDelegator));
         return (borrowLimit, 1e18);
     }
