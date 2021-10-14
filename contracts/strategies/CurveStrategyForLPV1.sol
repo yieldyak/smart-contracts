@@ -1,10 +1,12 @@
+pragma experimental ABIEncoderV2;
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.0;
 
 import "../YakStrategy.sol";
 import "../interfaces/ICurveStableSwapAave.sol";
+import "../interfaces/ICurveCryptoSwap.sol";
 import "../interfaces/ICurveRewardsGauge.sol";
-import "../interfaces/ICurveRewardsGaugeReadOnly.sol";
+import "../interfaces/ICurveRewardsClaimer.sol";
 import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
 import "hardhat/console.sol";
@@ -12,54 +14,73 @@ import "hardhat/console.sol";
 /**
  * @notice Stable pool strategy for Curve
  */
-contract CurveStrategyForAv3CRVV1 is YakStrategy {
+contract CurveStrategyForLPV1 is YakStrategy {
     using SafeMath for uint;
 
-    ICurveStableSwapAave public stableSwap;
+    enum PoolType { AAVE, CRYPTO }
+
+    struct StrategySettings {
+        uint minTokensToReinvest;
+        uint adminFeeBips;
+        uint devFeeBips;
+        uint reinvestRewardBips;
+    }
+
+    struct ZapSettings {
+        PoolType poolType;
+        address zapToken;
+        address zapContract;
+        uint zapTokenIndex;
+        uint maxSlippage;
+    }
+
     ICurveRewardsGauge public stakingContract;
-    IPair private immutable swapPairWavaxZap;
+    IPair private swapPairWavaxZap;
     address private swapPairCrvAvax = address(0);
     bytes private constant zeroBytes = new bytes(0);
-    uint private maxSwapSlippage;
+    function(uint) internal returns(uint) _zapToDepositToken;
     address private constant WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
     address private constant CRV = 0x47536F17F4fF30e64A96a7555826b8f9e66ec468;
-    address private constant ZAP_TOKEN = 0xc7198437980c041c805A1EDcbA50c1Ce5db95118; // USDT.e
+    ZapSettings private zapSettings;
+    uint public lastReinvestTime = block.timestamp;
+    uint public rewardEstimatePerSecond = 1;
 
     constructor (
         string memory _name,
         address _depositToken,
-        address _stableSwap,
         address _stakingContract,
         address _swapPairWavaxZap,
         address _swapPairCrvAvax,
         address _timelock,
-        uint _maxSwapSlippageBips,
-        uint _minTokensToReinvest,
-        uint _adminFeeBips,
-        uint _devFeeBips,
-        uint _reinvestRewardBips
+        StrategySettings memory _strategySettings,
+        ZapSettings memory _zapSettings
     ) {
         name = _name;
         devAddr = msg.sender;
         depositToken = IERC20(_depositToken);
         rewardToken = IERC20(WAVAX);
-        stableSwap = ICurveStableSwapAave(_stableSwap);
         stakingContract = ICurveRewardsGauge(_stakingContract);
 
         swapPairCrvAvax = _swapPairCrvAvax;        
         require(_swapPairWavaxZap > address(0), "Swap pair 0 is necessary but not supplied");
         require(
-            IPair(_swapPairWavaxZap).token0() == ZAP_TOKEN || IPair(_swapPairWavaxZap).token1() == ZAP_TOKEN, 
+            IPair(_swapPairWavaxZap).token0() == _zapSettings.zapToken || IPair(_swapPairWavaxZap).token1() == _zapSettings.zapToken, 
             "Swap pair supplied does not have the reward token as one of it's pair"
         );
         swapPairWavaxZap = IPair(_swapPairWavaxZap);
+        if (_zapSettings.poolType == PoolType.AAVE) {
+            _zapToDepositToken = _zapToAaveLP;        
+        } else if (_zapSettings.poolType == PoolType.CRYPTO) {
+            _zapToDepositToken = _zapToCryptoLP;
+        }
+        zapSettings = _zapSettings;
 
         setAllowances();
-        updateMaxSwapSlippage(_maxSwapSlippageBips);
-        updateMinTokensToReinvest(_minTokensToReinvest);
-        updateAdminFee(_adminFeeBips);
-        updateDevFee(_devFeeBips);
-        updateReinvestReward(_reinvestRewardBips);
+        updateMaxSwapSlippage(_zapSettings.maxSlippage);
+        updateMinTokensToReinvest(_strategySettings.minTokensToReinvest);
+        updateAdminFee(_strategySettings.adminFeeBips);
+        updateDevFee(_strategySettings.devFeeBips);
+        updateReinvestReward(_strategySettings.reinvestRewardBips);
         updateDepositsEnabled(true);
         transferOwnership(_timelock);
 
@@ -67,9 +88,9 @@ contract CurveStrategyForAv3CRVV1 is YakStrategy {
     }
 
     function setAllowances() public override onlyOwner {
-        depositToken.approve(address(stableSwap), MAX_UINT);
+        depositToken.approve(zapSettings.zapContract, MAX_UINT);
         depositToken.approve(address(stakingContract), MAX_UINT);
-        IERC20(ZAP_TOKEN).approve(address(stableSwap), MAX_UINT);
+        IERC20(zapSettings.zapToken).approve(zapSettings.zapContract, MAX_UINT);
     }
 
     function updateCrvAvaxSwapPair(address swapPair) public onlyDev {
@@ -77,7 +98,33 @@ contract CurveStrategyForAv3CRVV1 is YakStrategy {
     }
 
     function updateMaxSwapSlippage(uint slippageBips) public onlyDev {
-        maxSwapSlippage = slippageBips;
+        zapSettings.maxSlippage = slippageBips;
+    }
+
+    function _zapToAaveLP(uint amount) private returns (uint) {
+        uint zapTokenAmount = DexLibrary.swap(
+            amount,
+            WAVAX, zapSettings.zapToken,
+            swapPairWavaxZap
+        );
+        uint[3] memory amounts = [uint(0), uint(0), uint(0)];
+        amounts[zapSettings.zapTokenIndex] = zapTokenAmount;
+        uint expectedAmount = ICurveStableSwapAave(zapSettings.zapContract).calc_token_amount(amounts, true);
+        uint slippage = expectedAmount.mul(zapSettings.maxSlippage).div(BIPS_DIVISOR);
+        return ICurveStableSwapAave(zapSettings.zapContract).add_liquidity(amounts, expectedAmount.sub(slippage), true);
+    }
+
+    function _zapToCryptoLP(uint amount) private returns (uint) {
+        uint zapTokenAmount = DexLibrary.swap(
+            amount,
+            WAVAX, zapSettings.zapToken,
+            swapPairWavaxZap
+        );
+        uint[5] memory amounts = [uint(0), uint(0), uint(0), uint(0), uint(0)];
+        amounts[zapSettings.zapTokenIndex] = zapTokenAmount;
+        uint expectedAmount = ICurveCryptoSwap(zapSettings.zapContract).calc_token_amount(amounts, true);
+        uint slippage = expectedAmount.mul(zapSettings.maxSlippage).div(BIPS_DIVISOR);
+        return ICurveCryptoSwap(zapSettings.zapContract).add_liquidity(amounts, expectedAmount.sub(slippage), true);
     }
 
     function deposit(uint amount) external override {
@@ -96,7 +143,7 @@ contract CurveStrategyForAv3CRVV1 is YakStrategy {
     function _deposit(address account, uint amount) private onlyAllowedDeposits {
         require(DEPOSITS_ENABLED == true, "CurveStrategyForAv3CRVV1::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
-            (uint pendingAvaxRewards, uint pendingCrvRewards) = updateRewards();
+            (uint pendingAvaxRewards, uint pendingCrvRewards) = _updateRewards();
             uint unclaimedRewards = _estimateRewardConvertedToAvax(pendingAvaxRewards, pendingCrvRewards);
             if (unclaimedRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
                 _reinvest(pendingAvaxRewards, pendingCrvRewards);
@@ -126,7 +173,7 @@ contract CurveStrategyForAv3CRVV1 is YakStrategy {
     }
 
     function reinvest() external override onlyEOA {
-        (uint pendingAvaxRewards, uint pendingCrvRewards) = updateRewards();
+        (uint pendingAvaxRewards, uint pendingCrvRewards) = _updateRewards();
         uint unclaimedRewards = _estimateRewardConvertedToAvax(pendingAvaxRewards, pendingCrvRewards);
         require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "CurveStrategyForAv3CRVV1::reinvest");
         _reinvest(pendingAvaxRewards, pendingCrvRewards);
@@ -138,7 +185,7 @@ contract CurveStrategyForAv3CRVV1 is YakStrategy {
         return (pendingAvax, pendingCrv);
     }
 
-    function updateRewards() public returns (uint pendingAvaxRewards, uint pendingCrvRewards) {
+    function _updateRewards() private returns (uint pendingAvaxRewards, uint pendingCrvRewards) {
         stakingContract.claimable_reward_write(address(this), WAVAX);
         return _checkRewards();
     }
@@ -160,6 +207,7 @@ contract CurveStrategyForAv3CRVV1 is YakStrategy {
      * @dev Reverts if the expected amount of tokens are not returned from `stableSwap`
      */
     function _reinvest(uint pendingAvaxRewards, uint pendingCrvRewards) private {
+        lastReinvestTime = block.timestamp;
         stakingContract.claim_rewards();
         uint amount = pendingAvaxRewards.add(_convertRewardIntoWAVAX(pendingCrvRewards));
 
@@ -178,7 +226,7 @@ contract CurveStrategyForAv3CRVV1 is YakStrategy {
             _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
         }
 
-        uint depositTokenAmount = _convertRewardIntoDepositToken(amount.sub(devFee).sub(adminFee).sub(reinvestFee));
+        uint depositTokenAmount = _zapToDepositToken(amount.sub(devFee).sub(adminFee).sub(reinvestFee));
 
         _stakeDepositTokens(depositTokenAmount);
         totalDeposits = totalDeposits.add(depositTokenAmount);
@@ -195,17 +243,6 @@ contract CurveStrategyForAv3CRVV1 is YakStrategy {
             );
         }
         return 0;
-    }
-
-    function _convertRewardIntoDepositToken(uint amount) private returns (uint) {
-        uint ZAP_TOKENAmount = DexLibrary.swap(
-            amount,
-            WAVAX, ZAP_TOKEN,
-            swapPairWavaxZap
-        );
-        uint expectedAmount = stableSwap.calc_token_amount([0, 0, ZAP_TOKENAmount], true);
-        uint slippage = expectedAmount.mul(maxSwapSlippage).div(BIPS_DIVISOR);
-        return stableSwap.add_liquidity([0, 0, ZAP_TOKENAmount], expectedAmount.sub(slippage), true);
     }
 
     function _stakeDepositTokens(uint amount) private {
@@ -225,8 +262,31 @@ contract CurveStrategyForAv3CRVV1 is YakStrategy {
     }
 
     function checkReward() public override view returns (uint) {
-        (uint pendingAvaxRewards, uint pendingCrvRewards) = _checkRewards();
+        uint pendingAvaxRewards = _calculateRewards(WAVAX);
+        uint pendingCrvRewards = _calculateRewards(CRV);
+
         return _estimateRewardConvertedToAvax(pendingAvaxRewards, pendingCrvRewards);
+    }
+
+    function _calculateRewards(address _rewardToken) public view returns(uint) {
+        uint strategyLpDeposits = stakingContract.balanceOf(address(this));
+        uint lastRewardUpdateTime = ICurveRewardsClaimer(stakingContract.reward_contract()).last_update_time();
+        DataTypes.RewardToken memory rewardToken = ICurveRewardsClaimer(stakingContract.reward_contract()).reward_data(_rewardToken);
+
+        uint gaugeBalance = IERC20(_rewardToken).balanceOf(address(stakingContract));
+        uint unclaimedTotal = (block.timestamp - lastRewardUpdateTime) * rewardToken.rate;
+        uint tokenBalance = gaugeBalance.add(unclaimedTotal);
+        
+        uint dI = uint(10e18).mul(tokenBalance.sub(stakingContract.reward_balances(_rewardToken))).div(stakingContract.totalSupply());
+        uint integral = stakingContract.reward_integral(_rewardToken) + dI;
+        uint integralFor = stakingContract.reward_integral_for(_rewardToken, address(this));
+
+        uint strategyUnclaimed = 0;
+        if (integralFor < integral) {
+            strategyUnclaimed = strategyLpDeposits.mul(integral.sub(integralFor)).div(10e18);
+        }
+        uint strategyClaimed = stakingContract.claimable_reward(address(this), _rewardToken);
+        return strategyClaimed.add(strategyUnclaimed);
     }
 
     function estimateDeployedBalance() external override view returns (uint) {
