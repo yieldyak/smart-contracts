@@ -67,7 +67,7 @@ contract CurveStrategyForLPV1 is YakStrategy {
         );
         swapPairWavaxZap = IPair(_swapPairWavaxZap);
         if (_zapSettings.poolType == PoolType.AAVE) {
-            require(_zapSettings.zapToken == ICurveStableSwapAave(_zapSettings.zapContract).underlying_coins(_zapSettings.zapTokenIndex), "Wrong zap token index");        
+            require(_zapSettings.zapToken == ICurveStableSwapAave(_zapSettings.zapContract).underlying_coins(_zapSettings.zapTokenIndex), "Wrong zap token index");
             _zapToDepositToken = _zapToAaveLP;
         } else if (_zapSettings.poolType == PoolType.CRYPTO) {
             require(_zapSettings.zapToken == ICurveCryptoSwap(_zapSettings.zapContract).underlying_coins(_zapSettings.zapTokenIndex), "Wrong zap token index");        
