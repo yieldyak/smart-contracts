@@ -42,8 +42,6 @@ contract CurveStrategyForLPV1 is YakStrategy {
     address private constant WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
     address private constant CRV = 0x47536F17F4fF30e64A96a7555826b8f9e66ec468;
     ZapSettings private zapSettings;
-    uint public lastReinvestTime = block.timestamp;
-    uint public rewardEstimatePerSecond = 1;
 
     constructor (
         string memory _name,
@@ -207,7 +205,6 @@ contract CurveStrategyForLPV1 is YakStrategy {
      * @dev Reverts if the expected amount of tokens are not returned from `stableSwap`
      */
     function _reinvest(uint pendingAvaxRewards, uint pendingCrvRewards) private {
-        lastReinvestTime = block.timestamp;
         stakingContract.claim_rewards();
         uint amount = pendingAvaxRewards.add(_convertRewardIntoWAVAX(pendingCrvRewards));
 
