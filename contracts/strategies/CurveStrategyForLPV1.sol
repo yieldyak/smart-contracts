@@ -9,7 +9,7 @@ import "../interfaces/ICurveRewardsGauge.sol";
 import "../interfaces/ICurveRewardsClaimer.sol";
 import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
-import "hardhat/console.sol";
+
 
 /**
  * @notice Stable pool strategy for Curve
@@ -67,8 +67,10 @@ contract CurveStrategyForLPV1 is YakStrategy {
         );
         swapPairWavaxZap = IPair(_swapPairWavaxZap);
         if (_zapSettings.poolType == PoolType.AAVE) {
-            _zapToDepositToken = _zapToAaveLP;        
+            require(_zapSettings.zapToken == ICurveStableSwapAave(_zapSettings.zapContract).underlying_coins(_zapSettings.zapTokenIndex), "Wrong zap token index");        
+            _zapToDepositToken = _zapToAaveLP;
         } else if (_zapSettings.poolType == PoolType.CRYPTO) {
+            require(_zapSettings.zapToken == ICurveCryptoSwap(_zapSettings.zapContract).underlying_coins(_zapSettings.zapTokenIndex), "Wrong zap token index");        
             _zapToDepositToken = _zapToCryptoLP;
         }
         zapSettings = _zapSettings;
@@ -86,7 +88,6 @@ contract CurveStrategyForLPV1 is YakStrategy {
     }
 
     function setAllowances() public override onlyOwner {
-        depositToken.approve(zapSettings.zapContract, MAX_UINT);
         depositToken.approve(address(stakingContract), MAX_UINT);
         IERC20(zapSettings.zapToken).approve(zapSettings.zapContract, MAX_UINT);
     }
@@ -122,7 +123,8 @@ contract CurveStrategyForLPV1 is YakStrategy {
         amounts[zapSettings.zapTokenIndex] = zapTokenAmount;
         uint expectedAmount = ICurveCryptoSwap(zapSettings.zapContract).calc_token_amount(amounts, true);
         uint slippage = expectedAmount.mul(zapSettings.maxSlippage).div(BIPS_DIVISOR);
-        return ICurveCryptoSwap(zapSettings.zapContract).add_liquidity(amounts, expectedAmount.sub(slippage), true);
+        ICurveCryptoSwap(zapSettings.zapContract).add_liquidity(amounts, expectedAmount.sub(slippage));
+        return depositToken.balanceOf(address(this));
     }
 
     function deposit(uint amount) external override {
