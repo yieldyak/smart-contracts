@@ -59,10 +59,10 @@ contract CurveStrategyForLPV1 is YakStrategy {
         rewardToken = IERC20(WAVAX);
         stakingContract = ICurveRewardsGauge(_stakingContract);
 
-        swapPairCrvAvax = _swapPairCrvAvax;        
+        swapPairCrvAvax = _swapPairCrvAvax;
         require(_swapPairWavaxZap > address(0), "Swap pair 0 is necessary but not supplied");
         require(
-            IPair(_swapPairWavaxZap).token0() == _zapSettings.zapToken || IPair(_swapPairWavaxZap).token1() == _zapSettings.zapToken, 
+            IPair(_swapPairWavaxZap).token0() == _zapSettings.zapToken || IPair(_swapPairWavaxZap).token1() == _zapSettings.zapToken,
             "Swap pair supplied does not have the reward token as one of it's pair"
         );
         swapPairWavaxZap = IPair(_swapPairWavaxZap);
@@ -70,7 +70,7 @@ contract CurveStrategyForLPV1 is YakStrategy {
             require(_zapSettings.zapToken == ICurveStableSwapAave(_zapSettings.zapContract).underlying_coins(_zapSettings.zapTokenIndex), "Wrong zap token index");
             _zapToDepositToken = _zapToAaveLP;
         } else if (_zapSettings.poolType == PoolType.CRYPTO) {
-            require(_zapSettings.zapToken == ICurveCryptoSwap(_zapSettings.zapContract).underlying_coins(_zapSettings.zapTokenIndex), "Wrong zap token index");        
+            require(_zapSettings.zapToken == ICurveCryptoSwap(_zapSettings.zapContract).underlying_coins(_zapSettings.zapTokenIndex), "Wrong zap token index");
             _zapToDepositToken = _zapToCryptoLP;
         }
         zapSettings = _zapSettings;
@@ -182,7 +182,7 @@ contract CurveStrategyForLPV1 is YakStrategy {
     function _claimRewards() private returns (uint pendingAvaxRewards, uint pendingCrvRewards) {
         ICurveRewardsClaimer(stakingContract.reward_contract()).get_reward();
         stakingContract.claim_rewards();
-        uint pendingAvax = IERC20(WAVAX).balanceOf(address(this)); 
+        uint pendingAvax = IERC20(WAVAX).balanceOf(address(this));
         uint pendingCrv = IERC20(CRV).balanceOf(address(this));
         return (pendingAvax, pendingCrv);
     }
@@ -271,7 +271,7 @@ contract CurveStrategyForLPV1 is YakStrategy {
         uint gaugeBalance = IERC20(_rewardToken).balanceOf(address(stakingContract));
         uint unclaimedTotal = (block.timestamp - lastRewardUpdateTime) * rewardToken.rate;
         uint tokenBalance = gaugeBalance.add(unclaimedTotal);
-        
+
         uint dI = uint(10e18).mul(tokenBalance.sub(stakingContract.reward_balances(_rewardToken))).div(stakingContract.totalSupply());
         uint integral = stakingContract.reward_integral(_rewardToken) + dI;
         uint integralFor = stakingContract.reward_integral_for(_rewardToken, address(this));
