@@ -143,7 +143,7 @@ contract CurveStrategyForLPV1 is YakStrategy {
     function _deposit(address account, uint amount) private onlyAllowedDeposits {
         require(DEPOSITS_ENABLED == true, "CurveStrategyForAv3CRVV1::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
-            (uint pendingAvaxRewards, uint pendingCrvRewards) = _updateRewards();
+            (uint pendingAvaxRewards, uint pendingCrvRewards) = _claimRewards();
             uint unclaimedRewards = _estimateRewardConvertedToAvax(pendingAvaxRewards, pendingCrvRewards);
             if (unclaimedRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
                 _reinvest(pendingAvaxRewards, pendingCrvRewards);
@@ -173,21 +173,17 @@ contract CurveStrategyForLPV1 is YakStrategy {
     }
 
     function reinvest() external override onlyEOA {
-        (uint pendingAvaxRewards, uint pendingCrvRewards) = _updateRewards();
+        (uint pendingAvaxRewards, uint pendingCrvRewards) = _claimRewards();
         uint unclaimedRewards = _estimateRewardConvertedToAvax(pendingAvaxRewards, pendingCrvRewards);
         require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "CurveStrategyForAv3CRVV1::reinvest");
         _reinvest(pendingAvaxRewards, pendingCrvRewards);
     }
 
-    function _checkRewards() private view returns (uint pendingAvaxRewards, uint pendingCrvRewards) {
-        uint pendingAvax = stakingContract.claimable_reward(address(this), WAVAX);
-        uint pendingCrv = stakingContract.claimable_reward(address(this), CRV);
+    function _claimRewards() private returns (uint pendingAvaxRewards, uint pendingCrvRewards) {
+        stakingContract.claim_rewards();
+        uint pendingAvax = IERC20(WAVAX).balanceOf(address(this)); 
+        uint pendingCrv = IERC20(CRV).balanceOf(address(this));
         return (pendingAvax, pendingCrv);
-    }
-
-    function _updateRewards() private returns (uint pendingAvaxRewards, uint pendingCrvRewards) {
-        stakingContract.claimable_reward_write(address(this), WAVAX);
-        return _checkRewards();
     }
 
     function _estimateRewardConvertedToAvax(uint pendingAvaxRewards, uint pendingCrvRewards) private view returns(uint) {
@@ -207,7 +203,6 @@ contract CurveStrategyForLPV1 is YakStrategy {
      * @dev Reverts if the expected amount of tokens are not returned from `stableSwap`
      */
     function _reinvest(uint pendingAvaxRewards, uint pendingCrvRewards) private {
-        stakingContract.claim_rewards();
         uint amount = pendingAvaxRewards.add(_convertRewardIntoWAVAX(pendingCrvRewards));
 
         uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
