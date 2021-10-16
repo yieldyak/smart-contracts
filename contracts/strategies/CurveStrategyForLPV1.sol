@@ -12,7 +12,7 @@ import "../lib/DexLibrary.sol";
 
 
 /**
- * @notice Stable pool strategy for Curve
+ * @notice Strategy for Curve LP
  */
 contract CurveStrategyForLPV1 is YakStrategy {
     using SafeMath for uint;
