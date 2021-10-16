@@ -16,4 +16,5 @@ library DataTypes {
 interface ICurveRewardsClaimer {
     function reward_data(address reward) external view returns(DataTypes.RewardToken memory);
     function last_update_time() external view returns(uint);
+    function get_reward() external;
 }

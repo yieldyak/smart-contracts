@@ -180,6 +180,7 @@ contract CurveStrategyForLPV1 is YakStrategy {
     }
 
     function _claimRewards() private returns (uint pendingAvaxRewards, uint pendingCrvRewards) {
+        ICurveRewardsClaimer(stakingContract.reward_contract()).get_reward();
         stakingContract.claim_rewards();
         uint pendingAvax = IERC20(WAVAX).balanceOf(address(this)); 
         uint pendingCrv = IERC20(CRV).balanceOf(address(this));
