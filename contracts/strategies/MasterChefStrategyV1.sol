@@ -157,7 +157,7 @@ abstract contract MasterChefStrategyV1 is YakStrategy {
             }
         }
         require(
-            depositToken.transferFrom(msg.sender, address(this), amount),
+            depositToken.transferFrom(account, address(this), amount),
             "MasterChefStrategyV1::transfer failed"
         );
         _stakeDepositTokens(amount);
