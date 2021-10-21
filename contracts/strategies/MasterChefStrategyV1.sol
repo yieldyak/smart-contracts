@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.0;
 
-import "../YakStrategy.sol";
+import "../YakStrategyV2.sol";
 import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
 
 /**
- * @notice Strategy for Frost
+ * @notice Adapter strategy for MasterChef.
  */
-abstract contract MasterChefStrategyV1 is YakStrategy {
+abstract contract MasterChefStrategyV1 is YakStrategyV2 {
     using SafeMath for uint256;
 
+    uint256 public PID;
     IPair private swapPairToken0;
     IPair private swapPairToken1;
     address private stakingRewards;
-
-    uint256 public PID;
 
     constructor(
         string memory _name,
@@ -81,17 +80,13 @@ abstract contract MasterChefStrategyV1 is YakStrategy {
                 "Swap pair supplied does not have the reward token as one of it's pair"
             );
             require(
-                swapPairToken0.token0() ==
-                    IPair(address(depositToken)).token0() ||
-                    swapPairToken0.token1() ==
-                    IPair(address(depositToken)).token0(),
+                swapPairToken0.token0() == IPair(address(depositToken)).token0() ||
+                    swapPairToken0.token1() == IPair(address(depositToken)).token0(),
                 "Swap pair 0 supplied does not match the pair in question"
             );
             require(
-                swapPairToken1.token0() ==
-                    IPair(address(depositToken)).token1() ||
-                    swapPairToken1.token1() ==
-                    IPair(address(depositToken)).token1(),
+                swapPairToken1.token0() == IPair(address(depositToken)).token1() ||
+                    swapPairToken1.token1() == IPair(address(depositToken)).token1(),
                 "Swap pair 1 supplied does not match the pair in question"
             );
         } else if (_rewardToken == IPair(address(depositToken)).token0()) {
@@ -132,15 +127,7 @@ abstract contract MasterChefStrategyV1 is YakStrategy {
         bytes32 r,
         bytes32 s
     ) external override {
-        depositToken.permit(
-            msg.sender,
-            address(this),
-            amount,
-            deadline,
-            v,
-            r,
-            s
-        );
+        depositToken.permit(msg.sender, address(this), amount, deadline, v, r, s);
         _deposit(msg.sender, amount);
     }
 
@@ -164,7 +151,6 @@ abstract contract MasterChefStrategyV1 is YakStrategy {
         uint256 depositFeeBips = _getDepositFeeBips(PID);
         uint256 depositFee = amount.mul(depositFeeBips).div(_bip());
         _mint(account, getSharesForDepositTokens(amount.sub(depositFee)));
-        totalDeposits = totalDeposits.add(amount.sub(depositFee));
         emit Deposit(account, amount);
     }
 
@@ -173,16 +159,13 @@ abstract contract MasterChefStrategyV1 is YakStrategy {
         if (depositTokenAmount > 0) {
             _withdrawDepositTokens(depositTokenAmount);
             uint256 withdrawFeeBips = _getWithdrawFeeBips(PID);
-            uint256 withdrawFee = depositTokenAmount.mul(withdrawFeeBips).div(
-                _bip()
-            );
+            uint256 withdrawFee = depositTokenAmount.mul(withdrawFeeBips).div(_bip());
             _safeTransfer(
                 address(depositToken),
                 msg.sender,
                 depositTokenAmount.sub(withdrawFee)
             );
             _burn(msg.sender, amount);
-            totalDeposits = totalDeposits.sub(depositTokenAmount);
             emit Withdraw(msg.sender, depositTokenAmount);
         }
     }
@@ -219,28 +202,21 @@ abstract contract MasterChefStrategyV1 is YakStrategy {
             _safeTransfer(address(rewardToken), owner(), adminFee);
         }
 
-        uint256 reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(
-            BIPS_DIVISOR
-        );
+        uint256 reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
             _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
         }
 
-        uint256 depositTokenAmount = DexLibrary
-            .convertRewardTokensToDepositTokens(
-                amount.sub(devFee).sub(adminFee).sub(reinvestFee),
-                address(rewardToken),
-                address(depositToken),
-                swapPairToken0,
-                swapPairToken1
-            );
+        uint256 depositTokenAmount = DexLibrary.convertRewardTokensToDepositTokens(
+            amount.sub(devFee).sub(adminFee).sub(reinvestFee),
+            address(rewardToken),
+            address(depositToken),
+            swapPairToken0,
+            swapPairToken1
+        );
 
         _stakeDepositTokens(depositTokenAmount);
-        uint256 depositFeeBips = _getDepositFeeBips(PID);
-        uint256 depositFee = depositTokenAmount.mul(depositFeeBips).div(_bip());
-        totalDeposits = totalDeposits.add(depositTokenAmount.sub(depositFee));
-
-        emit Reinvest(totalDeposits, totalSupply);
+        emit Reinvest(totalDeposits(), totalSupply);
     }
 
     function _stakeDepositTokens(uint256 amount) private {
@@ -276,22 +252,26 @@ abstract contract MasterChefStrategyV1 is YakStrategy {
      * @notice Estimate recoverable balance after withdraw fee
      * @return deposit tokens after withdraw fee
      */
-    function estimateDeployedBalance()
-        external
-        view
-        override
-        returns (uint256)
-    {
+    function estimateDeployedBalance() external view override returns (uint256) {
+        return _totalDeposits();
+    }
+
+    function totalDeposits() public view override returns (uint256) {
+        return _totalDeposits();
+    }
+
+    function _totalDeposits() internal view returns (uint256) {
         (uint256 depositBalance, ) = _userInfo(PID, address(this));
         uint256 withdrawFeeBips = _getWithdrawFeeBips(PID);
         uint256 withdrawFee = depositBalance.mul(withdrawFeeBips).div(_bip());
         return depositBalance.sub(withdrawFee);
     }
 
-    function rescueDeployedFunds(
-        uint256 minReturnAmountAccepted,
-        bool disableDeposits
-    ) external override onlyOwner {
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits)
+        external
+        override
+        onlyOwner
+    {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         _emergencyWithdraw(PID);
         uint256 balanceAfter = depositToken.balanceOf(address(this));
@@ -299,8 +279,7 @@ abstract contract MasterChefStrategyV1 is YakStrategy {
             balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
             "MasterChefStrategyV1::rescueDeployedFunds"
         );
-        totalDeposits = balanceAfter;
-        emit Reinvest(totalDeposits, totalSupply);
+        emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
             updateDepositsEnabled(false);
         }
@@ -310,9 +289,7 @@ abstract contract MasterChefStrategyV1 is YakStrategy {
 
     function _depositMasterchef(uint256 _pid, uint256 _amount) internal virtual;
 
-    function _withdrawMasterchef(uint256 _pid, uint256 _amount)
-        internal
-        virtual;
+    function _withdrawMasterchef(uint256 _pid, uint256 _amount) internal virtual;
 
     function _emergencyWithdraw(uint256 _pid) internal virtual;
 
@@ -330,17 +307,9 @@ abstract contract MasterChefStrategyV1 is YakStrategy {
         virtual
         returns (uint256 amount, uint256 rewardDebt);
 
-    function _getDepositFeeBips(uint256 pid)
-        internal
-        view
-        virtual
-        returns (uint256);
+    function _getDepositFeeBips(uint256 pid) internal view virtual returns (uint256);
 
-    function _getWithdrawFeeBips(uint256 pid)
-        internal
-        view
-        virtual
-        returns (uint256);
+    function _getWithdrawFeeBips(uint256 pid) internal view virtual returns (uint256);
 
     function _bip() internal view virtual returns (uint256);
 }
