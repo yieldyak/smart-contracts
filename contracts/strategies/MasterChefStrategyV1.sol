@@ -164,7 +164,7 @@ abstract contract MasterChefStrategyV1 is YakStrategy {
         uint256 depositFeeBips = _getDepositFeeBips(PID);
         uint256 depositFee = amount.mul(depositFeeBips).div(_bip());
         _mint(account, getSharesForDepositTokens(amount.sub(depositFee)));
-        totalDeposits = totalDeposits.add(amount);
+        totalDeposits = totalDeposits.add(amount.sub(depositFee));
         emit Deposit(account, amount);
     }
 
