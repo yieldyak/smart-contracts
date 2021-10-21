@@ -54,27 +54,14 @@ contract AvaiStrategy is MasterChefStrategyV1 {
         if (nativeRewardToken != address(rewardToken)) {
             swapPairRewardToken = _swapPairRewardToken;
             require(
-                isPairEquals(
+                DexLibrary.checkSwapPairCompatibility(
                     IPair(swapPairRewardToken),
                     nativeRewardToken,
                     address(rewardToken)
-                ) ||
-                    isPairEquals(
-                        IPair(swapPairRewardToken),
-                        address(rewardToken),
-                        nativeRewardToken
-                    ),
+                ),
                 "Swap pair does not match reward token and native reward token"
             );
         }
-    }
-
-    function isPairEquals(
-        IPair pair,
-        address left,
-        address right
-    ) private returns (bool) {
-        return pair.token0() == address(left) && pair.token1() == address(right);
     }
 
     function _depositMasterchef(uint256 _pid, uint256 _amount) internal override {
@@ -96,12 +83,13 @@ contract AvaiStrategy is MasterChefStrategyV1 {
         returns (uint256)
     {
         if (address(rewardToken) != nativeRewardToken) {
-            return DexLibrary.estimateConversionThroughPair(
-                podLeader.pendingRewards(_pid, _user),
-                nativeRewardToken,
-                address(rewardToken),
-                IPair(swapPairRewardToken)
-            );
+            return
+                DexLibrary.estimateConversionThroughPair(
+                    podLeader.pendingRewards(_pid, _user),
+                    nativeRewardToken,
+                    address(rewardToken),
+                    IPair(swapPairRewardToken)
+                );
         } else {
             return podLeader.pendingRewards(_pid, _user);
         }
