@@ -11,7 +11,7 @@ import "../lib/DexLibrary.sol";
 abstract contract MasterChefStrategyV1 is YakStrategyV2 {
     using SafeMath for uint256;
 
-    uint256 public PID;
+    uint256 public immutable PID;
     IPair private swapPairToken0;
     IPair private swapPairToken1;
     address private stakingRewards;
