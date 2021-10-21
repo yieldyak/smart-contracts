@@ -96,7 +96,7 @@ contract AvaiStrategy is MasterChefStrategyV1 {
         returns (uint256)
     {
         if (address(rewardToken) != nativeRewardToken) {
-            DexLibrary.estimateConversionThroughPair(
+            return DexLibrary.estimateConversionThroughPair(
                 podLeader.pendingRewards(_pid, _user),
                 nativeRewardToken,
                 address(rewardToken),
