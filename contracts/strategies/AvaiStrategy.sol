@@ -108,7 +108,7 @@ contract AvaiStrategy is MasterChefStrategyV1 {
     }
 
     function _getRewards(uint256 _pid) internal override {
-        podLeader.deposit(_pid, 0);
+        podLeader.withdraw(_pid, 1);
         if (address(rewardToken) != nativeRewardToken) {
             DexLibrary.swap(
                 IERC20(nativeRewardToken).balanceOf(address(this)),
