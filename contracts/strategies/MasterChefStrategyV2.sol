@@ -6,22 +6,20 @@ import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
 
 /**
- * @notice Adapter strategy for MasterChef with LP deposit.
+ * @notice Adapter strategy for MasterChef with single-sided token deposit.
  */
-abstract contract MasterChefStrategyV1 is YakStrategyV2 {
+abstract contract MasterChefStrategyV2 is YakStrategyV2 {
     using SafeMath for uint256;
 
     uint256 public immutable PID;
-    IPair private swapPairToken0;
-    IPair private swapPairToken1;
+    address private swapPairToken; // reward-deposit LP
     address private stakingRewards;
 
     constructor(
         string memory _name,
         address _depositToken,
         address _rewardToken,
-        address _swapPairToken0,
-        address _swapPairToken1,
+        address _swapPairToken,
         address _stakingRewards,
         address _timelock,
         uint256 _pid,
@@ -31,13 +29,13 @@ abstract contract MasterChefStrategyV1 is YakStrategyV2 {
         uint256 _reinvestRewardBips
     ) {
         name = _name;
-        depositToken = IPair(_depositToken);
+        depositToken = IERC20(_depositToken);
         rewardToken = IERC20(_rewardToken);
         PID = _pid;
         devAddr = msg.sender;
         stakingRewards = _stakingRewards;
 
-        assignSwapPairSafely(_swapPairToken0, _swapPairToken1, _rewardToken);
+        assignSwapPairSafely(_swapPairToken);
         setAllowances();
         updateMinTokensToReinvest(_minTokensToReinvest);
         updateAdminFee(_adminFeeBips);
@@ -45,55 +43,24 @@ abstract contract MasterChefStrategyV1 is YakStrategyV2 {
         updateReinvestReward(_reinvestRewardBips);
         updateDepositsEnabled(true);
         transferOwnership(_timelock);
-
         emit Reinvest(0, 0);
     }
 
     /**
      * @notice Initialization helper for Pair deposit tokens
      * @dev Checks that selected Pairs are valid for trading reward tokens
-     * @dev Assigns values to swapPairToken0 and swapPairToken1
+     * @dev Assigns values to swapPairToken
      */
-    function assignSwapPairSafely(
-        address _swapPairToken0,
-        address _swapPairToken1,
-        address _rewardToken
-    ) private {
-        if (
-            _rewardToken != IPair(address(depositToken)).token0() &&
-            _rewardToken != IPair(address(depositToken)).token1()
-        ) {
-            // deployment checks for non-pool2
-            require(
-                _swapPairToken0 > address(0),
-                "Swap pair 0 is necessary but not supplied"
-            );
-            require(
-                _swapPairToken1 > address(0),
-                "Swap pair 1 is necessary but not supplied"
-            );
-            swapPairToken0 = IPair(_swapPairToken0);
-            swapPairToken1 = IPair(_swapPairToken1);
-            require(
-                swapPairToken0.token0() == _rewardToken ||
-                    swapPairToken0.token1() == _rewardToken,
-                "Swap pair supplied does not have the reward token as one of it's pair"
-            );
-            require(
-                swapPairToken0.token0() == IPair(address(depositToken)).token0() ||
-                    swapPairToken0.token1() == IPair(address(depositToken)).token0(),
-                "Swap pair 0 supplied does not match the pair in question"
-            );
-            require(
-                swapPairToken1.token0() == IPair(address(depositToken)).token1() ||
-                    swapPairToken1.token1() == IPair(address(depositToken)).token1(),
-                "Swap pair 1 supplied does not match the pair in question"
-            );
-        } else if (_rewardToken == IPair(address(depositToken)).token0()) {
-            swapPairToken1 = IPair(address(depositToken));
-        } else if (_rewardToken == IPair(address(depositToken)).token1()) {
-            swapPairToken0 = IPair(address(depositToken));
-        }
+    function assignSwapPairSafely(address _swapPairToken) private {
+        require(
+            DexLibrary.checkSwapPairCompatibility(
+                IPair(_swapPairToken),
+                address(depositToken),
+                address(rewardToken)
+            ),
+            "swap token does not match deposit and reward token"
+        );
+        swapPairToken = _swapPairToken;
     }
 
     /**
@@ -136,7 +103,7 @@ abstract contract MasterChefStrategyV1 is YakStrategyV2 {
     }
 
     function _deposit(address account, uint256 amount) internal {
-        require(DEPOSITS_ENABLED == true, "MasterChefStrategyV1::_deposit");
+        require(DEPOSITS_ENABLED == true, "MasterChefStrategyV2::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
             uint256 unclaimedRewards = checkReward();
             if (unclaimedRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
@@ -145,7 +112,7 @@ abstract contract MasterChefStrategyV1 is YakStrategyV2 {
         }
         require(
             depositToken.transferFrom(account, address(this), amount),
-            "MasterChefStrategyV1::transfer failed"
+            "MasterChefStrategyV2::transfer failed"
         );
         _stakeDepositTokens(amount);
         uint256 depositFeeBips = _getDepositFeeBips(PID);
@@ -171,7 +138,7 @@ abstract contract MasterChefStrategyV1 is YakStrategyV2 {
     }
 
     function _withdrawDepositTokens(uint256 amount) private {
-        require(amount > 0, "MasterChefStrategyV1::_withdrawDepositTokens");
+        require(amount > 0, "MasterChefStrategyV2::_withdrawDepositTokens");
         _withdrawMasterchef(PID, amount);
     }
 
@@ -179,7 +146,7 @@ abstract contract MasterChefStrategyV1 is YakStrategyV2 {
         uint256 unclaimedRewards = checkReward();
         require(
             unclaimedRewards >= MIN_TOKENS_TO_REINVEST,
-            "MasterChefStrategyV1::reinvest"
+            "MasterChefStrategyV2::reinvest"
         );
         _reinvest(unclaimedRewards);
     }
@@ -207,20 +174,18 @@ abstract contract MasterChefStrategyV1 is YakStrategyV2 {
             _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
         }
 
-        uint256 depositTokenAmount = DexLibrary.convertRewardTokensToDepositTokens(
+        uint256 depositTokenAmount = DexLibrary.swap(
             amount.sub(devFee).sub(adminFee).sub(reinvestFee),
             address(rewardToken),
             address(depositToken),
-            swapPairToken0,
-            swapPairToken1
+            IPair(swapPairToken)
         );
-
         _stakeDepositTokens(depositTokenAmount);
         emit Reinvest(totalDeposits(), totalSupply);
     }
 
     function _stakeDepositTokens(uint256 amount) private {
-        require(amount > 0, "MasterChefStrategyV1::_stakeDepositTokens");
+        require(amount > 0, "MasterChefStrategyV2::_stakeDepositTokens");
         _depositMasterchef(PID, amount);
     }
 
@@ -238,7 +203,7 @@ abstract contract MasterChefStrategyV1 is YakStrategyV2 {
     ) private {
         require(
             IERC20(token).transfer(to, value),
-            "MasterChefStrategyV1::TRANSFER_FROM_FAILED"
+            "MasterChefStrategyV2::TRANSFER_FROM_FAILED"
         );
     }
 
@@ -277,7 +242,7 @@ abstract contract MasterChefStrategyV1 is YakStrategyV2 {
         uint256 balanceAfter = depositToken.balanceOf(address(this));
         require(
             balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
-            "MasterChefStrategyV1::rescueDeployedFunds"
+            "MasterChefStrategyV2::rescueDeployedFunds"
         );
         emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
