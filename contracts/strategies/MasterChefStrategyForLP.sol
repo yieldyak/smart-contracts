@@ -8,20 +8,20 @@ import "../lib/DexLibrary.sol";
 /**
  * @notice Adapter strategy for MasterChef with LP deposit.
  */
-abstract contract MasterChefStrategyV1 is YakStrategyV2 {
+abstract contract MasterChefStrategyForLP is YakStrategyV2 {
     using SafeMath for uint256;
 
     uint256 public immutable PID;
-    IPair private swapPairToken0;
-    IPair private swapPairToken1;
+    address private swapPairToken0;
+    address private swapPairToken1;
     address private stakingRewards;
 
     constructor(
         string memory _name,
         address _depositToken,
         address _rewardToken,
-        address _swapPairToken0,
-        address _swapPairToken1,
+        address swapPairToken0,
+        address swapPairToken1,
         address _stakingRewards,
         address _timelock,
         uint256 _pid,
@@ -37,7 +37,7 @@ abstract contract MasterChefStrategyV1 is YakStrategyV2 {
         devAddr = msg.sender;
         stakingRewards = _stakingRewards;
 
-        assignSwapPairSafely(_swapPairToken0, _swapPairToken1, _rewardToken);
+        assignSwapPairSafely(swapPairToken0, swapPairToken1, _rewardToken);
         setAllowances();
         updateMinTokensToReinvest(_minTokensToReinvest);
         updateAdminFee(_adminFeeBips);
@@ -52,7 +52,7 @@ abstract contract MasterChefStrategyV1 is YakStrategyV2 {
     /**
      * @notice Initialization helper for Pair deposit tokens
      * @dev Checks that selected Pairs are valid for trading reward tokens
-     * @dev Assigns values to swapPairToken0 and swapPairToken1
+     * @dev Assigns values to IPair(swapPairToken0) and IPair(swapPairToken1)
      */
     function assignSwapPairSafely(
         address _swapPairToken0,
@@ -72,27 +72,27 @@ abstract contract MasterChefStrategyV1 is YakStrategyV2 {
                 _swapPairToken1 > address(0),
                 "Swap pair 1 is necessary but not supplied"
             );
-            swapPairToken0 = IPair(_swapPairToken0);
-            swapPairToken1 = IPair(_swapPairToken1);
+            swapPairToken0 = _swapPairToken0;
+            swapPairToken1 = _swapPairToken1;
             require(
-                swapPairToken0.token0() == _rewardToken ||
-                    swapPairToken0.token1() == _rewardToken,
+                IPair(swapPairToken0).token0() == _rewardToken ||
+                    IPair(swapPairToken0).token1() == _rewardToken,
                 "Swap pair supplied does not have the reward token as one of it's pair"
             );
             require(
-                swapPairToken0.token0() == IPair(address(depositToken)).token0() ||
-                    swapPairToken0.token1() == IPair(address(depositToken)).token0(),
+                IPair(swapPairToken0).token0() == IPair(address(depositToken)).token0() ||
+                    IPair(swapPairToken0).token1() == IPair(address(depositToken)).token0(),
                 "Swap pair 0 supplied does not match the pair in question"
             );
             require(
-                swapPairToken1.token0() == IPair(address(depositToken)).token1() ||
-                    swapPairToken1.token1() == IPair(address(depositToken)).token1(),
+                IPair(swapPairToken1).token0() == IPair(address(depositToken)).token1() ||
+                    IPair(swapPairToken1).token1() == IPair(address(depositToken)).token1(),
                 "Swap pair 1 supplied does not match the pair in question"
             );
         } else if (_rewardToken == IPair(address(depositToken)).token0()) {
-            swapPairToken1 = IPair(address(depositToken));
+            swapPairToken1 = address(depositToken);
         } else if (_rewardToken == IPair(address(depositToken)).token1()) {
-            swapPairToken0 = IPair(address(depositToken));
+            swapPairToken0 = address(depositToken);
         }
     }
 
@@ -211,8 +211,8 @@ abstract contract MasterChefStrategyV1 is YakStrategyV2 {
             amount.sub(devFee).sub(adminFee).sub(reinvestFee),
             address(rewardToken),
             address(depositToken),
-            swapPairToken0,
-            swapPairToken1
+            IPair(swapPairToken0),
+            IPair(swapPairToken1)
         );
 
         _stakeDepositTokens(depositTokenAmount);

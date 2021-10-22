@@ -8,11 +8,11 @@ import "../lib/DexLibrary.sol";
 /**
  * @notice Adapter strategy for MasterChef with single-sided token deposit.
  */
-abstract contract MasterChefStrategyV2 is YakStrategyV2 {
+abstract contract MasterChefStrategyForSA is YakStrategyV2 {
     using SafeMath for uint256;
 
     uint256 public immutable PID;
-    address private swapPairToken; // reward-deposit LP
+    address private swapPairToken;
     address private stakingRewards;
 
     constructor(

@@ -5,9 +5,9 @@ import "../interfaces/IAvaiPodLeader.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
-import "./MasterChefStrategyV1.sol";
+import "./MasterChefStrategyForLP.sol";
 
-contract AvaiStrategy is MasterChefStrategyV1 {
+contract AvaiStrategyForLP is MasterChefStrategyForLP {
     using SafeMath for uint256;
 
     IAvaiPodLeader public podLeader;
@@ -33,7 +33,7 @@ contract AvaiStrategy is MasterChefStrategyV1 {
         uint256 _reinvestRewardBips
     )
         Ownable()
-        MasterChefStrategyV1(
+        MasterChefStrategyForLP(
             _name,
             _depositToken,
             _rewardToken,

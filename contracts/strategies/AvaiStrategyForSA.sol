@@ -6,10 +6,10 @@ import "../interfaces/IERC20.sol";
 import "../interfaces/IPair.sol";
 import "../interfaces/IWAVAX.sol";
 import "../lib/DexLibrary.sol";
-import "./MasterChefStrategyV2.sol";
+import "./MasterChefStrategyForSA.sol";
 
 // For OrcaStaking where reward is in AVAX. Has no deposit fee.
-contract AvaiOrcaStakingStrategy is MasterChefStrategyV2 {
+contract AvaiStrategyForSA is MasterChefStrategyForSA {
     using SafeMath for uint256;
 
     IAvaiPodLeader public podLeader;
@@ -28,7 +28,7 @@ contract AvaiOrcaStakingStrategy is MasterChefStrategyV2 {
         uint256 _reinvestRewardBips
     )
         Ownable()
-        MasterChefStrategyV2(
+        MasterChefStrategyForSA(
             _name,
             _depositToken,
             /*rewardToken=*/
@@ -69,7 +69,7 @@ contract AvaiOrcaStakingStrategy is MasterChefStrategyV2 {
 
     receive() external payable {
         // TODO: verify sender after AVAI fixed their contract to use send instead of transfer.
-        // require(address(rewardToken) == address(WAVAX) && msg.sender == address(stakingRewards), "AvaiStakingStrategy::payments not allowed");
+        // require(msg.sender == address(stakingRewards), "AvaiStrategyForSA::payments not allowed");
     }
 
     function _getRewards(uint256 _pid) internal override {
