@@ -80,13 +80,17 @@ abstract contract MasterChefStrategyForLP is YakStrategyV2 {
                 "Swap pair supplied does not have the reward token as one of it's pair"
             );
             require(
-                IPair(swapPairToken0).token0() == IPair(address(depositToken)).token0() ||
-                    IPair(swapPairToken0).token1() == IPair(address(depositToken)).token0(),
+                IPair(swapPairToken0).token0() ==
+                    IPair(address(depositToken)).token0() ||
+                    IPair(swapPairToken0).token1() ==
+                    IPair(address(depositToken)).token0(),
                 "Swap pair 0 supplied does not match the pair in question"
             );
             require(
-                IPair(swapPairToken1).token0() == IPair(address(depositToken)).token1() ||
-                    IPair(swapPairToken1).token1() == IPair(address(depositToken)).token1(),
+                IPair(swapPairToken1).token0() ==
+                    IPair(address(depositToken)).token1() ||
+                    IPair(swapPairToken1).token1() ==
+                    IPair(address(depositToken)).token1(),
                 "Swap pair 1 supplied does not match the pair in question"
             );
         } else if (_rewardToken == IPair(address(depositToken)).token0()) {
