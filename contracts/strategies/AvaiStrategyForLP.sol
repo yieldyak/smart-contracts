@@ -32,7 +32,6 @@ contract AvaiStrategyForLP is MasterChefStrategyForLP {
         uint256 _devFeeBips,
         uint256 _reinvestRewardBips
     )
-        Ownable()
         MasterChefStrategyForLP(
             _name,
             _depositToken,
@@ -107,13 +106,13 @@ contract AvaiStrategyForLP is MasterChefStrategyForLP {
         }
     }
 
-    function _userInfo(uint256 pid, address user)
+    function _getDepositBalance(uint256 pid, address user)
         internal
         view
         override
-        returns (uint256 amount, uint256 rewardDebt)
+        returns (uint256 amount)
     {
-        return podLeader.userInfo(pid, user);
+        (amount, ) = podLeader.userInfo(pid, user);
     }
 
     function setDepositFeeBips(uint256 _depositFeeBips) external onlyOwner {

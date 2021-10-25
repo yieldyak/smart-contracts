@@ -27,7 +27,6 @@ contract AvaiStrategyForSA is MasterChefStrategyForSA {
         uint256 _devFeeBips,
         uint256 _reinvestRewardBips
     )
-        Ownable()
         MasterChefStrategyForSA(
             _name,
             _depositToken,
@@ -80,13 +79,13 @@ contract AvaiStrategyForSA is MasterChefStrategyForSA {
         }
     }
 
-    function _userInfo(uint256 pid, address user)
+    function _getDepositBalance(uint256 pid, address user)
         internal
         view
         override
-        returns (uint256 amount, uint256 rewardDebt)
+        returns (uint256 amount)
     {
-        return podLeader.userInfo(pid, user);
+        (amount, ) = podLeader.userInfo(pid, user);
     }
 
     function _getDepositFeeBips(uint256 pid) internal view override returns (uint256) {
