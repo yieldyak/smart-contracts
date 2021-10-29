@@ -190,7 +190,7 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
             }
         }
         require(
-            depositToken.transferFrom(msg.sender, address(this), amount),
+            depositToken.transferFrom(account, address(this), amount),
             "JoeLendingStrategyV1::transfer failed"
         );
         uint256 shareTokenAmount = amount;
@@ -238,10 +238,6 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
     }
 
     receive() external payable {
-        require(
-            msg.sender == address(rewardController),
-            "JoeLendingStrategyV1::payments not allowed"
-        );
     }
 
     /**

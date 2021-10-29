@@ -221,12 +221,6 @@ contract JoeLendingStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
     }
 
     receive() external payable {
-        require(
-            msg.sender == address(rewardController) ||
-                msg.sender == address(WAVAX) ||
-                msg.sender == address(tokenDelegator),
-            "JoeLendingStrategyAvaxV1::payments not allowed"
-        );
     }
 
     /**
