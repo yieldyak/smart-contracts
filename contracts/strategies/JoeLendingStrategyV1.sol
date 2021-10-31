@@ -72,12 +72,9 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
     }
 
     function totalDeposits() public view override returns (uint256) {
-        (
-            ,
-            uint256 internalBalance,
-            uint256 borrow,
-            uint256 exchangeRate
-        ) = tokenDelegator.getAccountSnapshot(address(this));
+        (, uint256 internalBalance, uint256 borrow, uint256 exchangeRate) = tokenDelegator.getAccountSnapshot(
+            address(this)
+        );
         return internalBalance.mul(exchangeRate).div(1e18).sub(borrow);
     }
 
@@ -98,10 +95,7 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
         leverageBips = _leverageBips;
     }
 
-    function updateLeverage(uint256 _leverageLevel, uint256 _leverageBips)
-        external
-        onlyDev
-    {
+    function updateLeverage(uint256 _leverageLevel, uint256 _leverageBips) external onlyDev {
         _updateLeverage(_leverageLevel, _leverageBips);
         uint256 balance = _totalDepositsFresh();
         _unrollDebt(balance);
@@ -115,17 +109,9 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
      * @dev Checks that selected Pairs are valid for trading deposit tokens
      * @dev Assigns values to swapPairToken0 and swapPairToken1
      */
-    function assignSwapPairSafely(address _swapPairToken0, address _swapPairToken1)
-        private
-    {
-        require(
-            _swapPairToken0 > address(0),
-            "Swap pair 0 is necessary but not supplied"
-        );
-        require(
-            _swapPairToken1 > address(0),
-            "Swap pair 1 is necessary but not supplied"
-        );
+    function assignSwapPairSafely(address _swapPairToken0, address _swapPairToken1) private {
+        require(_swapPairToken0 > address(0), "Swap pair 0 is necessary but not supplied");
+        require(_swapPairToken1 > address(0), "Swap pair 1 is necessary but not supplied");
 
         require(
             address(rewardToken0) == IPair(address(_swapPairToken0)).token0() ||
@@ -183,16 +169,11 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
         require(DEPOSITS_ENABLED == true, "JoeLendingStrategyV1::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
             (uint256 joeRewards, uint256 avaxBalance, uint256 amountToReinvest) = _checkRewards();
-            if (
-                amountToReinvest > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST
-            ) {
+            if (amountToReinvest > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
                 _reinvest(joeRewards, avaxBalance, amountToReinvest);
             }
         }
-        require(
-            depositToken.transferFrom(account, address(this), amount),
-            "JoeLendingStrategyV1::transfer failed"
-        );
+        require(depositToken.transferFrom(account, address(this), amount), "JoeLendingStrategyV1::transfer failed");
         uint256 shareTokenAmount = amount;
         uint256 balance = _totalDepositsFresh();
         if (totalSupply.mul(balance) > 0) {
@@ -216,10 +197,7 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
 
     function _withdrawDepositTokens(uint256 amount) private {
         _unrollDebt(amount);
-        require(
-            tokenDelegator.redeemUnderlying(amount) == 0,
-            "JoeLendingStrategyV1::redeem failed"
-        );
+        require(tokenDelegator.redeemUnderlying(amount) == 0, "JoeLendingStrategyV1::redeem failed");
         uint256 balance = tokenDelegator.balanceOfUnderlying(address(this));
         uint256 borrow = tokenDelegator.borrowBalanceCurrent(address(this));
         if (balance > 0) {
@@ -229,16 +207,12 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
 
     function reinvest() external override onlyEOA {
         (uint256 joeRewards, uint256 avaxBalance, uint256 amountToReinvest) = _checkRewards();
-        require(
-            amountToReinvest >= MIN_TOKENS_TO_REINVEST,
-            "JoeLendingStrategyV1::reinvest"
-        );
+        require(amountToReinvest >= MIN_TOKENS_TO_REINVEST, "JoeLendingStrategyV1::reinvest");
         _reinvest(joeRewards, avaxBalance, amountToReinvest);
         claimAVAXRewards();
     }
 
-    receive() external payable {
-    }
+    receive() external payable {}
 
     /**
      * @notice Reinvest rewards from staking contract to deposit tokens
@@ -247,15 +221,14 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
      * @param avaxBalance amount of AVAX to reinvest
      * @param amount total amount of reward tokens to reinvest
      */
-    function _reinvest(uint256 joeRewards, uint256 avaxBalance, uint256 amount) private {
+    function _reinvest(
+        uint256 joeRewards,
+        uint256 avaxBalance,
+        uint256 amount
+    ) private {
         if (joeRewards > 0) {
             rewardController.claimReward(0, address(this));
-            DexLibrary.swap(
-                joeRewards,
-                address(rewardToken0),
-                address(rewardToken1),
-                swapPairToken0
-            );
+            DexLibrary.swap(joeRewards, address(rewardToken0), address(rewardToken1), swapPairToken0);
         }
 
         if (avaxBalance > 0) {
@@ -306,18 +279,11 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
     function _rollupDebt(uint256 principal, uint256 borrowed) internal {
         (uint256 borrowLimit, uint256 borrowBips) = _getBorrowLimit();
         uint256 supplied = principal;
-        uint256 lendTarget = principal.sub(borrowed).mul(leverageLevel).div(
-            leverageBips
-        );
+        uint256 lendTarget = principal.sub(borrowed).mul(leverageLevel).div(leverageBips);
         uint256 totalBorrowed = borrowed;
 
         while (supplied < lendTarget) {
-            uint256 toBorrowAmount = _getBorrowable(
-                supplied,
-                totalBorrowed,
-                borrowLimit,
-                borrowBips
-            );
+            uint256 toBorrowAmount = _getBorrowable(supplied, totalBorrowed, borrowLimit, borrowBips);
             if (supplied.add(toBorrowAmount) > lendTarget) {
                 toBorrowAmount = lendTarget.sub(supplied);
             }
@@ -325,14 +291,8 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
             if (toBorrowAmount < minMinting) {
                 break;
             }
-            require(
-                tokenDelegator.borrow(toBorrowAmount) == 0,
-                "JoeLendingStrategyV1::borrowing failed"
-            );
-            require(
-                tokenDelegator.mint(toBorrowAmount) == 0,
-                "JoeLendingStrategyV1::lending failed"
-            );
+            require(tokenDelegator.borrow(toBorrowAmount) == 0, "JoeLendingStrategyV1::borrowing failed");
+            require(tokenDelegator.mint(toBorrowAmount) == 0, "JoeLendingStrategyV1::lending failed");
             supplied = tokenDelegator.balanceOfUnderlying(address(this));
             totalBorrowed = totalBorrowed.add(toBorrowAmount);
         }
@@ -356,32 +316,18 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
         uint256 borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
         uint256 balance = tokenDelegator.balanceOfUnderlying(address(this));
         (uint256 borrowLimit, uint256 borrowBips) = _getBorrowLimit();
-        uint256 targetBorrow = balance
-            .sub(borrowed)
-            .sub(amountToFreeUp)
-            .mul(leverageLevel)
-            .div(leverageBips)
-            .sub(balance.sub(borrowed).sub(amountToFreeUp));
+        uint256 targetBorrow = balance.sub(borrowed).sub(amountToFreeUp).mul(leverageLevel).div(leverageBips).sub(
+            balance.sub(borrowed).sub(amountToFreeUp)
+        );
         uint256 toRepay = borrowed.sub(targetBorrow);
 
         while (toRepay > 0) {
-            uint256 unrollAmount = _getBorrowable(
-                balance,
-                borrowed,
-                borrowLimit,
-                borrowBips
-            );
+            uint256 unrollAmount = _getBorrowable(balance, borrowed, borrowLimit, borrowBips);
             if (unrollAmount > borrowed) {
                 unrollAmount = borrowed;
             }
-            require(
-                tokenDelegator.redeemUnderlying(unrollAmount) == 0,
-                "JoeLendingStrategyV1::failed to redeem"
-            );
-            require(
-                tokenDelegator.repayBorrow(unrollAmount) == 0,
-                "JoeLendingStrategyV1::failed to repay borrow"
-            );
+            require(tokenDelegator.redeemUnderlying(unrollAmount) == 0, "JoeLendingStrategyV1::failed to redeem");
+            require(tokenDelegator.repayBorrow(unrollAmount) == 0, "JoeLendingStrategyV1::failed to repay borrow");
             balance = tokenDelegator.balanceOfUnderlying(address(this));
             borrowed = borrowed.sub(unrollAmount);
             if (targetBorrow >= borrowed) {
@@ -393,10 +339,7 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
 
     function _stakeDepositTokens(uint256 amount) private {
         require(amount > 0, "JoeLendingStrategyV1::_stakeDepositTokens");
-        require(
-            tokenDelegator.mint(amount) == 0,
-            "JoeLendingStrategyV1::Deposit failed"
-        );
+        require(tokenDelegator.mint(amount) == 0, "JoeLendingStrategyV1::Deposit failed");
         uint256 borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
         uint256 principal = tokenDelegator.balanceOfUnderlying(address(this));
         _rollupDebt(principal, borrowed);
@@ -414,10 +357,7 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
         address to,
         uint256 value
     ) private {
-        require(
-            IERC20(token).transfer(to, value),
-            "JoeLendingStrategyV1::TRANSFER_FROM_FAILED"
-        );
+        require(IERC20(token).transfer(to, value), "JoeLendingStrategyV1::TRANSFER_FROM_FAILED");
     }
 
     /// @notice Returns rewards that can be reinvested
@@ -448,41 +388,21 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
      * @return amount that can be reinvested
      */
     function checkReward() public view override returns (uint256) {
-        (,, uint256 totalAmount) = _checkRewards();
+        (, , uint256 totalAmount) = _checkRewards();
         return totalAmount;
     }
 
-    function _getReward(uint8 tokenIndex, address account)
-        internal
-        view
-        returns (uint256)
-    {
-        IJoeRewardDistributor rewardDistributor = IJoeRewardDistributor(
-            rewardController.rewardDistributor()
-        );
-        (uint224 supplyIndex, ) = rewardDistributor.rewardSupplyState(
-            tokenIndex,
-            account
-        );
-        uint256 supplierIndex = rewardDistributor.rewardSupplierIndex(
-            tokenIndex,
-            address(tokenDelegator),
-            account
-        );
+    function _getReward(uint8 tokenIndex, address account) internal view returns (uint256) {
+        IJoeRewardDistributor rewardDistributor = IJoeRewardDistributor(rewardController.rewardDistributor());
+        (uint224 supplyIndex, ) = rewardDistributor.rewardSupplyState(tokenIndex, account);
+        uint256 supplierIndex = rewardDistributor.rewardSupplierIndex(tokenIndex, address(tokenDelegator), account);
 
         uint256 supplyIndexDelta = 0;
         if (supplyIndex > supplierIndex) {
             supplyIndexDelta = supplyIndex - supplierIndex;
         }
-        (uint224 borrowIndex, ) = rewardDistributor.rewardBorrowState(
-            tokenIndex,
-            account
-        );
-        uint256 borrowerIndex = rewardDistributor.rewardBorrowerIndex(
-            tokenIndex,
-            address(tokenDelegator),
-            account
-        );
+        (uint224 borrowIndex, ) = rewardDistributor.rewardBorrowState(tokenIndex, account);
+        uint256 borrowerIndex = rewardDistributor.rewardBorrowerIndex(tokenIndex, address(tokenDelegator), account);
         uint256 borrowIndexDelta = 0;
         if (borrowIndex > borrowerIndex) {
             borrowIndexDelta = borrowIndex - borrowerIndex;
@@ -496,12 +416,9 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
     }
 
     function getActualLeverage() public view returns (uint256) {
-        (
-            ,
-            uint256 internalBalance,
-            uint256 borrow,
-            uint256 exchangeRate
-        ) = tokenDelegator.getAccountSnapshot(address(this));
+        (, uint256 internalBalance, uint256 borrow, uint256 exchangeRate) = tokenDelegator.getAccountSnapshot(
+            address(this)
+        );
         uint256 balance = internalBalance.mul(exchangeRate).div(1e18);
         return balance.mul(1e18).div(balance.sub(borrow));
     }
@@ -510,11 +427,7 @@ contract JoeLendingStrategyV1 is YakStrategyV2 {
         return totalDeposits();
     }
 
-    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits)
-        external
-        override
-        onlyOwner
-    {
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         uint256 balance = _totalDepositsFresh();
         _unrollDebt(balance);
