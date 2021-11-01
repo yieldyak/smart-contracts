@@ -41,7 +41,7 @@ abstract contract MasterChefStrategyForLP is MasterChefStrategy {
             _reinvestRewardBips
         )
     {
-        assignSwapPairSafely(swapPairToken0, swapPairToken1, _rewardToken);
+        assignSwapPairSafely(_swapPairToken0, _swapPairToken1, _rewardToken);
     }
 
     /**
