@@ -4,9 +4,7 @@ pragma solidity ^0.7.0;
 // https://github.com/traderjoe-xyz/joe-lending/blob/HEAD/contracts/JoetrollerInterface.sol
 interface IJoetroller {
     /*** Assets You Are In ***/
-    function enterMarkets(address[] calldata jTokens)
-        external
-        returns (uint256[] memory);
+    function enterMarkets(address[] calldata jTokens) external returns (uint256[] memory);
 
     function exitMarket(address jToken) external returns (uint256);
 
@@ -126,15 +124,9 @@ interface IJoetroller {
     function claimReward(uint8 rewardType, address holder) external; //reward type 0 is joe, 1 is avax
 
     // rewardType  0 = JOE, 1 = AVAX
-    function rewardSupplyState(uint8 rewardType, address holder)
-        external
-        view
-        returns (uint224, uint32);
+    function rewardSupplyState(uint8 rewardType, address holder) external view returns (uint224, uint32);
 
-    function rewardBorrowState(uint8 rewardType, address holder)
-        external
-        view
-        returns (uint224, uint32);
+    function rewardBorrowState(uint8 rewardType, address holder) external view returns (uint224, uint32);
 
     function rewardSupplierIndex(
         uint8 rewardType,

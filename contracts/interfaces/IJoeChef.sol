@@ -18,10 +18,7 @@ interface IJoeChef {
             uint256 pendingBonusToken
         );
 
-    function userInfo(uint256 pid, address user)
-        external
-        view
-        returns (uint256 amount, uint256 rewardDebt);
+    function userInfo(uint256 pid, address user) external view returns (uint256 amount, uint256 rewardDebt);
 
     function poolInfo(uint256 pid)
         external

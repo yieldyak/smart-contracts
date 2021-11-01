@@ -11,34 +11,34 @@ import "./YakERC20.sol";
  * @notice YakStrategy should be inherited by new strategies
  */
 abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
-    using SafeMath for uint;
+    using SafeMath for uint256;
 
-    uint public totalDeposits;
+    uint256 public totalDeposits;
 
     IERC20 public depositToken;
     IERC20 public rewardToken;
     address public devAddr;
 
-    uint public MIN_TOKENS_TO_REINVEST;
-    uint public MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST;
+    uint256 public MIN_TOKENS_TO_REINVEST;
+    uint256 public MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST;
     bool public DEPOSITS_ENABLED;
 
-    uint public REINVEST_REWARD_BIPS;
-    uint public ADMIN_FEE_BIPS;
-    uint public DEV_FEE_BIPS;
+    uint256 public REINVEST_REWARD_BIPS;
+    uint256 public ADMIN_FEE_BIPS;
+    uint256 public DEV_FEE_BIPS;
 
-    uint constant internal BIPS_DIVISOR = 10000;
-    uint constant internal MAX_UINT = uint(-1);
+    uint256 internal constant BIPS_DIVISOR = 10000;
+    uint256 internal constant MAX_UINT = uint256(-1);
 
-    event Deposit(address indexed account, uint amount);
-    event Withdraw(address indexed account, uint amount);
-    event Reinvest(uint newTotalDeposits, uint newTotalSupply);
-    event Recovered(address token, uint amount);
-    event UpdateAdminFee(uint oldValue, uint newValue);
-    event UpdateDevFee(uint oldValue, uint newValue);
-    event UpdateReinvestReward(uint oldValue, uint newValue);
-    event UpdateMinTokensToReinvest(uint oldValue, uint newValue);
-    event UpdateMaxTokensToDepositWithoutReinvest(uint oldValue, uint newValue);
+    event Deposit(address indexed account, uint256 amount);
+    event Withdraw(address indexed account, uint256 amount);
+    event Reinvest(uint256 newTotalDeposits, uint256 newTotalSupply);
+    event Recovered(address token, uint256 amount);
+    event UpdateAdminFee(uint256 oldValue, uint256 newValue);
+    event UpdateDevFee(uint256 oldValue, uint256 newValue);
+    event UpdateReinvestReward(uint256 oldValue, uint256 newValue);
+    event UpdateMinTokensToReinvest(uint256 oldValue, uint256 newValue);
+    event UpdateMaxTokensToDepositWithoutReinvest(uint256 oldValue, uint256 newValue);
     event UpdateDevAddr(address oldValue, address newValue);
     event DepositsEnabled(bool newValue);
 
@@ -78,18 +78,24 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
      * @dev Must mint receipt tokens to `msg.sender`
      * @param amount deposit tokens
      */
-    function deposit(uint amount) external virtual;
+    function deposit(uint256 amount) external virtual;
 
     /**
-    * @notice Deposit using Permit
-    * @dev Should revert for tokens without Permit
-    * @param amount Amount of tokens to deposit
-    * @param deadline The time at which to expire the signature
-    * @param v The recovery byte of the signature
-    * @param r Half of the ECDSA signature pair
-    * @param s Half of the ECDSA signature pair
-    */
-    function depositWithPermit(uint amount, uint deadline, uint8 v, bytes32 r, bytes32 s) external virtual;
+     * @notice Deposit using Permit
+     * @dev Should revert for tokens without Permit
+     * @param amount Amount of tokens to deposit
+     * @param deadline The time at which to expire the signature
+     * @param v The recovery byte of the signature
+     * @param r Half of the ECDSA signature pair
+     * @param s Half of the ECDSA signature pair
+     */
+    function depositWithPermit(
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external virtual;
 
     /**
      * @notice Deposit on behalf of another account
@@ -97,13 +103,13 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
      * @param account address to receive receipt tokens
      * @param amount deposit tokens
      */
-    function depositFor(address account, uint amount) external virtual;
+    function depositFor(address account, uint256 amount) external virtual;
 
     /**
      * @notice Redeem receipt tokens for deposit tokens
      * @param amount receipt tokens
      */
-    function withdraw(uint amount) external virtual;
+    function withdraw(uint256 amount) external virtual;
 
     /**
      * @notice Reinvest reward tokens into deposit tokens
@@ -114,8 +120,8 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
      * @notice Estimate reinvest reward
      * @return reward tokens
      */
-    function estimateReinvestReward() external view returns (uint) {
-        uint unclaimedRewards = checkReward();
+    function estimateReinvestReward() external view returns (uint256) {
+        uint256 unclaimedRewards = checkReward();
         if (unclaimedRewards >= MIN_TOKENS_TO_REINVEST) {
             return unclaimedRewards.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         }
@@ -126,20 +132,20 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
      * @notice Reward tokens avialable to strategy, including balance
      * @return reward tokens
      */
-    function checkReward() public virtual view returns (uint);
+    function checkReward() public view virtual returns (uint256);
 
     /**
      * @notice Estimated deposit token balance deployed by strategy, excluding balance
      * @return deposit tokens
      */
-    function estimateDeployedBalance() external virtual view returns (uint);
+    function estimateDeployedBalance() external view virtual returns (uint256);
 
     /**
      * @notice Rescue all available deployed deposit tokens back to Strategy
      * @param minReturnAmountAccepted min deposit tokens to receive
      * @param disableDeposits bool
      */
-    function rescueDeployedFunds(uint minReturnAmountAccepted, bool disableDeposits) external virtual;
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external virtual;
 
     /**
      * @notice Calculate receipt tokens for a given amount of deposit tokens
@@ -148,7 +154,7 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
      * @param amount deposit tokens
      * @return receipt tokens
      */
-    function getSharesForDepositTokens(uint amount) public view returns (uint) {
+    function getSharesForDepositTokens(uint256 amount) public view returns (uint256) {
         if (totalSupply.mul(totalDeposits) == 0) {
             return amount;
         }
@@ -160,7 +166,7 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
      * @param amount receipt tokens
      * @return deposit tokens
      */
-    function getDepositTokensForShares(uint amount) public view returns (uint) {
+    function getDepositTokensForShares(uint256 amount) public view returns (uint256) {
         if (totalSupply.mul(totalDeposits) == 0) {
             return 0;
         }
@@ -171,7 +177,7 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
      * @notice Update reinvest min threshold
      * @param newValue threshold
      */
-    function updateMinTokensToReinvest(uint newValue) public onlyOwner {
+    function updateMinTokensToReinvest(uint256 newValue) public onlyOwner {
         emit UpdateMinTokensToReinvest(MIN_TOKENS_TO_REINVEST, newValue);
         MIN_TOKENS_TO_REINVEST = newValue;
     }
@@ -180,7 +186,7 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
      * @notice Update reinvest max threshold before a deposit
      * @param newValue threshold
      */
-    function updateMaxTokensToDepositWithoutReinvest(uint newValue) public onlyOwner {
+    function updateMaxTokensToDepositWithoutReinvest(uint256 newValue) public onlyOwner {
         emit UpdateMaxTokensToDepositWithoutReinvest(MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST, newValue);
         MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST = newValue;
     }
@@ -189,7 +195,7 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
      * @notice Update developer fee
      * @param newValue fee in BIPS
      */
-    function updateDevFee(uint newValue) public onlyOwner {
+    function updateDevFee(uint256 newValue) public onlyOwner {
         require(newValue.add(ADMIN_FEE_BIPS).add(REINVEST_REWARD_BIPS) <= BIPS_DIVISOR);
         emit UpdateDevFee(DEV_FEE_BIPS, newValue);
         DEV_FEE_BIPS = newValue;
@@ -199,7 +205,7 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
      * @notice Update admin fee
      * @param newValue fee in BIPS
      */
-    function updateAdminFee(uint newValue) public onlyOwner {
+    function updateAdminFee(uint256 newValue) public onlyOwner {
         require(newValue.add(DEV_FEE_BIPS).add(REINVEST_REWARD_BIPS) <= BIPS_DIVISOR);
         emit UpdateAdminFee(ADMIN_FEE_BIPS, newValue);
         ADMIN_FEE_BIPS = newValue;
@@ -209,7 +215,7 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
      * @notice Update reinvest reward
      * @param newValue fee in BIPS
      */
-    function updateReinvestReward(uint newValue) public onlyOwner {
+    function updateReinvestReward(uint256 newValue) public onlyOwner {
         require(newValue.add(ADMIN_FEE_BIPS).add(DEV_FEE_BIPS) <= BIPS_DIVISOR);
         emit UpdateReinvestReward(REINVEST_REWARD_BIPS, newValue);
         REINVEST_REWARD_BIPS = newValue;
@@ -239,7 +245,7 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
      * @param tokenAddress token address
      * @param tokenAmount amount to recover
      */
-    function recoverERC20(address tokenAddress, uint tokenAmount) external onlyOwner {
+    function recoverERC20(address tokenAddress, uint256 tokenAmount) external onlyOwner {
         require(tokenAmount > 0);
         require(IERC20(tokenAddress).transfer(msg.sender, tokenAmount));
         emit Recovered(tokenAddress, tokenAmount);
@@ -249,7 +255,7 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
      * @notice Recover AVAX from contract
      * @param amount amount
      */
-    function recoverAVAX(uint amount) external onlyOwner {
+    function recoverAVAX(uint256 amount) external onlyOwner {
         require(amount > 0);
         msg.sender.transfer(amount);
         emit Recovered(address(0), amount);

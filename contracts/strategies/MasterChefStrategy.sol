@@ -88,10 +88,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
                 _reinvest(unclaimedRewards);
             }
         }
-        require(
-            depositToken.transferFrom(account, address(this), amount),
-            "MasterChefStrategyV1::transfer failed"
-        );
+        require(depositToken.transferFrom(account, address(this), amount), "MasterChefStrategyV1::transfer failed");
         _stakeDepositTokens(amount);
         uint256 depositFeeBips = _getDepositFeeBips(PID);
         uint256 depositFee = amount.mul(depositFeeBips).div(_bip());
@@ -105,11 +102,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
             _withdrawDepositTokens(depositTokenAmount);
             uint256 withdrawFeeBips = _getWithdrawFeeBips(PID);
             uint256 withdrawFee = depositTokenAmount.mul(withdrawFeeBips).div(_bip());
-            _safeTransfer(
-                address(depositToken),
-                msg.sender,
-                depositTokenAmount.sub(withdrawFee)
-            );
+            _safeTransfer(address(depositToken), msg.sender, depositTokenAmount.sub(withdrawFee));
             _burn(msg.sender, amount);
             emit Withdraw(msg.sender, depositTokenAmount);
         }
@@ -122,10 +115,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
 
     function reinvest() external override onlyEOA {
         uint256 unclaimedRewards = checkReward();
-        require(
-            unclaimedRewards >= MIN_TOKENS_TO_REINVEST,
-            "MasterChefStrategyV1::reinvest"
-        );
+        require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "MasterChefStrategyV1::reinvest");
         _reinvest(unclaimedRewards);
     }
 
@@ -176,10 +166,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
         address to,
         uint256 value
     ) private {
-        require(
-            IERC20(token).transfer(to, value),
-            "MasterChefStrategyV1::TRANSFER_FROM_FAILED"
-        );
+        require(IERC20(token).transfer(to, value), "MasterChefStrategyV1::TRANSFER_FROM_FAILED");
     }
 
     function checkReward() public view override returns (uint256) {
@@ -207,11 +194,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
         return depositBalance.sub(withdrawFee);
     }
 
-    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits)
-        external
-        override
-        onlyOwner
-    {
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         _emergencyWithdraw(PID);
         uint256 balanceAfter = depositToken.balanceOf(address(this));
@@ -226,10 +209,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
     }
 
     /* VIRTUAL */
-    function _convertRewardTokenToDepositToken(uint256 fromAmount)
-        internal
-        virtual
-        returns (uint256 toAmount);
+    function _convertRewardTokenToDepositToken(uint256 fromAmount) internal virtual returns (uint256 toAmount);
 
     function _depositMasterchef(uint256 pid, uint256 amount) internal virtual;
 
@@ -239,17 +219,9 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
 
     function _getRewards(uint256 pid) internal virtual;
 
-    function _pendingRewards(uint256 pid, address user)
-        internal
-        view
-        virtual
-        returns (uint256 amount);
+    function _pendingRewards(uint256 pid, address user) internal view virtual returns (uint256 amount);
 
-    function _getDepositBalance(uint256 pid, address user)
-        internal
-        view
-        virtual
-        returns (uint256 amount);
+    function _getDepositBalance(uint256 pid, address user) internal view virtual returns (uint256 amount);
 
     function _getDepositFeeBips(uint256 pid) internal view virtual returns (uint256);
 

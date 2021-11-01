@@ -62,10 +62,7 @@ contract CurveStrategyForLPV1 is YakStrategy {
         stakingContract = ICurveRewardsGauge(_stakingContract);
 
         swapPairCrvAvax = _swapPairCrvAvax;
-        require(
-            _swapPairWavaxZap > address(0),
-            "Swap pair 0 is necessary but not supplied"
-        );
+        require(_swapPairWavaxZap > address(0), "Swap pair 0 is necessary but not supplied");
         require(
             IPair(_swapPairWavaxZap).token0() == _zapSettings.zapToken ||
                 IPair(_swapPairWavaxZap).token1() == _zapSettings.zapToken,
@@ -75,18 +72,14 @@ contract CurveStrategyForLPV1 is YakStrategy {
         if (_zapSettings.poolType == PoolType.AAVE) {
             require(
                 _zapSettings.zapToken ==
-                    ICurveStableSwapAave(_zapSettings.zapContract).underlying_coins(
-                        _zapSettings.zapTokenIndex
-                    ),
+                    ICurveStableSwapAave(_zapSettings.zapContract).underlying_coins(_zapSettings.zapTokenIndex),
                 "Wrong zap token index"
             );
             _zapToDepositToken = _zapToAaveLP;
         } else if (_zapSettings.poolType == PoolType.CRYPTO) {
             require(
                 _zapSettings.zapToken ==
-                    ICurveCryptoSwap(_zapSettings.zapContract).underlying_coins(
-                        _zapSettings.zapTokenIndex
-                    ),
+                    ICurveCryptoSwap(_zapSettings.zapContract).underlying_coins(_zapSettings.zapTokenIndex),
                 "Wrong zap token index"
             );
             _zapToDepositToken = _zapToCryptoLP;
@@ -119,47 +112,21 @@ contract CurveStrategyForLPV1 is YakStrategy {
     }
 
     function _zapToAaveLP(uint256 amount) private returns (uint256) {
-        uint256 zapTokenAmount = DexLibrary.swap(
-            amount,
-            WAVAX,
-            zapSettings.zapToken,
-            swapPairWavaxZap
-        );
+        uint256 zapTokenAmount = DexLibrary.swap(amount, WAVAX, zapSettings.zapToken, swapPairWavaxZap);
         uint256[3] memory amounts = [uint256(0), uint256(0), uint256(0)];
         amounts[zapSettings.zapTokenIndex] = zapTokenAmount;
-        uint256 expectedAmount = ICurveStableSwapAave(zapSettings.zapContract)
-            .calc_token_amount(amounts, true);
+        uint256 expectedAmount = ICurveStableSwapAave(zapSettings.zapContract).calc_token_amount(amounts, true);
         uint256 slippage = expectedAmount.mul(zapSettings.maxSlippage).div(BIPS_DIVISOR);
-        return
-            ICurveStableSwapAave(zapSettings.zapContract).add_liquidity(
-                amounts,
-                expectedAmount.sub(slippage),
-                true
-            );
+        return ICurveStableSwapAave(zapSettings.zapContract).add_liquidity(amounts, expectedAmount.sub(slippage), true);
     }
 
     function _zapToCryptoLP(uint256 amount) private returns (uint256) {
-        uint256 zapTokenAmount = DexLibrary.swap(
-            amount,
-            WAVAX,
-            zapSettings.zapToken,
-            swapPairWavaxZap
-        );
-        uint256[5] memory amounts = [
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0)
-        ];
+        uint256 zapTokenAmount = DexLibrary.swap(amount, WAVAX, zapSettings.zapToken, swapPairWavaxZap);
+        uint256[5] memory amounts = [uint256(0), uint256(0), uint256(0), uint256(0), uint256(0)];
         amounts[zapSettings.zapTokenIndex] = zapTokenAmount;
-        uint256 expectedAmount = ICurveCryptoSwap(zapSettings.zapContract)
-            .calc_token_amount(amounts, true);
+        uint256 expectedAmount = ICurveCryptoSwap(zapSettings.zapContract).calc_token_amount(amounts, true);
         uint256 slippage = expectedAmount.mul(zapSettings.maxSlippage).div(BIPS_DIVISOR);
-        ICurveCryptoSwap(zapSettings.zapContract).add_liquidity(
-            amounts,
-            expectedAmount.sub(slippage)
-        );
+        ICurveCryptoSwap(zapSettings.zapContract).add_liquidity(amounts, expectedAmount.sub(slippage));
         return depositToken.balanceOf(address(this));
     }
 
@@ -186,10 +153,7 @@ contract CurveStrategyForLPV1 is YakStrategy {
         require(DEPOSITS_ENABLED == true, "CurveStrategyForAv3CRVV1::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
             (uint256 pendingAvaxRewards, uint256 pendingCrvRewards) = _claimRewards();
-            uint256 unclaimedRewards = _estimateRewardConvertedToAvax(
-                pendingAvaxRewards,
-                pendingCrvRewards
-            );
+            uint256 unclaimedRewards = _estimateRewardConvertedToAvax(pendingAvaxRewards, pendingCrvRewards);
             if (unclaimedRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
                 _reinvest(pendingAvaxRewards, pendingCrvRewards);
             }
@@ -220,10 +184,7 @@ contract CurveStrategyForLPV1 is YakStrategy {
     function reinvest() external override onlyEOA {
         (uint256 avaxAmount, uint256 crvAmount) = _claimRewards();
         uint256 unclaimedRewards = _estimateRewardConvertedToAvax(avaxAmount, crvAmount);
-        require(
-            unclaimedRewards >= MIN_TOKENS_TO_REINVEST,
-            "CurveStrategyForAv3CRVV1::reinvest"
-        );
+        require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "CurveStrategyForAv3CRVV1::reinvest");
         _reinvest(avaxAmount, crvAmount);
     }
 
@@ -235,11 +196,7 @@ contract CurveStrategyForLPV1 is YakStrategy {
         return (avaxAmount, crvAmount);
     }
 
-    function _estimateRewardConvertedToAvax(uint256 avaxAmount, uint256 crvAmount)
-        private
-        view
-        returns (uint256)
-    {
+    function _estimateRewardConvertedToAvax(uint256 avaxAmount, uint256 crvAmount) private view returns (uint256) {
         uint256 estimatedWAVAX = 0;
         if (swapPairCrvAvax > address(0)) {
             estimatedWAVAX = DexLibrary.estimateConversionThroughPair(
@@ -274,9 +231,7 @@ contract CurveStrategyForLPV1 is YakStrategy {
             _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
         }
 
-        uint256 depositTokenAmount = _zapToDepositToken(
-            amount.sub(devFee).sub(adminFee).sub(reinvestFee)
-        );
+        uint256 depositTokenAmount = _zapToDepositToken(amount.sub(devFee).sub(adminFee).sub(reinvestFee));
 
         _stakeDepositTokens(depositTokenAmount);
         totalDeposits = totalDeposits.add(depositTokenAmount);
@@ -286,13 +241,7 @@ contract CurveStrategyForLPV1 is YakStrategy {
 
     function _convertRewardIntoWAVAX(uint256 crvAmount) private returns (uint256) {
         if (swapPairCrvAvax > address(0)) {
-            return
-                DexLibrary.swap(
-                    crvAmount,
-                    address(CRV),
-                    address(WAVAX),
-                    IPair(swapPairCrvAvax)
-                );
+            return DexLibrary.swap(crvAmount, address(CRV), address(WAVAX), IPair(swapPairCrvAvax));
         }
         return 0;
     }
@@ -314,10 +263,7 @@ contract CurveStrategyForLPV1 is YakStrategy {
         address to,
         uint256 value
     ) private {
-        require(
-            IERC20(token).transfer(to, value),
-            "CurveStrategyForAv3CRVV1::TRANSFER_FROM_FAILED"
-        );
+        require(IERC20(token).transfer(to, value), "CurveStrategyForAv3CRVV1::TRANSFER_FROM_FAILED");
     }
 
     function checkReward() public view override returns (uint256) {
@@ -329,37 +275,26 @@ contract CurveStrategyForLPV1 is YakStrategy {
 
     function _calculateRewards(address _rewardToken) public view returns (uint256) {
         uint256 strategyLpDeposits = stakingContract.balanceOf(address(this));
-        uint256 lastRewardUpdateTime = ICurveRewardsClaimer(
-            stakingContract.reward_contract()
-        ).last_update_time();
-        DataTypes.RewardToken memory rewardToken = ICurveRewardsClaimer(
-            stakingContract.reward_contract()
-        ).reward_data(_rewardToken);
+        uint256 lastRewardUpdateTime = ICurveRewardsClaimer(stakingContract.reward_contract()).last_update_time();
+        DataTypes.RewardToken memory rewardToken = ICurveRewardsClaimer(stakingContract.reward_contract()).reward_data(
+            _rewardToken
+        );
 
         uint256 gaugeBalance = IERC20(_rewardToken).balanceOf(address(stakingContract));
-        uint256 unclaimedTotal = (block.timestamp - lastRewardUpdateTime) *
-            rewardToken.rate;
+        uint256 unclaimedTotal = (block.timestamp - lastRewardUpdateTime) * rewardToken.rate;
         uint256 tokenBalance = gaugeBalance.add(unclaimedTotal);
 
-        uint256 dI = uint256(10e18)
-            .mul(tokenBalance.sub(stakingContract.reward_balances(_rewardToken)))
-            .div(stakingContract.totalSupply());
-        uint256 integral = stakingContract.reward_integral(_rewardToken) + dI;
-        uint256 integralFor = stakingContract.reward_integral_for(
-            _rewardToken,
-            address(this)
+        uint256 dI = uint256(10e18).mul(tokenBalance.sub(stakingContract.reward_balances(_rewardToken))).div(
+            stakingContract.totalSupply()
         );
+        uint256 integral = stakingContract.reward_integral(_rewardToken) + dI;
+        uint256 integralFor = stakingContract.reward_integral_for(_rewardToken, address(this));
 
         uint256 strategyUnclaimed = 0;
         if (integralFor < integral) {
-            strategyUnclaimed = strategyLpDeposits.mul(integral.sub(integralFor)).div(
-                10e18
-            );
+            strategyUnclaimed = strategyLpDeposits.mul(integral.sub(integralFor)).div(10e18);
         }
-        uint256 strategyClaimed = stakingContract.claimable_reward(
-            address(this),
-            _rewardToken
-        );
+        uint256 strategyClaimed = stakingContract.claimable_reward(address(this), _rewardToken);
         return strategyClaimed.add(strategyUnclaimed);
     }
 
@@ -367,11 +302,7 @@ contract CurveStrategyForLPV1 is YakStrategy {
         return stakingContract.balanceOf(address(this));
     }
 
-    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits)
-        external
-        override
-        onlyOwner
-    {
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         stakingContract.withdraw(stakingContract.balanceOf(address(this)));
         uint256 balanceAfter = depositToken.balanceOf(address(this));

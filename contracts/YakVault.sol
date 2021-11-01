@@ -14,7 +14,7 @@ import "./YakStrategy.sol";
  * @dev DRAFT
  */
 contract YakVault is YakERC20, Ownable {
-    using SafeMath for uint;
+    using SafeMath for uint256;
 
     /// @notice Vault version number
     string public constant version = "0.0.1";
@@ -26,7 +26,7 @@ contract YakVault is YakERC20, Ownable {
     IERC20 public depositToken;
 
     /// @notice Total deposits in terms of depositToken
-    uint public totalDeposits;
+    uint256 public totalDeposits;
 
     /// @notice Active strategy where deposits are sent by default
     address public activeStrategy;
@@ -37,14 +37,14 @@ contract YakVault is YakERC20, Ownable {
     /// @notice Supported strategies
     address[] public supportedStrategies;
 
-    event Deposit(address indexed account, address indexed token, uint amount);
-    event Withdraw(address indexed account, uint amount);
+    event Deposit(address indexed account, address indexed token, uint256 amount);
+    event Withdraw(address indexed account, uint256 amount);
     event AddStrategy(address indexed strategy);
     event RemoveStrategy(address indexed strategy);
     event SetActiveStrategy(address indexed strategy);
-    event Sync(uint newTotalDeposits, uint newTotalSupply);
+    event Sync(uint256 newTotalDeposits, uint256 newTotalSupply);
 
-    constructor (
+    constructor(
         string memory _name,
         address _depositToken,
         address _yakRegistry
@@ -64,26 +64,41 @@ contract YakVault is YakERC20, Ownable {
      * @param token address
      * @param amount amount
      */
-    function deposit(address token, uint amount) external {
+    function deposit(address token, uint256 amount) external {
         _deposit(msg.sender, token, amount);
     }
 
-    function depositWithPermit(address token, uint amount, uint deadline, uint8 v, bytes32 r, bytes32 s) external {
+    function depositWithPermit(
+        address token,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external {
         IERC20(token).permit(msg.sender, address(this), amount, deadline, v, r, s);
         _deposit(msg.sender, token, amount);
     }
 
-    function depositFor(address account, address token, uint amount) external {
+    function depositFor(
+        address account,
+        address token,
+        uint256 amount
+    ) external {
         _deposit(account, token, amount);
     }
 
-    function _deposit(address account, address token, uint amount) private {
+    function _deposit(
+        address account,
+        address token,
+        uint256 amount
+    ) private {
         require(supportedDepositTokens[token], "YakVault::deposit, token not supported");
         require(activeStrategy != address(0), "YakVault::no active strategy");
-        uint balanceBefore = IERC20(token).balanceOf(address(this));
+        uint256 balanceBefore = IERC20(token).balanceOf(address(this));
         require(IERC20(token).transferFrom(msg.sender, address(this), amount), "YakVault::deposit, failed");
-        uint balanceAfter = IERC20(token).balanceOf(address(this));
-        uint confirmedAmount = balanceAfter.sub(balanceBefore);
+        uint256 balanceAfter = IERC20(token).balanceOf(address(this));
+        uint256 confirmedAmount = balanceAfter.sub(balanceBefore);
         require(confirmedAmount > 0, "YakVault::deposit, amount too low");
         if (token == address(depositToken)) {
             YakStrategy(activeStrategy).deposit(confirmedAmount);
@@ -99,19 +114,18 @@ contract YakVault is YakERC20, Ownable {
      * @notice Withdraw from the vault
      * @param amount receipt tokens
      */
-    function withdraw(uint amount) external {
-        uint depositTokenAmount = getDepositTokensForShares(amount);
+    function withdraw(uint256 amount) external {
+        uint256 depositTokenAmount = getDepositTokensForShares(amount);
         require(depositTokenAmount > 0, "YakVault::withdraw, amount too low");
-        uint liquidDeposits = depositToken.balanceOf(address(this));
-        uint remainingDebt = depositTokenAmount.sub(liquidDeposits);
+        uint256 liquidDeposits = depositToken.balanceOf(address(this));
+        uint256 remainingDebt = depositTokenAmount.sub(liquidDeposits);
         if (remainingDebt > 0) {
-            for (uint i = 0; i < supportedStrategies.length; i++) {
-                uint deployedBalance = getDeployedBalance(supportedStrategies[i]);
+            for (uint256 i = 0; i < supportedStrategies.length; i++) {
+                uint256 deployedBalance = getDeployedBalance(supportedStrategies[i]);
                 if (deployedBalance >= remainingDebt) {
                     withdrawFromStrategy(supportedStrategies[i], remainingDebt);
                     break;
-                }
-                else {
+                } else {
                     withdrawFromStrategy(supportedStrategies[i], deployedBalance);
                     remainingDebt = remainingDebt.sub(deployedBalance);
                 }
@@ -141,8 +155,12 @@ contract YakVault is YakERC20, Ownable {
      * @param to recipient address
      * @param value amount
      */
-    function _safeTransfer(address token, address to, uint256 value) private {
-        require(IERC20(token).transfer(to, value), 'YakVault::TRANSFER_FROM_FAILED');
+    function _safeTransfer(
+        address token,
+        address to,
+        uint256 value
+    ) private {
+        require(IERC20(token).transfer(to, value), "YakVault::TRANSFER_FROM_FAILED");
     }
 
     /**
@@ -152,7 +170,7 @@ contract YakVault is YakERC20, Ownable {
      */
     function setActiveStrategy(address strategy) public onlyOwner {
         require(supportedDepositTokens[strategy] == true, "YakVault::setActiveStrategy, not found");
-        require(depositToken.approve(strategy, uint(-1)));
+        require(depositToken.approve(strategy, uint256(-1)));
         activeStrategy = strategy;
         emit SetActiveStrategy(strategy);
     }
@@ -181,7 +199,7 @@ contract YakVault is YakERC20, Ownable {
         require(supportedDepositTokens[strategy] == true, "YakVault::removeStrategy, not supported");
         _revokeApproval(address(depositToken), strategy);
         supportedDepositTokens[strategy] = false;
-        for (uint i = 0; i < supportedStrategies.length; i++) {
+        for (uint256 i = 0; i < supportedStrategies.length; i++) {
             if (strategy == supportedStrategies[i]) {
                 supportedStrategies[i] = supportedStrategies[supportedStrategies.length - 1];
                 supportedStrategies.pop();
@@ -196,11 +214,11 @@ contract YakVault is YakERC20, Ownable {
      * @param strategy address
      * @param amount deposit tokens
      */
-    function withdrawFromStrategy(address strategy, uint amount) public onlyOwner {
-        uint balanceBefore = depositToken.balanceOf(address(this));
-        uint strategyShares = YakStrategy(strategy).getSharesForDepositTokens(amount);
+    function withdrawFromStrategy(address strategy, uint256 amount) public onlyOwner {
+        uint256 balanceBefore = depositToken.balanceOf(address(this));
+        uint256 strategyShares = YakStrategy(strategy).getSharesForDepositTokens(amount);
         YakStrategy(strategy).withdraw(strategyShares);
-        uint balanceAfter = depositToken.balanceOf(address(this));
+        uint256 balanceAfter = depositToken.balanceOf(address(this));
         require(balanceAfter > balanceBefore, "YakVault::withdrawFromStrategy");
         resetTotalDeposits();
     }
@@ -210,8 +228,8 @@ contract YakVault is YakERC20, Ownable {
      * @param strategy address
      * @return amount deposit tokens
      */
-    function getDeployedBalance(address strategy) public view returns (uint) {
-        uint vaultShares = YakStrategy(strategy).balanceOf(address(this));
+    function getDeployedBalance(address strategy) public view returns (uint256) {
+        uint256 vaultShares = YakStrategy(strategy).balanceOf(address(this));
         return YakStrategy(strategy).getDepositTokensForShares(vaultShares);
     }
 
@@ -220,17 +238,17 @@ contract YakVault is YakERC20, Ownable {
      * @dev Does not include deprecated strategies
      * @return amount deposit tokens
      */
-    function estimateDeployedBalances() public view returns (uint) {
-        uint deployedFunds = 0;
-        for (uint i = 0; i < supportedStrategies.length; i++) {
+    function estimateDeployedBalances() public view returns (uint256) {
+        uint256 deployedFunds = 0;
+        for (uint256 i = 0; i < supportedStrategies.length; i++) {
             deployedFunds = deployedFunds.add(getDeployedBalance(supportedStrategies[i]));
         }
         return deployedFunds;
     }
 
     function resetTotalDeposits() external {
-        uint liquidBalance = depositToken.balanceOf(address(this));
-        uint deployedBalance = estimateDeployedBalances();
+        uint256 liquidBalance = depositToken.balanceOf(address(this));
+        uint256 deployedBalance = estimateDeployedBalances();
         totalDeposits = liquidBalance.add(deployedBalance);
         emit Sync(totalDeposits, totalSupply);
     }
@@ -240,7 +258,7 @@ contract YakVault is YakERC20, Ownable {
      * @param amount receipt tokens
      * @return deposit tokens
      */
-    function getDepositTokensForShares(uint amount) public view returns (uint) {
+    function getDepositTokensForShares(uint256 amount) public view returns (uint256) {
         if (totalSupply.mul(totalDeposits) == 0) {
             return 0;
         }
@@ -254,7 +272,7 @@ contract YakVault is YakERC20, Ownable {
      * @param amount deposit tokens
      * @return receipt tokens
      */
-    function getSharesForDepositTokens(uint amount) public view returns (uint) {
+    function getSharesForDepositTokens(uint256 amount) public view returns (uint256) {
         if (totalSupply.mul(totalDeposits) == 0) {
             return amount;
         }

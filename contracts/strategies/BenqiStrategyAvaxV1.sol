@@ -11,31 +11,31 @@ import "../lib/DexLibrary.sol";
 import "../lib/ReentrancyGuard.sol";
 
 contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
-    using SafeMath for uint;
+    using SafeMath for uint256;
 
     IBenqiUnitroller private rewardController;
     IBenqiAVAXDelegator private tokenDelegator;
     IERC20 private rewardToken0;
     IPair private swapPairToken0; // swaps rewardToken0 to WAVAX
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
-    uint private leverageLevel;
-    uint private leverageBips;
-    uint private minMinting;
+    uint256 private leverageLevel;
+    uint256 private leverageBips;
+    uint256 private minMinting;
 
-    constructor (
+    constructor(
         string memory _name,
         address _rewardController,
         address _tokenDelegator,
         address _rewardToken0,
         address _swapPairToken0,
         address _timelock,
-        uint _minMinting,
-        uint _leverageLevel,
-        uint _leverageBips,
-        uint _minTokensToReinvest,
-        uint _adminFeeBips,
-        uint _devFeeBips,
-        uint _reinvestRewardBips
+        uint256 _minMinting,
+        uint256 _leverageLevel,
+        uint256 _leverageBips,
+        uint256 _minTokensToReinvest,
+        uint256 _adminFeeBips,
+        uint256 _devFeeBips,
+        uint256 _reinvestRewardBips
     ) {
         name = _name;
         depositToken = IERC20(address(0));
@@ -61,14 +61,16 @@ contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         emit Reinvest(0, 0);
     }
 
-    function totalDeposits() public override view returns (uint) {
-        (, uint256 internalBalance, uint borrow, uint256 exchangeRate) = tokenDelegator.getAccountSnapshot(address(this));
+    function totalDeposits() public view override returns (uint256) {
+        (, uint256 internalBalance, uint256 borrow, uint256 exchangeRate) = tokenDelegator.getAccountSnapshot(
+            address(this)
+        );
         return internalBalance.mul(exchangeRate).div(1e18).sub(borrow);
     }
 
-    function _totalDepositsFresh() internal returns (uint) {
-        uint borrow = tokenDelegator.borrowBalanceCurrent(address(this));
-        uint balance = tokenDelegator.balanceOfUnderlying(address(this));
+    function _totalDepositsFresh() internal returns (uint256) {
+        uint256 borrow = tokenDelegator.borrowBalanceCurrent(address(this));
+        uint256 balance = tokenDelegator.balanceOfUnderlying(address(this));
         return balance.sub(borrow);
     }
 
@@ -78,15 +80,15 @@ contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         rewardController.enterMarkets(tokens);
     }
 
-    function _updateLeverage(uint _leverageLevel, uint _leverageBips) internal {
+    function _updateLeverage(uint256 _leverageLevel, uint256 _leverageBips) internal {
         leverageLevel = _leverageLevel;
         leverageBips = _leverageBips;
     }
 
-    function updateLeverage(uint _leverageLevel, uint _leverageBips) external onlyDev {
+    function updateLeverage(uint256 _leverageLevel, uint256 _leverageBips) external onlyDev {
         _updateLeverage(_leverageLevel, _leverageBips);
         _unrollDebt();
-        uint balance = tokenDelegator.balanceOfUnderlying(address(this));
+        uint256 balance = tokenDelegator.balanceOfUnderlying(address(this));
         if (balance > 0) {
             _rollupDebt(balance, 0);
         }
@@ -102,13 +104,13 @@ contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
 
         require(
             address(rewardToken0) == IPair(address(_swapPairToken0)).token0() ||
-            address(rewardToken0) == IPair(address(_swapPairToken0)).token1(),
+                address(rewardToken0) == IPair(address(_swapPairToken0)).token1(),
             "Swap pair 0 does not match rewardToken0"
         );
 
         require(
             address(WAVAX) == IPair(address(_swapPairToken0)).token0() ||
-            address(WAVAX) == IPair(address(_swapPairToken0)).token1(),
+                address(WAVAX) == IPair(address(_swapPairToken0)).token1(),
             "Swap pair 0 does not match WAVAX"
         );
 
@@ -120,35 +122,41 @@ contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
     }
 
     function deposit() external payable override nonReentrant {
-         _deposit(msg.sender, msg.value);
+        _deposit(msg.sender, msg.value);
     }
 
     function depositFor(address account) external payable override nonReentrant {
-         _deposit(account, msg.value);
+        _deposit(account, msg.value);
     }
 
-    function deposit(uint amount) external override {
+    function deposit(uint256 amount) external override {
         revert();
     }
 
-    function depositWithPermit(uint amount, uint deadline, uint8 v, bytes32 r, bytes32 s) external override {
+    function depositWithPermit(
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external override {
         revert();
     }
 
-    function depositFor(address account, uint amount) external override {
+    function depositFor(address account, uint256 amount) external override {
         revert();
     }
 
-    function _deposit(address account, uint amount) private onlyAllowedDeposits {
+    function _deposit(address account, uint256 amount) private onlyAllowedDeposits {
         require(DEPOSITS_ENABLED == true, "BenqiStrategyV1::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
-            (uint qiRewards, uint avaxRewards, uint totalAvaxRewards) = _checkRewards();
+            (uint256 qiRewards, uint256 avaxRewards, uint256 totalAvaxRewards) = _checkRewards();
             if (totalAvaxRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
                 _reinvest(qiRewards, avaxRewards, totalAvaxRewards);
             }
         }
-        uint depositTokenAmount = amount;
-        uint balance = _totalDepositsFresh();
+        uint256 depositTokenAmount = amount;
+        uint256 balance = _totalDepositsFresh();
         if (totalSupply.mul(balance) > 0) {
             depositTokenAmount = amount.mul(totalSupply).div(balance);
         }
@@ -157,9 +165,9 @@ contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         emit Deposit(account, amount);
     }
 
-    function withdraw(uint amount) external override nonReentrant {
+    function withdraw(uint256 amount) external override nonReentrant {
         require(amount > minMinting, "BenqiStrategyV1::below minimum withdraw");
-        uint depositTokenAmount = _totalDepositsFresh().mul(amount).div(totalSupply);
+        uint256 depositTokenAmount = _totalDepositsFresh().mul(amount).div(totalSupply);
         if (depositTokenAmount > 0) {
             _burn(msg.sender, amount);
             _withdrawDepositTokens(depositTokenAmount);
@@ -169,17 +177,17 @@ contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         }
     }
 
-    function _withdrawDepositTokens(uint amount) private {
+    function _withdrawDepositTokens(uint256 amount) private {
         _unrollDebt();
         require(tokenDelegator.redeemUnderlying(amount) == 0, "BenqiStrategyV1::redeem failed");
-        uint balance = tokenDelegator.balanceOfUnderlying(address(this));
+        uint256 balance = tokenDelegator.balanceOfUnderlying(address(this));
         if (balance > 0) {
             _rollupDebt(balance, 0);
         }
     }
 
     function reinvest() external override onlyEOA nonReentrant {
-        (uint qiRewards, uint avaxRewards, uint totalAvaxRewards) = _checkRewards();
+        (uint256 qiRewards, uint256 avaxRewards, uint256 totalAvaxRewards) = _checkRewards();
         require(totalAvaxRewards >= MIN_TOKENS_TO_REINVEST, "BenqiStrategyV1::reinvest");
         _reinvest(qiRewards, avaxRewards, totalAvaxRewards);
     }
@@ -187,8 +195,8 @@ contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
     receive() external payable {
         require(
             msg.sender == address(rewardController) ||
-            msg.sender == address(WAVAX) ||
-            msg.sender == address(tokenDelegator),
+                msg.sender == address(WAVAX) ||
+                msg.sender == address(tokenDelegator),
             "BenqiStrategyV1::payments not allowed"
         );
     }
@@ -198,20 +206,24 @@ contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
      * @dev Reverts if the expected amount of tokens are not returned from `stakingContract`
      * @param amount deposit tokens to reinvest
      */
-    function _reinvest(uint qiRewards, uint avaxRewards, uint amount) private {
+    function _reinvest(
+        uint256 qiRewards,
+        uint256 avaxRewards,
+        uint256 amount
+    ) private {
         rewardController.claimReward(0, address(this));
         rewardController.claimReward(1, address(this));
-    
+
         if (qiRewards > 0) {
-            uint convertedWavax = DexLibrary.swap(qiRewards, address(rewardToken0), address(WAVAX), swapPairToken0);
+            uint256 convertedWavax = DexLibrary.swap(qiRewards, address(rewardToken0), address(WAVAX), swapPairToken0);
             WAVAX.withdraw(convertedWavax);
         }
 
         amount = address(this).balance;
 
-        uint devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
-        uint adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
-        uint reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
+        uint256 devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
+        uint256 adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
+        uint256 reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         WAVAX.deposit{value: devFee.add(adminFee).add(reinvestFee)}();
         if (devFee > 0) {
             _safeTransfer(address(rewardToken), devAddr, devFee);
@@ -228,13 +240,13 @@ contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         emit Reinvest(totalDeposits(), totalSupply);
     }
 
-    function _rollupDebt(uint principal, uint borrowed) internal {
-        (uint borrowLimit, uint borrowBips) = _getBorrowLimit();
-        uint supplied = principal;
-        uint lendTarget = principal.sub(borrowed).mul(leverageLevel).div(leverageBips);
-        uint totalBorrowed = borrowed;
-        while(supplied < lendTarget) {
-            uint toBorrowAmount = _getBorrowable(supplied, totalBorrowed, borrowLimit, borrowBips);
+    function _rollupDebt(uint256 principal, uint256 borrowed) internal {
+        (uint256 borrowLimit, uint256 borrowBips) = _getBorrowLimit();
+        uint256 supplied = principal;
+        uint256 lendTarget = principal.sub(borrowed).mul(leverageLevel).div(leverageBips);
+        uint256 totalBorrowed = borrowed;
+        while (supplied < lendTarget) {
+            uint256 toBorrowAmount = _getBorrowable(supplied, totalBorrowed, borrowLimit, borrowBips);
             if (supplied.add(toBorrowAmount) > lendTarget) {
                 toBorrowAmount = lendTarget.sub(supplied);
             }
@@ -249,26 +261,36 @@ contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         }
     }
 
-    function _getRedeemable(uint balance, uint borrowed, uint borrowLimit, uint bips) internal pure returns (uint256) {
+    function _getRedeemable(
+        uint256 balance,
+        uint256 borrowed,
+        uint256 borrowLimit,
+        uint256 bips
+    ) internal pure returns (uint256) {
         return balance.sub(borrowed.mul(bips).div(borrowLimit));
     }
 
-    function _getBorrowable(uint balance, uint borrowed, uint borrowLimit, uint bips) internal pure returns (uint256) {
+    function _getBorrowable(
+        uint256 balance,
+        uint256 borrowed,
+        uint256 borrowLimit,
+        uint256 bips
+    ) internal pure returns (uint256) {
         return balance.mul(borrowLimit).div(bips).sub(borrowed);
     }
 
-    function _getBorrowLimit() internal view returns (uint, uint) {
-        (, uint borrowLimit) = rewardController.markets(address(tokenDelegator));
+    function _getBorrowLimit() internal view returns (uint256, uint256) {
+        (, uint256 borrowLimit) = rewardController.markets(address(tokenDelegator));
         return (borrowLimit, 1e18);
     }
 
     function _unrollDebt() internal {
-        uint borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
-        uint balance = tokenDelegator.balanceOfUnderlying(address(this));
-        (uint borrowLimit, uint borrowBips) = _getBorrowLimit();
+        uint256 borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
+        uint256 balance = tokenDelegator.balanceOfUnderlying(address(this));
+        (uint256 borrowLimit, uint256 borrowBips) = _getBorrowLimit();
 
-        while(borrowed > 0) {
-            uint unrollAmount = _getRedeemable(balance, borrowed, borrowLimit, borrowBips);
+        while (borrowed > 0) {
+            uint256 unrollAmount = _getRedeemable(balance, borrowed, borrowLimit, borrowBips);
             if (unrollAmount > borrowed) {
                 unrollAmount = borrowed;
             }
@@ -279,11 +301,11 @@ contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         }
     }
 
-    function _stakeDepositTokens(uint amount) private {
+    function _stakeDepositTokens(uint256 amount) private {
         require(amount > 0, "BenqiStrategyV1::_stakeDepositTokens");
         tokenDelegator.mint{value: amount}();
-        uint borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
-        uint principal = tokenDelegator.balanceOfUnderlying(address(this));
+        uint256 borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
+        uint256 principal = tokenDelegator.balanceOfUnderlying(address(this));
         _rollupDebt(principal, borrowed);
     }
 
@@ -294,60 +316,76 @@ contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
      * @param to recipient address
      * @param value amount
      */
-    function _safeTransfer(address token, address to, uint256 value) private {
-        require(IERC20(token).transfer(to, value), 'BenqiStrategyV1::TRANSFER_FROM_FAILED');
+    function _safeTransfer(
+        address token,
+        address to,
+        uint256 value
+    ) private {
+        require(IERC20(token).transfer(to, value), "BenqiStrategyV1::TRANSFER_FROM_FAILED");
     }
 
-    function _checkRewards() internal view returns (uint qiAmount, uint avaxAmount, uint totalAvaxAmount) {
-        uint qiRewards = _getReward(0, address(this));
-        uint avaxRewards = _getReward(1, address(this));
+    function _checkRewards()
+        internal
+        view
+        returns (
+            uint256 qiAmount,
+            uint256 avaxAmount,
+            uint256 totalAvaxAmount
+        )
+    {
+        uint256 qiRewards = _getReward(0, address(this));
+        uint256 avaxRewards = _getReward(1, address(this));
 
-        uint qiAsWavax = DexLibrary.estimateConversionThroughPair(
-            qiRewards, address(rewardToken0),
-            address(WAVAX), swapPairToken0
+        uint256 qiAsWavax = DexLibrary.estimateConversionThroughPair(
+            qiRewards,
+            address(rewardToken0),
+            address(WAVAX),
+            swapPairToken0
         );
         return (qiRewards, avaxRewards, avaxRewards.add(qiAsWavax));
     }
 
-    function checkReward() public override view returns (uint) {
-        (,,uint avaxRewards) = _checkRewards();
+    function checkReward() public view override returns (uint256) {
+        (, , uint256 avaxRewards) = _checkRewards();
         return avaxRewards;
     }
 
-    function _getReward(uint8 tokenIndex, address account) internal view returns (uint) {
-        uint rewardAccrued = rewardController.rewardAccrued(tokenIndex, account);
+    function _getReward(uint8 tokenIndex, address account) internal view returns (uint256) {
+        uint256 rewardAccrued = rewardController.rewardAccrued(tokenIndex, account);
         (uint224 supplyIndex, ) = rewardController.rewardSupplyState(tokenIndex, account);
-        uint supplierIndex = rewardController.rewardSupplierIndex(tokenIndex, address(tokenDelegator), account);
-        uint supplyIndexDelta = 0;
+        uint256 supplierIndex = rewardController.rewardSupplierIndex(tokenIndex, address(tokenDelegator), account);
+        uint256 supplyIndexDelta = 0;
         if (supplyIndex > supplierIndex) {
-            supplyIndexDelta = supplyIndex - supplierIndex; 
+            supplyIndexDelta = supplyIndex - supplierIndex;
         }
-        uint supplyAccrued = tokenDelegator.balanceOf(account).mul(supplyIndexDelta);
+        uint256 supplyAccrued = tokenDelegator.balanceOf(account).mul(supplyIndexDelta);
         (uint224 borrowIndex, ) = rewardController.rewardBorrowState(tokenIndex, account);
-        uint borrowerIndex = rewardController.rewardBorrowerIndex(tokenIndex, address(tokenDelegator), account);
-        uint borrowIndexDelta = 0;
+        uint256 borrowerIndex = rewardController.rewardBorrowerIndex(tokenIndex, address(tokenDelegator), account);
+        uint256 borrowIndexDelta = 0;
         if (borrowIndex > borrowerIndex) {
             borrowIndexDelta = borrowIndex - borrowerIndex;
         }
-        uint borrowAccrued = tokenDelegator.borrowBalanceStored(account).mul(borrowIndexDelta);
+        uint256 borrowAccrued = tokenDelegator.borrowBalanceStored(account).mul(borrowIndexDelta);
         return rewardAccrued.add(supplyAccrued.sub(borrowAccrued));
     }
 
-    function getActualLeverage() public view returns (uint) {
-        (, uint256 internalBalance, uint256 borrow, uint256 exchangeRate) = tokenDelegator.getAccountSnapshot(address(this));
-        uint balance = internalBalance.mul(exchangeRate).div(1e18);
+    function getActualLeverage() public view returns (uint256) {
+        (, uint256 internalBalance, uint256 borrow, uint256 exchangeRate) = tokenDelegator.getAccountSnapshot(
+            address(this)
+        );
+        uint256 balance = internalBalance.mul(exchangeRate).div(1e18);
         return balance.mul(1e18).div(balance.sub(borrow));
     }
 
-    function estimateDeployedBalance() external override view returns (uint) {
+    function estimateDeployedBalance() external view override returns (uint256) {
         return totalDeposits();
     }
 
-    function rescueDeployedFunds(uint minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
-        uint balanceBefore = depositToken.balanceOf(address(this));
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
+        uint256 balanceBefore = depositToken.balanceOf(address(this));
         _unrollDebt();
         tokenDelegator.redeemUnderlying(tokenDelegator.balanceOfUnderlying(address(this)));
-        uint balanceAfter = depositToken.balanceOf(address(this));
+        uint256 balanceAfter = depositToken.balanceOf(address(this));
         require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "BenqiStrategyV1::rescueDeployedFunds");
         emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
@@ -355,4 +393,3 @@ contract BenqiStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         }
     }
 }
-

@@ -76,7 +76,12 @@ interface IJoeERC20Delegator is IERC20 {
      * @param data The other data
      * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
      */
-    function flashLoan(ERC3156FlashBorrowerInterface receiver, address initiator, uint256 amount, bytes calldata data) external returns (bool);
+    function flashLoan(
+        ERC3156FlashBorrowerInterface receiver,
+        address initiator,
+        uint256 amount,
+        bytes calldata data
+    ) external returns (bool);
 
     /**
      * @notice Register account collateral tokens if there is space.
@@ -107,8 +112,15 @@ interface IJoeERC20Delegator is IERC20 {
      * @param account Address of the account to snapshot
      * @return (possible error, token balance, borrow balance, exchange rate mantissa)
      */
-    function getAccountSnapshot(address account) external view returns (uint256, uint256, uint256, uint256);
-    
+    function getAccountSnapshot(address account)
+        external
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256,
+            uint256
+        );
 
     /**
      * @notice Returns the current per-sec borrow interest rate for this jToken
@@ -177,7 +189,11 @@ interface IJoeERC20Delegator is IERC20 {
      * @param seizeTokens The number of jTokens to seize
      * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
      */
-    function seize(address liquidator, address borrower, uint256 seizeTokens) external returns (uint256);
+    function seize(
+        address liquidator,
+        address borrower,
+        uint256 seizeTokens
+    ) external returns (uint256);
 }
 
 // https://github.com/traderjoe-xyz/joe-lending/blob/main/contracts/ERC3156FlashBorrowerInterface.sol
@@ -191,5 +207,11 @@ interface ERC3156FlashBorrowerInterface {
      * @param data Arbitrary data structure, intended to contain user-defined parameters.
      * @return The keccak256 hash of "ERC3156FlashBorrower.onFlashLoan"
      */
-    function onFlashLoan(address initiator, address token, uint256 amount, uint256 fee, bytes calldata data) external returns (bytes32);
+    function onFlashLoan(
+        address initiator,
+        address token,
+        uint256 amount,
+        uint256 fee,
+        bytes calldata data
+    ) external returns (bytes32);
 }

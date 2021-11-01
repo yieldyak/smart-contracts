@@ -7,24 +7,22 @@ import "./lib/SafeMath.sol";
 import "./interfaces/IYakStrategy.sol";
 
 /**
- * @notice 
+ * @notice
  * @dev Assumes User send AVAX to this contract in value of the payable deposit method
  */
 contract AvaxZap is Ownable {
-    using SafeMath for uint;
+    using SafeMath for uint256;
     address public WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
-    event Recovered(address token, uint amount);
+    event Recovered(address token, uint256 amount);
 
-    constructor (
-        address _timelock
-    ) {
+    constructor(address _timelock) {
         transferOwnership(_timelock);
     }
 
- /**
-   * @notice deposit wavax to the contract on behalf of user
-   * @param strategyContract strategy contract address
-   */
+    /**
+     * @notice deposit wavax to the contract on behalf of user
+     * @param strategyContract strategy contract address
+     */
     function depositAVAX(address strategyContract) external payable {
         IWAVAX(WAVAX).deposit{value: msg.value}();
         IWAVAX(WAVAX).approve(strategyContract, msg.value);
@@ -33,13 +31,12 @@ contract AvaxZap is Ownable {
     }
 
     /**
-   * @notice Recover AVAX from contract
-   * @param amount amount
-   */
-  function recoverAVAX(uint amount) external onlyOwner {
-    require(amount > 0, 'amount too low');
-    msg.sender.transfer(amount);
-    emit Recovered(address(0), amount);
-  }
-
+     * @notice Recover AVAX from contract
+     * @param amount amount
+     */
+    function recoverAVAX(uint256 amount) external onlyOwner {
+        require(amount > 0, "amount too low");
+        msg.sender.transfer(amount);
+        emit Recovered(address(0), amount);
+    }
 }

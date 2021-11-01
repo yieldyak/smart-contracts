@@ -7,44 +7,51 @@ interface IERC20 {
 
 interface IStrategy {
     function owner() external view returns (address);
+
     function renounceOwnership() external;
+
     function transferOwnership(address newOwner) external;
+
     function emergencyWithdraw() external;
-    function updateMinTokensToReinvest(uint newValue) external;
-    function updateAdminFee(uint newValue) external;
-    function updateReinvestReward(uint newValue) external;
-    function recoverERC20(address tokenAddress, uint tokenAmount) external;
-    function recoverAVAX(uint amount) external;
+
+    function updateMinTokensToReinvest(uint256 newValue) external;
+
+    function updateAdminFee(uint256 newValue) external;
+
+    function updateReinvestReward(uint256 newValue) external;
+
+    function recoverERC20(address tokenAddress, uint256 tokenAmount) external;
+
+    function recoverAVAX(uint256 amount) external;
 }
 
 contract YakTimelockForDexStrategy {
-
-    uint public constant timelockLengthForAssetRecovery = 2 days;
-    uint public constant timelockLengthForOwnershipTransfer = 7 days;
-    uint public constant timelockLengthForFeeChanges = 6 hours;
+    uint256 public constant timelockLengthForAssetRecovery = 2 days;
+    uint256 public constant timelockLengthForOwnershipTransfer = 7 days;
+    uint256 public constant timelockLengthForFeeChanges = 6 hours;
 
     address public manager;
     address public feeCollector;
     IStrategy public strategy;
 
     address public pendingOwner;
-    uint public pendingAdminFee;
-    uint public pendingReinvestReward;
+    uint256 public pendingAdminFee;
+    uint256 public pendingReinvestReward;
     address public pendingTokenAddressToRecover;
-    uint public pendingTokenAmountToRecover;
-    uint public pendingAVAXToRecover;
+    uint256 public pendingTokenAmountToRecover;
+    uint256 public pendingAVAXToRecover;
 
-    event ProposeOwner(address indexed proposedValue, uint timelock);
-    event ProposeAdminFee(uint proposedValue, uint timelock);
-    event ProposeReinvestReward(uint proposedValue, uint timelock);
-    event ProposeRecovery(address indexed proposedToken, uint proposedValue, uint timelock);
+    event ProposeOwner(address indexed proposedValue, uint256 timelock);
+    event ProposeAdminFee(uint256 proposedValue, uint256 timelock);
+    event ProposeReinvestReward(uint256 proposedValue, uint256 timelock);
+    event ProposeRecovery(address indexed proposedToken, uint256 proposedValue, uint256 timelock);
 
     event SetOwner(address indexed newOwner);
-    event SetAdminFee(uint newValue);
-    event SetReinvestReward(uint newValue);
-    event SetMinTokensToReinvest(uint newValue);
-    event Sweep(address indexed token, uint amount);
-    event Recover(address indexed token, uint amount);
+    event SetAdminFee(uint256 newValue);
+    event SetReinvestReward(uint256 newValue);
+    event SetMinTokensToReinvest(uint256 newValue);
+    event Sweep(address indexed token, uint256 amount);
+    event Recover(address indexed token, uint256 amount);
     event EmergencyWithdraw();
 
     enum Functions {
@@ -58,11 +65,9 @@ contract YakTimelockForDexStrategy {
         recoverAVAX
     }
 
-    mapping(Functions => uint) public timelock;
+    mapping(Functions => uint256) public timelock;
 
-    constructor(
-        address _strategy
-    ) {
+    constructor(address _strategy) {
         manager = msg.sender;
         feeCollector = msg.sender;
         strategy = IStrategy(_strategy);
@@ -74,7 +79,7 @@ contract YakTimelockForDexStrategy {
      * @notice Restrict to `manager`
      * @dev To change manager, deploy new timelock and transfer strategy ownership
      */
-    modifier onlyManager {
+    modifier onlyManager() {
         require(msg.sender == manager);
         _;
     }
@@ -83,7 +88,7 @@ contract YakTimelockForDexStrategy {
      * @notice Restrict to `feeCollector`
      * @dev To change feeCollector, deploy new timelock and transfer strategy ownership
      */
-    modifier onlyFeeCollector {
+    modifier onlyFeeCollector() {
         require(msg.sender == feeCollector);
         _;
     }
@@ -93,7 +98,7 @@ contract YakTimelockForDexStrategy {
      * @param _fn Function enum value
      * @param timelockLength in seconds
      */
-    modifier setTimelock(Functions _fn, uint timelockLength) {
+    modifier setTimelock(Functions _fn, uint256 timelockLength) {
         timelock[_fn] = block.timestamp + timelockLength;
         _;
     }
@@ -116,9 +121,12 @@ contract YakTimelockForDexStrategy {
      * @param tokenAddress address
      * @param tokenAmount amount
      */
-    function sweepTokens(address tokenAddress, uint tokenAmount) external onlyFeeCollector {
-        require(tokenAmount > 0, 'YakTimelockManagerV1::sweepTokens, amount too low');
-        require(IERC20(tokenAddress).transfer(msg.sender, tokenAmount), 'YakTimelockManagerV1::sweepTokens, transfer failed');
+    function sweepTokens(address tokenAddress, uint256 tokenAmount) external onlyFeeCollector {
+        require(tokenAmount > 0, "YakTimelockManagerV1::sweepTokens, amount too low");
+        require(
+            IERC20(tokenAddress).transfer(msg.sender, tokenAmount),
+            "YakTimelockManagerV1::sweepTokens, transfer failed"
+        );
         emit Sweep(tokenAddress, tokenAmount);
     }
 
@@ -128,8 +136,8 @@ contract YakTimelockForDexStrategy {
      * @dev The sweep function is NOT timelocked, because recovered assets must go through separate timelock functions.
      * @param amount amount
      */
-    function sweepAVAX(uint amount) external onlyFeeCollector {
-        require(amount > 0, 'YakTimelockManagerV1::sweepAVAX, amount too low');
+    function sweepAVAX(uint256 amount) external onlyFeeCollector {
+        require(amount > 0, "YakTimelockManagerV1::sweepAVAX, amount too low");
         msg.sender.transfer(amount);
         emit Sweep(address(0), amount);
     }
@@ -142,7 +150,11 @@ contract YakTimelockForDexStrategy {
      * @dev Resets timelock duration through modifier
      * @param _pendingOwner new value
      */
-    function proposeOwner(address _pendingOwner) external onlyManager setTimelock(Functions.transferOwnership, timelockLengthForOwnershipTransfer) {
+    function proposeOwner(address _pendingOwner)
+        external
+        onlyManager
+        setTimelock(Functions.transferOwnership, timelockLengthForOwnershipTransfer)
+    {
         pendingOwner = _pendingOwner;
         emit ProposeOwner(_pendingOwner, timelock[Functions.transferOwnership]);
     }
@@ -163,7 +175,11 @@ contract YakTimelockForDexStrategy {
      * @dev Resets timelock duration through modifier
      * @param _pendingAdminFee new value
      */
-    function proposeAdminFee(uint _pendingAdminFee) external onlyManager setTimelock(Functions.updateAdminFee, timelockLengthForFeeChanges) {
+    function proposeAdminFee(uint256 _pendingAdminFee)
+        external
+        onlyManager
+        setTimelock(Functions.updateAdminFee, timelockLengthForFeeChanges)
+    {
         pendingAdminFee = _pendingAdminFee;
         emit ProposeAdminFee(_pendingAdminFee, timelock[Functions.updateAdminFee]);
     }
@@ -184,7 +200,11 @@ contract YakTimelockForDexStrategy {
      * @dev Resets timelock duration through modifier
      * @param _pendingReinvestReward new value
      */
-    function proposeReinvestReward(uint _pendingReinvestReward) external onlyManager setTimelock(Functions.updateReinvestReward, timelockLengthForFeeChanges) {
+    function proposeReinvestReward(uint256 _pendingReinvestReward)
+        external
+        onlyManager
+        setTimelock(Functions.updateReinvestReward, timelockLengthForFeeChanges)
+    {
         pendingReinvestReward = _pendingReinvestReward;
         emit ProposeReinvestReward(_pendingReinvestReward, timelock[Functions.updateReinvestReward]);
     }
@@ -206,10 +226,18 @@ contract YakTimelockForDexStrategy {
      * @param _pendingTokenAddressToRecover address
      * @param _pendingTokenAmountToRecover amount
      */
-    function proposeRecoverERC20(address _pendingTokenAddressToRecover, uint _pendingTokenAmountToRecover) external onlyManager setTimelock(Functions.recoverERC20, timelockLengthForAssetRecovery) {
+    function proposeRecoverERC20(address _pendingTokenAddressToRecover, uint256 _pendingTokenAmountToRecover)
+        external
+        onlyManager
+        setTimelock(Functions.recoverERC20, timelockLengthForAssetRecovery)
+    {
         pendingTokenAddressToRecover = _pendingTokenAddressToRecover;
         pendingTokenAmountToRecover = _pendingTokenAmountToRecover;
-        emit ProposeRecovery(_pendingTokenAddressToRecover, _pendingTokenAmountToRecover, timelock[Functions.recoverERC20]);
+        emit ProposeRecovery(
+            _pendingTokenAddressToRecover,
+            _pendingTokenAmountToRecover,
+            timelock[Functions.recoverERC20]
+        );
     }
 
     /**
@@ -230,7 +258,11 @@ contract YakTimelockForDexStrategy {
      * @dev Resets timelock duration through modifier
      * @param _pendingAVAXToRecover amount
      */
-    function proposeRecoverAVAX(uint _pendingAVAXToRecover) external onlyManager setTimelock(Functions.recoverAVAX, timelockLengthForAssetRecovery) {
+    function proposeRecoverAVAX(uint256 _pendingAVAXToRecover)
+        external
+        onlyManager
+        setTimelock(Functions.recoverAVAX, timelockLengthForAssetRecovery)
+    {
         pendingAVAXToRecover = _pendingAVAXToRecover;
         emit ProposeRecovery(address(0), _pendingAVAXToRecover, timelock[Functions.recoverAVAX]);
     }
@@ -253,7 +285,7 @@ contract YakTimelockForDexStrategy {
      * @dev Restricted to `manager` to avoid griefing
      * @param minTokensToReinvest new value
      */
-    function setMinTokensToReinvest(uint minTokensToReinvest) external onlyManager {
+    function setMinTokensToReinvest(uint256 minTokensToReinvest) external onlyManager {
         strategy.updateMinTokensToReinvest(minTokensToReinvest);
         emit SetMinTokensToReinvest(minTokensToReinvest);
     }

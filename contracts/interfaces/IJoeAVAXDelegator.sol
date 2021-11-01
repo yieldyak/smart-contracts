@@ -9,12 +9,7 @@ interface IJoeAVAXDelegator is IJoeERC20Delegator {
     /**
      * @notice Event emitted when a flashloan occured
      */
-    event Flashloan(
-        address indexed receiver,
-        uint256 amount,
-        uint256 totalFee,
-        uint256 reservesFee
-    );
+    event Flashloan(address indexed receiver, uint256 amount, uint256 totalFee, uint256 reservesFee);
 
     /*** User Interface ***/
 
@@ -28,10 +23,7 @@ interface IJoeAVAXDelegator is IJoeERC20Delegator {
 
     function repayBorrowNative() external payable returns (uint256);
 
-    function repayBorrowBehalfNative(address borrower)
-        external
-        payable
-        returns (uint256);
+    function repayBorrowBehalfNative(address borrower) external payable returns (uint256);
 
     function _addReservesNative() external payable returns (uint256);
 }

@@ -50,12 +50,7 @@ contract JoeStrategyV4 is YakStrategy {
         devAddr = msg.sender;
         PID = pid;
 
-        assignSwapPairSafely(
-            _swapPairWAVAXJoe,
-            _extraTokenSwapPair,
-            _swapPairToken0,
-            _swapPairToken1
-        );
+        assignSwapPairSafely(_swapPairWAVAXJoe, _extraTokenSwapPair, _swapPairToken0, _swapPairToken1);
         setAllowances();
         updateMinTokensToReinvest(_minTokensToReinvest);
         updateAdminFee(_adminFeeBips);
@@ -79,11 +74,7 @@ contract JoeStrategyV4 is YakStrategy {
         address _swapPairToken1
     ) private {
         require(
-            DexLibrary.checkSwapPairCompatibility(
-                IPair(_swapPairWAVAXJoe),
-                address(WAVAX),
-                address(poolRewardToken)
-            ),
+            DexLibrary.checkSwapPairCompatibility(IPair(_swapPairWAVAXJoe), address(WAVAX), address(poolRewardToken)),
             "_swapPairWAVAXJoe is not a WAVAX-Joe pair"
         );
         require(
@@ -104,17 +95,10 @@ contract JoeStrategyV4 is YakStrategy {
                 ),
             "_swapPairToken1 is not a WAVAX+deposit token1"
         );
-        (, address extraRewardToken, , ) = stakingContract.pendingTokens(
-            PID,
-            address(this)
-        );
+        (, address extraRewardToken, , ) = stakingContract.pendingTokens(PID, address(this));
         require(
             _extraTokenSwapPair == address(0) ||
-                DexLibrary.checkSwapPairCompatibility(
-                    IPair(_extraTokenSwapPair),
-                    address(WAVAX),
-                    extraRewardToken
-                ),
+                DexLibrary.checkSwapPairCompatibility(IPair(_extraTokenSwapPair), address(WAVAX), extraRewardToken),
             "_swapPairWAVAXJoe is not a WAVAX-extra reward pair, check stakingContract.pendingTokens"
         );
         // converts Joe to WAVAX
@@ -172,12 +156,7 @@ contract JoeStrategyV4 is YakStrategy {
                     uint256 extraRewardTokenAmount,
                     uint256 rewardTokenAmount
                 ) = _checkReward();
-                _reinvest(
-                    poolTokenAmount,
-                    extraRewardTokenAddress,
-                    extraRewardTokenAmount,
-                    rewardTokenAmount
-                );
+                _reinvest(poolTokenAmount, extraRewardTokenAddress, extraRewardTokenAmount, rewardTokenAmount);
             }
         }
         require(depositToken.transferFrom(msg.sender, address(this), amount));
@@ -212,12 +191,7 @@ contract JoeStrategyV4 is YakStrategy {
             uint256 extraRewardTokenAmount,
             uint256 rewardTokenAmount
         ) = _checkReward();
-        _reinvest(
-            poolTokenAmount,
-            extraRewardTokenAddress,
-            extraRewardTokenAmount,
-            rewardTokenAmount
-        );
+        _reinvest(poolTokenAmount, extraRewardTokenAddress, extraRewardTokenAmount, rewardTokenAmount);
     }
 
     function _convertRewardIntoWAVAX(
@@ -232,9 +206,7 @@ contract JoeStrategyV4 is YakStrategy {
             if (avaxBalance > 0) {
                 WAVAX.deposit{value: avaxBalance}();
             }
-            convertedAmountWAVAX = convertedAmountWAVAX.add(
-                WAVAX.balanceOf(address(this))
-            );
+            convertedAmountWAVAX = convertedAmountWAVAX.add(WAVAX.balanceOf(address(this)));
         } else if (extraRewardToken == address(poolRewardToken)) {
             convertedAmountWAVAX = convertedAmountWAVAX.add(
                 DexLibrary.swap(
@@ -248,29 +220,15 @@ contract JoeStrategyV4 is YakStrategy {
         }
 
         convertedAmountWAVAX = convertedAmountWAVAX.add(
-            DexLibrary.swap(
-                pendingJoe,
-                address(poolRewardToken),
-                address(WAVAX),
-                swapPairWAVAXJoe
-            )
+            DexLibrary.swap(pendingJoe, address(poolRewardToken), address(WAVAX), swapPairWAVAXJoe)
         );
         if (
             address(swapPairExtraToken) != address(0) &&
             pendingExtraReward > 0 &&
-            DexLibrary.checkSwapPairCompatibility(
-                swapPairExtraToken,
-                extraRewardToken,
-                address(WAVAX)
-            )
+            DexLibrary.checkSwapPairCompatibility(swapPairExtraToken, extraRewardToken, address(WAVAX))
         ) {
             convertedAmountWAVAX = convertedAmountWAVAX.add(
-                DexLibrary.swap(
-                    pendingExtraReward,
-                    extraRewardToken,
-                    address(WAVAX),
-                    swapPairExtraToken
-                )
+                DexLibrary.swap(pendingExtraReward, extraRewardToken, address(WAVAX), swapPairExtraToken)
             );
         }
         return convertedAmountWAVAX;
@@ -287,9 +245,7 @@ contract JoeStrategyV4 is YakStrategy {
         uint256 _pendingWavax
     ) private {
         stakingContract.deposit(PID, 0);
-        uint256 amount = _pendingWavax.add(
-            _convertRewardIntoWAVAX(_pendingJoe, _extraRewardToken, _pendingExtraToken)
-        );
+        uint256 amount = _pendingWavax.add(_convertRewardIntoWAVAX(_pendingJoe, _extraRewardToken, _pendingExtraToken));
 
         uint256 devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
@@ -337,10 +293,7 @@ contract JoeStrategyV4 is YakStrategy {
         address to,
         uint256 value
     ) private {
-        require(
-            IERC20(token).transfer(to, value),
-            "TransferHelper: TRANSFER_FROM_FAILED"
-        );
+        require(IERC20(token).transfer(to, value), "TransferHelper: TRANSFER_FROM_FAILED");
     }
 
     function setExtraRewardSwapPair(address swapPair) external onlyDev {
@@ -349,16 +302,9 @@ contract JoeStrategyV4 is YakStrategy {
             return;
         }
 
-        (, address extraRewardToken, , ) = stakingContract.pendingTokens(
-            PID,
-            address(this)
-        );
+        (, address extraRewardToken, , ) = stakingContract.pendingTokens(PID, address(this));
         require(
-            DexLibrary.checkSwapPairCompatibility(
-                IPair(swapPair),
-                address(WAVAX),
-                extraRewardToken
-            ),
+            DexLibrary.checkSwapPairCompatibility(IPair(swapPair), address(WAVAX), extraRewardToken),
             "_swapPairWAVAXJoe is not a WAVAX-extra reward pair, check stakingContract.pendingTokens"
         );
         swapPairExtraToken = IPair(swapPair);
@@ -374,12 +320,10 @@ contract JoeStrategyV4 is YakStrategy {
             uint256 rewardTokenAmount
         )
     {
-        (
-            uint256 pendingJoe,
-            address extraRewardToken,
-            ,
-            uint256 pendingExtraToken
-        ) = stakingContract.pendingTokens(PID, address(this));
+        (uint256 pendingJoe, address extraRewardToken, , uint256 pendingExtraToken) = stakingContract.pendingTokens(
+            PID,
+            address(this)
+        );
         uint256 poolRewardBalance = poolRewardToken.balanceOf(address(this));
         uint256 extraRewardTokenBalance;
         if (extraRewardToken != address(0)) {
@@ -410,11 +354,7 @@ contract JoeStrategyV4 is YakStrategy {
         if (
             address(swapPairExtraToken) != address(0) &&
             extraRewardTokenAmount > 0 &&
-            DexLibrary.checkSwapPairCompatibility(
-                swapPairExtraToken,
-                extraRewardTokenAddress,
-                address(WAVAX)
-            )
+            DexLibrary.checkSwapPairCompatibility(swapPairExtraToken, extraRewardTokenAddress, address(WAVAX))
         ) {
             estimatedWAVAX.add(
                 DexLibrary.estimateConversionThroughPair(
@@ -443,18 +383,11 @@ contract JoeStrategyV4 is YakStrategy {
         totalDeposits = 0;
     }
 
-    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits)
-        external
-        override
-        onlyOwner
-    {
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         stakingContract.emergencyWithdraw(PID);
         uint256 balanceAfter = depositToken.balanceOf(address(this));
-        require(
-            balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
-            "JoeStrategyV4::rescueDeployedFunds"
-        );
+        require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "JoeStrategyV4::rescueDeployedFunds");
         totalDeposits = balanceAfter;
         emit Reinvest(totalDeposits, totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {

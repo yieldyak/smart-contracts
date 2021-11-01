@@ -5,9 +5,9 @@ import "./Ownable.sol";
 import "./SafeMath.sol";
 
 abstract contract Permissioned is Ownable {
-    using SafeMath for uint;
+    using SafeMath for uint256;
 
-    uint public numberOfAllowedDepositors;
+    uint256 public numberOfAllowedDepositors;
     mapping(address => bool) public allowedDepositors;
 
     event AllowDepositor(address indexed account);

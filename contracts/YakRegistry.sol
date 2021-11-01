@@ -8,7 +8,6 @@ import "./lib/Ownable.sol";
  * @dev DRAFT
  */
 contract YakRegistry is Ownable {
-
     mapping(address => bool) public registeredStrategies;
 
     event AddStrategy(address indexed strategy);
@@ -17,13 +16,13 @@ contract YakRegistry is Ownable {
     constructor() {}
 
     function addStrategies(address[] calldata strategies) external onlyOwner {
-        for (uint i = 0; i < strategies.length; i++) {
+        for (uint256 i = 0; i < strategies.length; i++) {
             _addStrategy(strategies[i]);
         }
     }
 
     function removeStrategies(address[] calldata strategies) external onlyOwner {
-        for (uint i = 0; i < strategies.length; i++) {
+        for (uint256 i = 0; i < strategies.length; i++) {
             _removeStrategy(strategies[i]);
         }
     }

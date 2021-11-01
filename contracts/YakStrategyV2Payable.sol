@@ -12,7 +12,6 @@ import "./YakStrategyV2.sol";
  * @notice YakStrategy should be inherited by new strategies
  */
 abstract contract YakStrategyV2Payable is YakStrategyV2 {
-
     /**
      * @notice Deposit and deploy deposits tokens to the strategy using AVAX
      * @dev Must mint receipt tokens to `msg.sender`
@@ -25,5 +24,4 @@ abstract contract YakStrategyV2Payable is YakStrategyV2 {
      * @param account address to receive receipt tokens
      */
     function depositFor(address account) external payable virtual;
-
 }

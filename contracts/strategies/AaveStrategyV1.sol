@@ -100,10 +100,7 @@ contract AaveStrategyV1 is YakStrategyV2 {
         borrowed = IERC20(avDebtToken).balanceOf(address(this));
         borrowable = 0;
         if (balance.mul(leverageLevel.sub(leverageBips)).div(leverageLevel) > borrowed) {
-            borrowable = balance
-                .mul(leverageLevel.sub(leverageBips))
-                .div(leverageLevel)
-                .sub(borrowed);
+            borrowable = balance.mul(leverageLevel.sub(leverageBips)).div(leverageLevel).sub(borrowed);
         }
     }
 
@@ -168,10 +165,7 @@ contract AaveStrategyV1 is YakStrategyV2 {
                 _reinvest(avaxRewards);
             }
         }
-        require(
-            depositToken.transferFrom(account, address(this), amount),
-            "AaveStrategyV1::transfer failed"
-        );
+        require(depositToken.transferFrom(account, address(this), amount), "AaveStrategyV1::transfer failed");
         _mint(account, getSharesForDepositTokens(amount));
         _stakeDepositTokens(amount);
         emit Deposit(account, amount);
@@ -179,10 +173,7 @@ contract AaveStrategyV1 is YakStrategyV2 {
 
     function withdraw(uint256 amount) external override {
         uint256 depositTokenAmount = getDepositTokensForShares(amount);
-        require(
-            depositTokenAmount > minMinting,
-            "AaveStrategyV1::below minimum withdraw"
-        );
+        require(depositTokenAmount > minMinting, "AaveStrategyV1::below minimum withdraw");
         if (depositTokenAmount > 0) {
             _burn(msg.sender, amount);
             // actual amount withdrawn may change with time.
@@ -196,11 +187,7 @@ contract AaveStrategyV1 is YakStrategyV2 {
         _unrollDebt(amount);
         (uint256 balance, , ) = _getAccountData();
         amount = amount > balance ? type(uint256).max : amount;
-        uint256 withdrawn = tokenDelegator.withdraw(
-            address(depositToken),
-            amount,
-            address(this)
-        );
+        uint256 withdrawn = tokenDelegator.withdraw(address(depositToken), amount, address(this));
         _rollupDebt();
         return withdrawn;
     }
@@ -250,10 +237,7 @@ contract AaveStrategyV1 is YakStrategyV2 {
 
     function _rollupDebt() internal {
         (uint256 balance, uint256 borrowed, uint256 borrowable) = _getAccountData();
-        uint256 lendTarget = balance
-            .sub(borrowed)
-            .mul(leverageLevel.sub(safetyFactor))
-            .div(leverageBips);
+        uint256 lendTarget = balance.sub(borrowed).mul(leverageLevel.sub(safetyFactor)).div(leverageBips);
         while (balance < lendTarget) {
             if (balance.add(borrowable) > lendTarget) {
                 borrowable = lendTarget.sub(balance);
@@ -282,11 +266,9 @@ contract AaveStrategyV1 is YakStrategyV2 {
         uint256 threshold
     ) internal pure returns (uint256) {
         return
-            balance
-                .sub(borrowed)
-                .mul(1e18)
-                .sub(borrowed.mul(13).div(10).mul(1e18).div(threshold).div(100000))
-                .div(1e18);
+            balance.sub(borrowed).mul(1e18).sub(borrowed.mul(13).div(10).mul(1e18).div(threshold).div(100000)).div(
+                1e18
+            );
     }
 
     function _unrollDebt(uint256 amountToFreeUp) internal {
@@ -332,10 +314,7 @@ contract AaveStrategyV1 is YakStrategyV2 {
         address to,
         uint256 value
     ) private {
-        require(
-            IERC20(token).transfer(to, value),
-            "AaveStrategyV1::TRANSFER_FROM_FAILED"
-        );
+        require(IERC20(token).transfer(to, value), "AaveStrategyV1::TRANSFER_FROM_FAILED");
     }
 
     function _checkRewards() internal view returns (uint256 avaxAmount) {
@@ -358,20 +337,13 @@ contract AaveStrategyV1 is YakStrategyV2 {
         return totalDeposits();
     }
 
-    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits)
-        external
-        override
-        onlyOwner
-    {
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         (uint256 balance, uint256 borrowed, ) = _getAccountData();
         _unrollDebt(balance.sub(borrowed));
         tokenDelegator.withdraw(address(depositToken), type(uint256).max, address(this));
         uint256 balanceAfter = depositToken.balanceOf(address(this));
-        require(
-            balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
-            "AaveStrategyV1::rescueDeployedFunds"
-        );
+        require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "AaveStrategyV1::rescueDeployedFunds");
         emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
             updateDepositsEnabled(false);

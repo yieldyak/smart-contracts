@@ -12,9 +12,9 @@ abstract contract YakERC20 {
     string public symbol = "YRT";
     uint8 public constant decimals = 18;
     uint256 public totalSupply;
-  
-    mapping (address => mapping (address => uint256)) internal allowances;
-    mapping (address => uint256) internal balances;
+
+    mapping(address => mapping(address => uint256)) internal allowances;
+    mapping(address => uint256) internal balances;
 
     /// @dev keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
     bytes32 public constant DOMAIN_TYPEHASH = 0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f;
@@ -25,7 +25,7 @@ abstract contract YakERC20 {
     /// @dev keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
     bytes32 public constant PERMIT_TYPEHASH = 0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
 
-    mapping(address => uint) public nonces;
+    mapping(address => uint256) public nonces;
 
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
@@ -38,7 +38,7 @@ abstract contract YakERC20 {
      * @param spender The address of the account spending the funds
      * @return The number of tokens approved
      */
-    function allowance(address account, address spender) external view returns (uint) {
+    function allowance(address account, address spender) external view returns (uint256) {
         return allowances[account][spender];
     }
 
@@ -61,7 +61,7 @@ abstract contract YakERC20 {
      * @param account The address of the account to get the balance of
      * @return The number of tokens held
      */
-    function balanceOf(address account) external view returns (uint) {
+    function balanceOf(address account) external view returns (uint256) {
         return balances[account];
     }
 
@@ -83,7 +83,11 @@ abstract contract YakERC20 {
      * @param amount The number of tokens to transfer
      * @return Whether or not the transfer succeeded
      */
-    function transferFrom(address src, address dst, uint256 amount) external returns (bool) {
+    function transferFrom(
+        address src,
+        address dst,
+        uint256 amount
+    ) external returns (bool) {
         address spender = msg.sender;
         uint256 spenderAllowance = allowances[src][spender];
 
@@ -98,14 +102,17 @@ abstract contract YakERC20 {
         return true;
     }
 
-
     /**
      * @notice Approval implementation
      * @param owner The address of the account which owns tokens
      * @param spender The address of the account which may transfer tokens
      * @param amount The number of tokens that are approved (2^256-1 means infinite)
      */
-    function _approve(address owner, address spender, uint256 amount) internal {
+    function _approve(
+        address owner,
+        address spender,
+        uint256 amount
+    ) internal {
         require(owner != address(0), "_approve::owner zero address");
         require(spender != address(0), "_approve::spender zero address");
         allowances[owner][spender] = amount;
@@ -118,7 +125,11 @@ abstract contract YakERC20 {
      * @param to The address of the account which is receiving tokens
      * @param value The number of tokens that are being transferred
      */
-    function _transferTokens(address from, address to, uint256 value) internal {
+    function _transferTokens(
+        address from,
+        address to,
+        uint256 value
+    ) internal {
         require(to != address(0), "_transferTokens: cannot transfer to the zero address");
 
         balances[from] = balances[from].sub(value, "_transferTokens: transfer exceeds from balance");
@@ -148,7 +159,15 @@ abstract contract YakERC20 {
      * @param r Half of the ECDSA signature pair
      * @param s Half of the ECDSA signature pair
      */
-    function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external {
+    function permit(
+        address owner,
+        address spender,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external {
         require(deadline >= block.timestamp, "permit::expired");
 
         bytes32 encodeData = keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, value, nonces[owner]++, deadline));
@@ -165,14 +184,14 @@ abstract contract YakERC20 {
      * @param r Half of the ECDSA signature pair
      * @param s Half of the ECDSA signature pair
      */
-    function _validateSignedData(address signer, bytes32 encodeData, uint8 v, bytes32 r, bytes32 s) internal view {
-        bytes32 digest = keccak256(
-            abi.encodePacked(
-                "\x19\x01",
-                getDomainSeparator(),
-                encodeData
-            )
-        );
+    function _validateSignedData(
+        address signer,
+        bytes32 encodeData,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) internal view {
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", getDomainSeparator(), encodeData));
         address recoveredAddress = ecrecover(digest, v, r, s);
         // Explicitly disallow authorizations for address(0) as ecrecover returns address(0) on malformed messages
         require(recoveredAddress != address(0) && recoveredAddress == signer, "Arch::validateSig: invalid signature");
@@ -183,24 +202,19 @@ abstract contract YakERC20 {
      * @return Separator
      */
     function getDomainSeparator() public view returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                DOMAIN_TYPEHASH,
-                keccak256(bytes(name)),
-                VERSION_HASH,
-                _getChainId(),
-                address(this)
-            )
-        );
+        return
+            keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(name)), VERSION_HASH, _getChainId(), address(this)));
     }
 
     /**
      * @notice Current id of the chain where this contract is deployed
      * @return Chain id
      */
-    function _getChainId() internal pure returns (uint) {
+    function _getChainId() internal pure returns (uint256) {
         uint256 chainId;
-        assembly { chainId := chainid() }
+        assembly {
+            chainId := chainid()
+        }
         return chainId;
     }
 }

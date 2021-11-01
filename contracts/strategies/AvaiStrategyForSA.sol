@@ -57,12 +57,7 @@ contract AvaiStrategyForSA is MasterChefStrategyForSA {
         podLeader.emergencyWithdraw(_pid);
     }
 
-    function _pendingRewards(uint256 _pid, address _user)
-        internal
-        view
-        override
-        returns (uint256)
-    {
+    function _pendingRewards(uint256 _pid, address _user) internal view override returns (uint256) {
         return podLeader.pendingRewards(_pid, _user);
     }
 
@@ -79,12 +74,7 @@ contract AvaiStrategyForSA is MasterChefStrategyForSA {
         }
     }
 
-    function _getDepositBalance(uint256 pid, address user)
-        internal
-        view
-        override
-        returns (uint256 amount)
-    {
+    function _getDepositBalance(uint256 pid, address user) internal view override returns (uint256 amount) {
         (amount, ) = podLeader.userInfo(pid, user);
     }
 

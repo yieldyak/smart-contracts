@@ -25,7 +25,7 @@
       {
         "files": "*.sol",
         "options": {
-          "printWidth": 89,
+          "printWidth": 120,
           "tabWidth": 4,
           "useTabs": false,
           "singleQuote": false,
@@ -37,6 +37,7 @@
   },
   "scripts": {
     "compile": "npx hardhat compile",
-    "test": "npx hardhat test --network hardhat"
+    "test": "npx hardhat test --network hardhat",
+    "format": "prettier --write 'contracts/**/*.sol'"
   }
 }
