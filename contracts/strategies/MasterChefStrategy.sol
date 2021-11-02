@@ -2,6 +2,8 @@
 pragma solidity ^0.7.0;
 
 import "../YakStrategyV2.sol";
+import "../interfaces/IPair.sol";
+import "../lib/DexLibrary.sol";
 
 /**
  * @notice Adapter strategy for MasterChef.
@@ -9,36 +11,72 @@ import "../YakStrategyV2.sol";
 abstract contract MasterChefStrategy is YakStrategyV2 {
     using SafeMath for uint256;
 
+    struct StrategySettings {
+        uint256 minTokensToReinvest;
+        uint256 adminFeeBips;
+        uint256 devFeeBips;
+        uint256 reinvestRewardBips;
+    }
+
     uint256 public immutable PID;
-    address private stakingRewards;
+    address private stakingContract;
+    address private poolRewardToken;
+    IPair private swapPairPoolReward;
 
     constructor(
         string memory _name,
         address _depositToken,
-        address _rewardToken,
-        address _stakingRewards,
+        address _ecosystemToken,
+        address _poolRewardToken,
+        address _swapPairPoolReward,
+        address _stakingContract,
         address _timelock,
         uint256 _pid,
-        uint256 _minTokensToReinvest,
-        uint256 _adminFeeBips,
-        uint256 _devFeeBips,
-        uint256 _reinvestRewardBips
+        StrategySettings memory _strategySettings
     ) Ownable() {
         name = _name;
         depositToken = IERC20(_depositToken);
-        rewardToken = IERC20(_rewardToken);
+        rewardToken = IERC20(_ecosystemToken);
         PID = _pid;
         devAddr = msg.sender;
-        stakingRewards = _stakingRewards;
+        stakingContract = _stakingContract;
 
+        assignSwapPairSafely(_ecosystemToken, _poolRewardToken, _swapPairPoolReward);
         setAllowances();
-        updateMinTokensToReinvest(_minTokensToReinvest);
-        updateAdminFee(_adminFeeBips);
-        updateDevFee(_devFeeBips);
-        updateReinvestReward(_reinvestRewardBips);
+        updateMinTokensToReinvest(_strategySettings.minTokensToReinvest);
+        updateAdminFee(_strategySettings.adminFeeBips);
+        updateDevFee(_strategySettings.devFeeBips);
+        updateReinvestReward(_strategySettings.reinvestRewardBips);
         updateDepositsEnabled(true);
         transferOwnership(_timelock);
         emit Reinvest(0, 0);
+    }
+
+    /**
+     * @notice Initialization helper for Pair deposit tokens
+     * @dev Checks that selected Pairs are valid for trading reward tokens
+     * @dev Assigns values to IPair(swapPairToken0) and IPair(swapPairToken1)
+     */
+    function assignSwapPairSafely(
+        address _ecosystemToken,
+        address _poolRewardToken,
+        address _swapPairPoolReward
+    ) private {
+        if (_poolRewardToken == IPair(_swapPairPoolReward).token0()) {
+            require(
+                IPair(_swapPairPoolReward).token1() == _ecosystemToken,
+                "Swap pair 'swapPairPoolReward' does not contain ecosystem token"
+            );
+        } else if (_poolRewardToken == IPair(_swapPairPoolReward).token1()) {
+            require(
+                IPair(_swapPairPoolReward).token0() == _ecosystemToken,
+                "Swap pair 'swapPairPoolReward' does not contain ecosystem token"
+            );
+        } else {
+            revert("Swap pair 'swapPairPoolReward' does not contain pool reward token");
+        }
+        poolRewardToken = _poolRewardToken;
+        swapPairPoolReward = IPair(_swapPairPoolReward);
     }
 
     /**
@@ -46,7 +84,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
      * @dev Restricted to avoid griefing attacks
      */
     function setAllowances() public override onlyOwner {
-        depositToken.approve(stakingRewards, type(uint256).max);
+        depositToken.approve(stakingContract, type(uint256).max);
     }
 
     /**
@@ -83,15 +121,12 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
     function _deposit(address account, uint256 amount) internal {
         require(DEPOSITS_ENABLED == true, "MasterChefStrategyV1::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
-            uint256 unclaimedRewards = checkReward();
-            if (unclaimedRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
-                _reinvest(unclaimedRewards);
+            (uint256 poolTokenAmount, uint256 rewardTokenBalance, uint256 estimatedTotalReward) = _checkReward();
+            if (estimatedTotalReward > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
+                _reinvest(rewardTokenBalance, poolTokenAmount);
             }
         }
-        require(
-            depositToken.transferFrom(account, address(this), amount),
-            "MasterChefStrategyV1::transfer failed"
-        );
+        require(depositToken.transferFrom(msg.sender, address(this), amount), "MasterChefStrategyV1::transfer failed");
         _stakeDepositTokens(amount);
         uint256 depositFeeBips = _getDepositFeeBips(PID);
         uint256 depositFee = amount.mul(depositFeeBips).div(_bip());
@@ -105,11 +140,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
             _withdrawDepositTokens(depositTokenAmount);
             uint256 withdrawFeeBips = _getWithdrawFeeBips(PID);
             uint256 withdrawFee = depositTokenAmount.mul(withdrawFeeBips).div(_bip());
-            _safeTransfer(
-                address(depositToken),
-                msg.sender,
-                depositTokenAmount.sub(withdrawFee)
-            );
+            _safeTransfer(address(depositToken), msg.sender, depositTokenAmount.sub(withdrawFee));
             _burn(msg.sender, amount);
             emit Withdraw(msg.sender, depositTokenAmount);
         }
@@ -121,21 +152,22 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
     }
 
     function reinvest() external override onlyEOA {
-        uint256 unclaimedRewards = checkReward();
-        require(
-            unclaimedRewards >= MIN_TOKENS_TO_REINVEST,
-            "MasterChefStrategyV1::reinvest"
-        );
-        _reinvest(unclaimedRewards);
+        (uint256 poolTokenAmount, uint256 rewardTokenBalance, uint256 estimatedTotalReward) = _checkReward();
+        require(estimatedTotalReward >= MIN_TOKENS_TO_REINVEST, "MasterChefStrategyV1::reinvest");
+        _reinvest(rewardTokenBalance, poolTokenAmount);
+    }
+
+    function _convertPoolTokensIntoReward(uint256 poolTokenAmount) private returns (uint256) {
+        return DexLibrary.swap(poolTokenAmount, address(poolRewardToken), address(rewardToken), swapPairPoolReward);
     }
 
     /**
      * @notice Reinvest rewards from staking contract to deposit tokens
      * @dev Reverts if the expected amount of tokens are not returned from `MasterChef`
-     * @param amount deposit tokens to reinvest
      */
-    function _reinvest(uint256 amount) private {
+    function _reinvest(uint256 rewardTokenBalance, uint256 poolTokenAmount) private {
         _getRewards(PID);
+        uint256 amount = rewardTokenBalance.add(_convertPoolTokensIntoReward(poolTokenAmount));
 
         uint256 devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
@@ -176,16 +208,35 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
         address to,
         uint256 value
     ) private {
-        require(
-            IERC20(token).transfer(to, value),
-            "MasterChefStrategyV1::TRANSFER_FROM_FAILED"
+        require(IERC20(token).transfer(to, value), "MasterChefStrategyV1::TRANSFER_FROM_FAILED");
+    }
+
+    function _checkReward()
+        internal
+        view
+        returns (
+            uint256 _poolTokenAmount,
+            uint256 _rewardTokenBalance,
+            uint256 _estimatedTotalReward
+        )
+    {
+        uint256 poolTokenBalance = IERC20(poolRewardToken).balanceOf(address(this));
+        uint256 pendingPoolTokenAmount = _pendingRewards(PID, address(this));
+        uint256 poolTokenAmount = poolTokenBalance.add(pendingPoolTokenAmount);
+        uint256 pendingRewardTokenAmount = DexLibrary.estimateConversionThroughPair(
+            poolTokenAmount,
+            poolRewardToken,
+            address(rewardToken),
+            swapPairPoolReward
         );
+        uint256 rewardTokenBalance = rewardToken.balanceOf(address(this));
+        uint256 estimatedTotalReward = rewardTokenBalance.add(pendingRewardTokenAmount);
+        return (poolTokenAmount, rewardTokenBalance, estimatedTotalReward);
     }
 
     function checkReward() public view override returns (uint256) {
-        uint256 pendingReward = _pendingRewards(PID, address(this));
-        uint256 contractBalance = rewardToken.balanceOf(address(this));
-        return pendingReward.add(contractBalance);
+        (, , uint256 estimatedTotalReward) = _checkReward();
+        return estimatedTotalReward;
     }
 
     /**
@@ -207,11 +258,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
         return depositBalance.sub(withdrawFee);
     }
 
-    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits)
-        external
-        override
-        onlyOwner
-    {
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         _emergencyWithdraw(PID);
         uint256 balanceAfter = depositToken.balanceOf(address(this));
@@ -226,10 +273,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
     }
 
     /* VIRTUAL */
-    function _convertRewardTokenToDepositToken(uint256 fromAmount)
-        internal
-        virtual
-        returns (uint256 toAmount);
+    function _convertRewardTokenToDepositToken(uint256 fromAmount) internal virtual returns (uint256 toAmount);
 
     function _depositMasterchef(uint256 pid, uint256 amount) internal virtual;
 
@@ -239,17 +283,9 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
 
     function _getRewards(uint256 pid) internal virtual;
 
-    function _pendingRewards(uint256 pid, address user)
-        internal
-        view
-        virtual
-        returns (uint256 amount);
+    function _pendingRewards(uint256 pid, address user) internal view virtual returns (uint256 poolTokenAmount);
 
-    function _getDepositBalance(uint256 pid, address user)
-        internal
-        view
-        virtual
-        returns (uint256 amount);
+    function _getDepositBalance(uint256 pid, address user) internal view virtual returns (uint256 amount);
 
     function _getDepositFeeBips(uint256 pid) internal view virtual returns (uint256);
 
