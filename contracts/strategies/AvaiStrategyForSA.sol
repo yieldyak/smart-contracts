@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+pragma experimental ABIEncoderV2;
 pragma solidity ^0.7.0;
 
 import "../interfaces/IAvaiPodLeader.sol";
@@ -19,27 +20,24 @@ contract AvaiStrategyForSA is MasterChefStrategyForSA {
         string memory _name,
         address _depositToken,
         address _swapPairToken, // swap rewardToken to depositToken
+        address _poolRewardToken,
+        address _swapPairPoolReward,
         address _stakingRewards,
         uint256 _pid,
         address _timelock,
-        uint256 _minTokensToReinvest,
-        uint256 _adminFeeBips,
-        uint256 _devFeeBips,
-        uint256 _reinvestRewardBips
+        StrategySettings memory _strategySettings
     )
         MasterChefStrategyForSA(
             _name,
             _depositToken,
-            /*rewardToken=*/
-            address(WAVAX),
+            address(WAVAX), /*rewardToken=*/
+            _poolRewardToken,
+            _swapPairPoolReward,
             _swapPairToken,
             _stakingRewards,
             _timelock,
             _pid,
-            _minTokensToReinvest,
-            _adminFeeBips,
-            _devFeeBips,
-            _reinvestRewardBips
+            _strategySettings
         )
     {
         podLeader = IAvaiPodLeader(_stakingRewards);
@@ -57,12 +55,7 @@ contract AvaiStrategyForSA is MasterChefStrategyForSA {
         podLeader.emergencyWithdraw(_pid);
     }
 
-    function _pendingRewards(uint256 _pid, address _user)
-        internal
-        view
-        override
-        returns (uint256)
-    {
+    function _pendingRewards(uint256 _pid, address _user) internal view override returns (uint256) {
         return podLeader.pendingRewards(_pid, _user);
     }
 
@@ -79,12 +72,7 @@ contract AvaiStrategyForSA is MasterChefStrategyForSA {
         }
     }
 
-    function _getDepositBalance(uint256 pid, address user)
-        internal
-        view
-        override
-        returns (uint256 amount)
-    {
+    function _getDepositBalance(uint256 pid, address user) internal view override returns (uint256 amount) {
         (amount, ) = podLeader.userInfo(pid, user);
     }
 
