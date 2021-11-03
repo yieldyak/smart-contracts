@@ -39,10 +39,9 @@ contract CurveStrategyForLPV1 is YakStrategy {
     ICurveRewardsGauge public stakingContract;
     IPair private swapPairWavaxZap;
     address private swapPairCrvAvax = address(0);
-    bytes private constant zeroBytes = new bytes(0);
     function(uint256) internal returns (uint256) _zapToDepositToken;
     address private constant WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
-    address private constant CRV = 0x47536F17F4fF30e64A96a7555826b8f9e66ec468;
+    address private constant CRV = 0x249848BeCA43aC405b8102Ec90Dd5F22CA513c06;
     ZapSettings private zapSettings;
 
     constructor(
