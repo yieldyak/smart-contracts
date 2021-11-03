@@ -12,7 +12,7 @@ import "../lib/DexLibrary.sol";
  * @notice Strategy for Trader Joe, which includes optional and variable extra rewards
  * @dev Fees are paid in WAVAX
  */
-contract JoeStrategyV2 is YakStrategy {
+contract JoeStrategyV3 is YakStrategy {
     using SafeMath for uint;
 
     IJoeChef public stakingContract;
@@ -21,9 +21,8 @@ contract JoeStrategyV2 is YakStrategy {
     IPair private swapPairToken0;
     IPair private swapPairToken1;
     IERC20 private poolRewardToken;
-    uint private PID;
+    uint public PID;
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
-    bytes private constant zeroBytes = new bytes(0);
 
     constructor (
         string memory _name,

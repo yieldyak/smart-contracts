@@ -21,9 +21,8 @@ contract JoeStrategyV4 is YakStrategy {
     IPair private swapPairToken0;
     IPair private swapPairToken1;
     IERC20 private poolRewardToken;
-    uint256 private PID;
+    uint256 public PID;
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
-    bytes private constant zeroBytes = new bytes(0);
 
     constructor(
         string memory _name,
