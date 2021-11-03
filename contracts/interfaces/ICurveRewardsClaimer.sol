@@ -1,6 +1,6 @@
-pragma experimental ABIEncoderV2;
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.0;
+pragma experimental ABIEncoderV2;
 
 library DataTypes {
     struct RewardToken {
@@ -14,7 +14,12 @@ library DataTypes {
 }
 
 interface ICurveRewardsClaimer {
-    function reward_data(address reward) external view returns(DataTypes.RewardToken memory);
-    function last_update_time() external view returns(uint);
+    function reward_data(address reward)
+        external
+        view
+        returns (DataTypes.RewardToken memory);
+
+    function last_update_time() external view returns (uint256);
+
     function get_reward() external;
 }
