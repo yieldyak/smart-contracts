@@ -16,27 +16,25 @@ abstract contract MasterChefStrategyForSA is MasterChefStrategy {
     constructor(
         string memory _name,
         address _depositToken,
-        address _rewardToken,
+        address _ecosystemToken,
+        address _poolRewardToken,
+        address _swapPairPoolReward,
         address _swapPairToken,
         address _stakingRewards,
         address _timelock,
         uint256 _pid,
-        uint256 _minTokensToReinvest,
-        uint256 _adminFeeBips,
-        uint256 _devFeeBips,
-        uint256 _reinvestRewardBips
+        StrategySettings memory _strategySettings
     )
         MasterChefStrategy(
             _name,
             _depositToken,
-            _rewardToken,
+            _ecosystemToken,
+            _poolRewardToken,
+            _swapPairPoolReward,
             _stakingRewards,
             _timelock,
             _pid,
-            _minTokensToReinvest,
-            _adminFeeBips,
-            _devFeeBips,
-            _reinvestRewardBips
+            _strategySettings
         )
     {
         assignSwapPairSafely(_swapPairToken);
@@ -49,27 +47,14 @@ abstract contract MasterChefStrategyForSA is MasterChefStrategy {
      */
     function assignSwapPairSafely(address _swapPairToken) private {
         require(
-            DexLibrary.checkSwapPairCompatibility(
-                IPair(_swapPairToken),
-                address(depositToken),
-                address(rewardToken)
-            ),
+            DexLibrary.checkSwapPairCompatibility(IPair(_swapPairToken), address(depositToken), address(rewardToken)),
             "swap token does not match deposit and reward token"
         );
         swapPairToken = _swapPairToken;
     }
 
     /* VIRTUAL */
-    function _convertRewardTokenToDepositToken(uint256 fromAmount)
-        internal
-        override
-        returns (uint256 toAmount)
-    {
-        toAmount = DexLibrary.swap(
-            fromAmount,
-            address(rewardToken),
-            address(depositToken),
-            IPair(swapPairToken)
-        );
+    function _convertRewardTokenToDepositToken(uint256 fromAmount) internal override returns (uint256 toAmount) {
+        toAmount = DexLibrary.swap(fromAmount, address(rewardToken), address(depositToken), IPair(swapPairToken));
     }
 }

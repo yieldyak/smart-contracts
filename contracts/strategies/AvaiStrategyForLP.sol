@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+pragma experimental ABIEncoderV2;
 pragma solidity ^0.7.0;
 
 import "../interfaces/IAvaiPodLeader.sol";
@@ -20,47 +21,28 @@ contract AvaiStrategyForLP is MasterChefStrategyForLP {
         address _depositToken,
         address _rewardToken,
         address _nativeRewardToken,
-        address _swapPairToken0, // swap rewardToken to token0
-        address _swapPairToken1, // swap rewardToken to token1
-        address _swapPairRewardToken, // swap nativeRewardToken to rewardToken
+        SwapPairs memory _swapPairs,
         address _stakingRewards,
         uint256 _pid,
         address _timelock,
         uint256 _depositFeeBips,
-        uint256 _minTokensToReinvest,
-        uint256 _adminFeeBips,
-        uint256 _devFeeBips,
-        uint256 _reinvestRewardBips
+        StrategySettings memory _strategySettings
     )
         MasterChefStrategyForLP(
             _name,
             _depositToken,
             _rewardToken,
-            _swapPairToken0,
-            _swapPairToken1,
+            _nativeRewardToken,
+            _swapPairs,
             _stakingRewards,
             _timelock,
             _pid,
-            _minTokensToReinvest,
-            _adminFeeBips,
-            _devFeeBips,
-            _reinvestRewardBips
+            _strategySettings
         )
     {
         podLeader = IAvaiPodLeader(_stakingRewards);
         depositFeeBips = _depositFeeBips;
         nativeRewardToken = _nativeRewardToken;
-        if (nativeRewardToken != address(rewardToken)) {
-            swapPairRewardToken = _swapPairRewardToken;
-            require(
-                DexLibrary.checkSwapPairCompatibility(
-                    IPair(swapPairRewardToken),
-                    nativeRewardToken,
-                    address(rewardToken)
-                ),
-                "Swap pair does not match reward token and native reward token"
-            );
-        }
     }
 
     function _depositMasterchef(uint256 _pid, uint256 _amount) internal override {
@@ -75,43 +57,15 @@ contract AvaiStrategyForLP is MasterChefStrategyForLP {
         podLeader.emergencyWithdraw(_pid);
     }
 
-    function _pendingRewards(uint256 _pid, address _user)
-        internal
-        view
-        override
-        returns (uint256)
-    {
-        if (address(rewardToken) != nativeRewardToken) {
-            return
-                DexLibrary.estimateConversionThroughPair(
-                    podLeader.pendingRewards(_pid, _user),
-                    nativeRewardToken,
-                    address(rewardToken),
-                    IPair(swapPairRewardToken)
-                );
-        } else {
-            return podLeader.pendingRewards(_pid, _user);
-        }
+    function _pendingRewards(uint256 _pid, address _user) internal view override returns (uint256) {
+        return podLeader.pendingRewards(_pid, _user);
     }
 
     function _getRewards(uint256 _pid) internal override {
         podLeader.deposit(_pid, 0);
-        if (address(rewardToken) != nativeRewardToken) {
-            DexLibrary.swap(
-                IERC20(nativeRewardToken).balanceOf(address(this)),
-                nativeRewardToken,
-                address(rewardToken),
-                IPair(swapPairRewardToken)
-            );
-        }
     }
 
-    function _getDepositBalance(uint256 pid, address user)
-        internal
-        view
-        override
-        returns (uint256 amount)
-    {
+    function _getDepositBalance(uint256 pid, address user) internal view override returns (uint256 amount) {
         (amount, ) = podLeader.userInfo(pid, user);
     }
 
