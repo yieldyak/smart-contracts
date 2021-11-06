@@ -28,7 +28,6 @@ interface IStrategy {
 /**
  * @notice Role-based fee collector for YakStrategy contracts
  * @dev YakFeeCollector may be used as `devAddr` on YakStrategy contracts
- * @dev DRAFT
  */
 contract YakFeeCollectorV1 is AccessControl {
 

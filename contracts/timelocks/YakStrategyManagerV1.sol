@@ -35,13 +35,11 @@ interface IYakFeeCollector {
 /**
  * @notice Role-based manager for YakStrategy contracts
  * @dev YakStrategyManager may be used as `owner` on YakStrategy contracts
- * @dev DRAFT
  */
 contract YakStrategyManagerV1 is AccessControl {
     using SafeMath for uint;
 
     uint public constant timelockLengthForOwnershipTransfer = 14 days;
-    uint public constant timelockLengthForMaxFeeChanges = 24 hours;
 
     /// @notice Sets a global maximum for fee changes using bips (10,000 bips = 1%)
     uint public maxFeeBips = 100000;
@@ -194,11 +192,10 @@ contract YakStrategyManagerV1 is AccessControl {
 
     /**
      * @notice Set max strategy fees
-     * @dev Restricted to `manager`
+     * @dev Restricted to `GLOBAL_MAX_FEE_SETTER_ROLE`
      * @param newMaxFeeBips max strategy fees
      */
     function updateGlobalMaxFees(uint newMaxFeeBips) external {
-        require(newMaxFeeBips != maxFeeBips, "updateGlobalMaxFee::no change");
         require(hasRole(GLOBAL_MAX_FEE_SETTER_ROLE, msg.sender), "updateGlobalMaxFees::auth");
         emit SetGlobalMaxFee(maxFeeBips, newMaxFeeBips);
         maxFeeBips = newMaxFeeBips;
@@ -223,7 +220,7 @@ contract YakStrategyManagerV1 is AccessControl {
      * @param newValue max tokens to deposit without reinvest
      */
     function setMaxTokensToDepositWithoutReinvest(address strategy, uint newValue) external {
-        require(hasRole(FEE_SETTER_ROLE, msg.sender), "setFees::auth");
+        require(hasRole(FEE_SETTER_ROLE, msg.sender), "setMaxTokensToDepositWithoutReinvest::auth");
         IStrategy(strategy).updateMaxTokensToDepositWithoutReinvest(newValue);
         emit SetMaxTokensToDepositWithoutReinvest(strategy, newValue);
     }
