@@ -237,6 +237,11 @@ contract CompoundingHct is YakStrategy {
     return amount.mul(HctBalance).div(xHctShares);
   }
 
+  function emergencyWithdraw() external onlyOwner {
+    stakingContract.emergencyWithdraw(PID);
+    totalDeposits = 0;
+  }
+
   function rescueDeployedFunds(uint minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
     uint balanceBefore = depositToken.balanceOf(address(this));
     stakingContract.emergencyWithdraw(PID);
