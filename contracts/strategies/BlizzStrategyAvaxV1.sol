@@ -227,7 +227,12 @@ contract BlizzStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         uint256 rewardTokenBalance,
         uint256 estimatedTotalReward
     ) private {
+        address[] memory assets = new address[](2);
+        assets[0] = avToken;
+        assets[1] = avDebtToken;
+        blizzChef.claim(address(this), assets);
         rewardDistribution.exit(true);
+
         _convertPoolTokensIntoReward(poolTokenAmount);
 
         uint256 devFee = estimatedTotalReward.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
