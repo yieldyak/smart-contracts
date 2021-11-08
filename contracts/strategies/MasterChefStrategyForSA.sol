@@ -49,7 +49,12 @@ abstract contract MasterChefStrategyForSA is MasterChefStrategy {
      */
     function assignSwapPairSafely(address _swapPairToken) private {
         require(
-            DexLibrary.checkSwapPairCompatibility(IPair(_swapPairToken), address(depositToken), address(rewardToken)),
+            address(depositToken) == address(rewardToken) ||
+                DexLibrary.checkSwapPairCompatibility(
+                    IPair(_swapPairToken),
+                    address(depositToken),
+                    address(rewardToken)
+                ),
             "swap token does not match deposit and reward token"
         );
         swapPairToken = _swapPairToken;
@@ -57,6 +62,7 @@ abstract contract MasterChefStrategyForSA is MasterChefStrategy {
 
     /* VIRTUAL */
     function _convertRewardTokenToDepositToken(uint256 fromAmount) internal override returns (uint256 toAmount) {
+        if (address(rewardToken) == address(depositToken)) return fromAmount;
         toAmount = DexLibrary.swap(fromAmount, address(rewardToken), address(depositToken), IPair(swapPairToken));
     }
 }

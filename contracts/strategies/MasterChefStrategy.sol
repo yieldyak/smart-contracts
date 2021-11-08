@@ -21,7 +21,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
     }
 
     uint256 public immutable PID;
-    address private stakingContract;
+    address public stakingContract;
     address private poolRewardToken;
     IPair private swapPairPoolReward;
     address public swapPairExtraReward;
