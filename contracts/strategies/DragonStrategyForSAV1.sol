@@ -60,10 +60,6 @@ contract DragonStrategyForSAV1 is MasterChefStrategyForSA {
 
     function _getRewards(uint256 _pid) internal override {
         dragonChef.deposit(_pid, 0);
-        uint256 balance = address(this).balance;
-        if (balance > 0) {
-            WAVAX.deposit{value: balance}();
-        }
     }
 
     function _getDepositBalance(uint256 pid, address user) internal view override returns (uint256 amount) {
