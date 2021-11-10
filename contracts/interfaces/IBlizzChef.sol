@@ -36,4 +36,6 @@ interface IBlizzChef {
     function rewardsPerSecond() external view returns (uint256);
 
     function startTime() external view returns (uint256);
+
+    function userBaseClaimable(address user) external view returns (uint256);
 }

@@ -349,25 +349,26 @@ contract BlizzStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
             uint256 _estimatedTotalReward
         )
     {
+        uint256 poolTokenAmount = blizzChef.userBaseClaimable(address(this));
+
         address[] memory assets = new address[](2);
         assets[0] = avToken;
         assets[1] = avDebtToken;
-        uint256[] memory amounts = blizzChef.claimableReward(address(this), assets);
-        uint256 sum = amounts[0].add(amounts[1]);
 
         IBlizzChef.PoolInfo memory pool = blizzChef.poolInfo(assets[0]);
         pool = _updatePool(pool);
-
         IBlizzChef.UserInfo memory user = blizzChef.userInfo(assets[0], address(this));
         uint256 rewardDebt = user.amount.mul(pool.accRewardPerShare).div(1e12);
-        sum = sum.add(rewardDebt.sub(user.rewardDebt));
+        poolTokenAmount = poolTokenAmount.add(rewardDebt.sub(user.rewardDebt));
 
         pool = blizzChef.poolInfo(assets[1]);
+        pool = _updatePool(pool);
         user = blizzChef.userInfo(assets[1], address(this));
         rewardDebt = user.amount.mul(pool.accRewardPerShare).div(1e12);
-        sum = sum.add(rewardDebt.sub(user.rewardDebt));
+        poolTokenAmount = poolTokenAmount.add(rewardDebt.sub(user.rewardDebt));
 
-        uint256 poolTokenAmount = sum.div(2);
+        poolTokenAmount = poolTokenAmount.div(2);
+        poolTokenAmount = poolTokenAmount.add(IERC20(poolRewardToken).balanceOf(address(this)));
         uint256 pendingRewardTokenAmount = DexLibrary.estimateConversionThroughPair(
             poolTokenAmount,
             poolRewardToken,
