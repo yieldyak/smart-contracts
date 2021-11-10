@@ -262,11 +262,9 @@ contract BlizzStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
             if (balance.add(borrowable) > lendTarget) {
                 borrowable = lendTarget.sub(balance);
             }
-
             if (borrowable < minMinting) {
                 break;
             }
-
             tokenDelegator.borrow(
                 address(WAVAX),
                 borrowable,
@@ -274,7 +272,6 @@ contract BlizzStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
                 0,
                 address(this)
             );
-
             tokenDelegator.deposit(address(WAVAX), borrowable, address(this), 0);
             (balance, borrowed, borrowable) = _getAccountData();
         }
@@ -326,6 +323,23 @@ contract BlizzStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         require(IERC20(token).transfer(to, value), "BlizzStrategyAvaxV1::TRANSFER_FROM_FAILED");
     }
 
+    function _updatePool(IBlizzChef.PoolInfo memory pool) internal view returns (IBlizzChef.PoolInfo memory) {
+        if (block.timestamp <= pool.lastRewardTime) {
+            return pool;
+        }
+        uint256 lpSupply = pool.totalSupply;
+        if (lpSupply == 0) {
+            pool.lastRewardTime = block.timestamp;
+            return pool;
+        }
+        uint256 duration = block.timestamp.sub(pool.lastRewardTime);
+        uint256 reward = duration.mul(blizzChef.rewardsPerSecond()).mul(pool.allocPoint).div(
+            blizzChef.totalAllocPoint()
+        );
+        pool.accRewardPerShare = pool.accRewardPerShare.add(reward.mul(1e12).div(lpSupply));
+        return pool;
+    }
+
     function _checkReward()
         internal
         view
@@ -340,16 +354,29 @@ contract BlizzStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         assets[1] = avDebtToken;
         uint256[] memory amounts = blizzChef.claimableReward(address(this), assets);
         uint256 sum = amounts[0].add(amounts[1]);
-        uint256 poolRewardAmount = sum.div(2);
+
+        IBlizzChef.PoolInfo memory pool = blizzChef.poolInfo(assets[0]);
+        pool = _updatePool(pool);
+
+        IBlizzChef.UserInfo memory user = blizzChef.userInfo(assets[0], address(this));
+        uint256 rewardDebt = user.amount.mul(pool.accRewardPerShare).div(1e12);
+        sum = sum.add(rewardDebt.sub(user.rewardDebt));
+
+        pool = blizzChef.poolInfo(assets[1]);
+        user = blizzChef.userInfo(assets[1], address(this));
+        rewardDebt = user.amount.mul(pool.accRewardPerShare).div(1e12);
+        sum = sum.add(rewardDebt.sub(user.rewardDebt));
+
+        uint256 poolTokenAmount = sum.div(2);
         uint256 pendingRewardTokenAmount = DexLibrary.estimateConversionThroughPair(
-            poolRewardAmount,
+            poolTokenAmount,
             poolRewardToken,
             address(rewardToken),
             swapPairPoolReward
         );
         uint256 rewardTokenBalance = rewardToken.balanceOf(address(this));
         uint256 estimatedTotalReward = pendingRewardTokenAmount.add(rewardTokenBalance);
-        return (poolRewardAmount, rewardTokenBalance, estimatedTotalReward);
+        return (poolTokenAmount, rewardTokenBalance, estimatedTotalReward);
     }
 
     function checkReward() public view override returns (uint256) {
