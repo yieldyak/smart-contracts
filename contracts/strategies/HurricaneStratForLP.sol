@@ -4,9 +4,9 @@ pragma solidity ^0.7.0;
 import "../YakStrategy.sol";
 import "../interfaces/IHurricaneRouter.sol";
 import "../interfaces/IHurricaneFactory.sol";
+import "../lib/DexLibrary.sol";
 import "../interfaces/IHurricaneMasterChief.sol";
 import "../lib/SafeMath.sol";
-import "../lib/DexLibrary.sol";
 
 /**
  * @notice LP strategy for HurricaneSwap
@@ -58,7 +58,7 @@ contract HurricaneStratForLP is YakStrategy {
     emit Reinvest(0, 0);
   }
 
-  function setRoutes(address[] memory _route0, address[] memory _route1) external onlyOwner {
+  function setRoutes(address[] memory _route0, address[] memory _route1) public onlyDev {
     require((_route0.length > 1) && (_route1.length > 1), "a route is too short");
     require(_route0[0] == _route1[0], "routes do not start at the same token");
     require(_route0[0] == address(rewardToken), "routes do not start at rewardToken");
@@ -213,29 +213,36 @@ contract HurricaneStratForLP is YakStrategy {
     uint amountIn = amount.div(2);
     require(amountIn > 0, "HurricaneStrategyForLP::!amounIn=0");
 
-    uint256 amountOutToken0 = getFinalAmountOut(router.factory(), amountIn, route0);
-    router.swapExactTokensForTokens(
-        amountIn, amountOutToken0, route0,
-        address(this), block.timestamp
-    );
-
-    uint256 amountOutToken1 = getFinalAmountOut(router.factory(), amountIn, route1);
-    router.swapExactTokensForTokens(
-        amountIn, amountOutToken1, route1,
-        address(this), block.timestamp
-    );
+    uint amountOutToken0 = _convertRewardTokenToDepositTokens(amountIn, route0);
+    uint amountOutToken1 = _convertRewardTokenToDepositTokens(amountIn, route1);
 
     (,,uint liquidity) = router.addLiquidity(
-      route0[route0.length - 1], route1[route1.length - 1],
-      amountOutToken0, amountOutToken1,
-      0, 0,
-      address(this),
-      block.timestamp
-    );
+    route0[route0.length - 1], route1[route1.length - 1],
+    amountOutToken0, amountOutToken1,
+    0, 0,
+    address(this),
+    block.timestamp
+  );
 
     return liquidity;
   }
-
+  /**
+    * @notice Converts reward tokens to deposit token, if needed
+    * @dev Always converts through router; there are no price checks enabled
+    * @return deposit tokens received
+    */
+  function _convertRewardTokenToDepositTokens(uint _amountIn, address[] memory _route) private returns (uint) {
+    if (_route[_route.length-1] != address(rewardToken)) {
+    uint256 amountOut = getFinalAmountOut(router.factory(), _amountIn, _route);
+    router.swapExactTokensForTokens(
+        _amountIn, amountOut, _route,
+        address(this), block.timestamp
+    );
+    return amountOut;
+    } else {
+    return _amountIn;
+    }
+  }
 
   /**
    * @notice Estimate recoverable balance after withdraw fee

@@ -7,7 +7,7 @@ import "../interfaces/IHurricaneMasterChief.sol";
 import "../interfaces/IPair.sol";
 
 /**
- * @notice Single asset strategy for XHct
+ * @notice Single asset strategy for Hct
  */
 contract CompoundingHct is YakStrategy {
   using SafeMath for uint;
