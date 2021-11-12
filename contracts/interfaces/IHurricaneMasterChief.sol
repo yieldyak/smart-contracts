@@ -10,7 +10,14 @@ interface IHurricaneMasterChief {
 
     function emergencyWithdraw(uint256 pid) external;
 
-    function userInfo(uint256 _pid, address _address) external view returns (uint256, uint256, uint256);
+    function userInfo(uint256 _pid, address _address)
+        external
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256
+        );
 
-    function LpOfPid(address _address) external view returns(uint256);
+    function LpOfPid(address _address) external view returns (uint256);
 }
