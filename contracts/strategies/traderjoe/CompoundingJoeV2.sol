@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "../../YakStrategy.sol";
+import "../../YakStrategyV2.sol";
 import "./interfaces/IJoeChef.sol";
 import "./interfaces/IJoeBar.sol";
 import "../../interfaces/IPair.sol";
@@ -9,7 +9,7 @@ import "../../interfaces/IPair.sol";
 /**
  * @notice Single asset strategy for Joe
  */
-contract CompoundingJoe is YakStrategy {
+contract CompoundingJoeV2 is YakStrategyV2 {
     using SafeMath for uint256;
 
     IJoeChef public stakingContract;
@@ -20,7 +20,6 @@ contract CompoundingJoe is YakStrategy {
 
     constructor(
         string memory _name,
-        string memory _symbol,
         address _depositToken,
         address _rewardToken,
         address _stakingContract,
@@ -30,7 +29,6 @@ contract CompoundingJoe is YakStrategy {
         StrategySettings memory _strategySettings
     ) {
         name = _name;
-        symbol = _symbol;
         depositToken = IPair(_depositToken);
         rewardToken = IERC20(_rewardToken);
         stakingContract = IJoeChef(_stakingContract);
@@ -104,7 +102,6 @@ contract CompoundingJoe is YakStrategy {
         require(depositToken.transferFrom(msg.sender, address(this), amount));
         _stakeDepositTokens(amount);
         _mint(account, getSharesForDepositTokens(amount));
-        totalDeposits = totalDeposits.add(amount);
         emit Deposit(account, amount);
     }
 
@@ -117,7 +114,6 @@ contract CompoundingJoe is YakStrategy {
                 "CompoundingJoe::withdraw"
             );
             _burn(msg.sender, amount);
-            totalDeposits = totalDeposits.sub(depositTokenAmount);
             emit Withdraw(msg.sender, depositTokenAmount);
         }
     }
@@ -173,9 +169,8 @@ contract CompoundingJoe is YakStrategy {
 
         uint256 depositTokenAmount = amount.sub(devFee).sub(adminFee).sub(reinvestFee);
         _stakeDepositTokens(depositTokenAmount);
-        totalDeposits = totalDeposits.add(depositTokenAmount);
 
-        emit Reinvest(totalDeposits, totalSupply);
+        emit Reinvest(totalDeposits(), totalSupply);
     }
 
     /**
@@ -213,6 +208,11 @@ contract CompoundingJoe is YakStrategy {
         );
         uint256 contractBalance = rewardToken.balanceOf(address(this));
         return pendingReward.add(contractBalance);
+    }
+
+    function totalDeposits() public view override returns (uint256) {
+        (uint256 depositBalance, ) = stakingContract.userInfo(PID, address(this));
+        return _getJoeForXJoe(depositBalance);
     }
 
     /**
@@ -265,8 +265,7 @@ contract CompoundingJoe is YakStrategy {
             balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
             "CompoundingJoe::rescueDeployedFunds"
         );
-        totalDeposits = balanceAfter;
-        emit Reinvest(totalDeposits, totalSupply);
+        emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
             updateDepositsEnabled(false);
         }

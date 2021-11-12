@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
@@ -47,14 +47,27 @@ abstract contract MasterChefStrategyForSA is MasterChefStrategy {
      */
     function assignSwapPairSafely(address _swapPairToken) private {
         require(
-            DexLibrary.checkSwapPairCompatibility(IPair(_swapPairToken), address(depositToken), address(rewardToken)),
+            DexLibrary.checkSwapPairCompatibility(
+                IPair(_swapPairToken),
+                address(depositToken),
+                address(rewardToken)
+            ),
             "swap token does not match deposit and reward token"
         );
         swapPairToken = _swapPairToken;
     }
 
     /* VIRTUAL */
-    function _convertRewardTokenToDepositToken(uint256 fromAmount) internal override returns (uint256 toAmount) {
-        toAmount = DexLibrary.swap(fromAmount, address(rewardToken), address(depositToken), IPair(swapPairToken));
+    function _convertRewardTokenToDepositToken(uint256 fromAmount)
+        internal
+        override
+        returns (uint256 toAmount)
+    {
+        toAmount = DexLibrary.swap(
+            fromAmount,
+            address(rewardToken),
+            address(depositToken),
+            IPair(swapPairToken)
+        );
     }
 }

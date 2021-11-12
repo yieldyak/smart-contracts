@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
@@ -61,22 +61,33 @@ abstract contract MasterChefStrategyForLP is MasterChefStrategy {
             _ecosystemToken != IPair(address(depositToken)).token1()
         ) {
             // deployment checks for non-pool2
-            require(_swapPairs.token0 > address(0), "Swap pair 0 is necessary but not supplied");
-            require(_swapPairs.token1 > address(0), "Swap pair 1 is necessary but not supplied");
+            require(
+                _swapPairs.token0 > address(0),
+                "Swap pair 0 is necessary but not supplied"
+            );
+            require(
+                _swapPairs.token1 > address(0),
+                "Swap pair 1 is necessary but not supplied"
+            );
             swapPairToken0 = _swapPairs.token0;
             swapPairToken1 = _swapPairs.token1;
             require(
-                IPair(swapPairToken0).token0() == _ecosystemToken || IPair(swapPairToken0).token1() == _ecosystemToken,
+                IPair(swapPairToken0).token0() == _ecosystemToken ||
+                    IPair(swapPairToken0).token1() == _ecosystemToken,
                 "Swap pair supplied does not have the reward token as one of it's pair"
             );
             require(
-                IPair(swapPairToken0).token0() == IPair(address(depositToken)).token0() ||
-                    IPair(swapPairToken0).token1() == IPair(address(depositToken)).token0(),
+                IPair(swapPairToken0).token0() ==
+                    IPair(address(depositToken)).token0() ||
+                    IPair(swapPairToken0).token1() ==
+                    IPair(address(depositToken)).token0(),
                 "Swap pair 0 supplied does not match the pair in question"
             );
             require(
-                IPair(swapPairToken1).token0() == IPair(address(depositToken)).token1() ||
-                    IPair(swapPairToken1).token1() == IPair(address(depositToken)).token1(),
+                IPair(swapPairToken1).token0() ==
+                    IPair(address(depositToken)).token1() ||
+                    IPair(swapPairToken1).token1() ==
+                    IPair(address(depositToken)).token1(),
                 "Swap pair 1 supplied does not match the pair in question"
             );
         } else if (_ecosystemToken == IPair(address(depositToken)).token0()) {
@@ -93,7 +104,11 @@ abstract contract MasterChefStrategyForLP is MasterChefStrategy {
     }
 
     /* VIRTUAL */
-    function _convertRewardTokenToDepositToken(uint256 fromAmount) internal override returns (uint256 toAmount) {
+    function _convertRewardTokenToDepositToken(uint256 fromAmount)
+        internal
+        override
+        returns (uint256 toAmount)
+    {
         toAmount = DexLibrary.convertRewardTokensToDepositTokens(
             fromAmount,
             address(rewardToken),

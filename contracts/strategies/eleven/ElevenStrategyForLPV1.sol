@@ -25,6 +25,12 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
     address private constant WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
     IERC20 private immutable poolRewardToken;
 
+    struct SwapPairs {
+        address swapPairWAVAXELE;
+        address swapPairToken0;
+        address swapPairToken1;
+    }
+
     constructor(
         string memory _name,
         address _depositToken,
@@ -32,9 +38,7 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
         address _rewardToken,
         address _stakingContract,
         address _vaultContract,
-        address _swapPairWAVAXELE,
-        address _swapPairToken0,
-        address _swapPairToken1,
+        SwapPairs memory _swapPairs,
         address _timelock,
         uint256 _pid,
         StrategySettings memory _strategySettings
@@ -50,33 +54,33 @@ contract ElevenStrategyForLPV1 is YakStrategyV2 {
 
         require(
             DexLibrary.checkSwapPairCompatibility(
-                IPair(_swapPairWAVAXELE),
+                IPair(_swapPairs.swapPairWAVAXELE),
                 address(WAVAX),
                 _poolRewardToken
             ),
             "_swapPairWAVAXELE is not a WAVAX-ELE pair"
         );
         require(
-            _swapPairToken0 == address(0) ||
+            _swapPairs.swapPairToken0 == address(0) ||
                 DexLibrary.checkSwapPairCompatibility(
-                    IPair(_swapPairToken0),
+                    IPair(_swapPairs.swapPairToken0),
                     address(WAVAX),
                     IPair(address(depositToken)).token0()
                 ),
             "_swapPairToken0 is not a WAVAX+deposit token0"
         );
         require(
-            _swapPairToken1 == address(0) ||
+            _swapPairs.swapPairToken1 == address(0) ||
                 DexLibrary.checkSwapPairCompatibility(
-                    IPair(_swapPairToken1),
+                    IPair(_swapPairs.swapPairToken1),
                     address(WAVAX),
                     IPair(address(depositToken)).token1()
                 ),
             "_swapPairToken0 is not a WAVAX+deposit token1"
         );
-        swapPairWAVAXELE = IPair(_swapPairWAVAXELE);
-        swapPairToken0 = IPair(_swapPairToken0);
-        swapPairToken1 = IPair(_swapPairToken1);
+        swapPairWAVAXELE = IPair(_swapPairs.swapPairWAVAXELE);
+        swapPairToken0 = IPair(_swapPairs.swapPairToken0);
+        swapPairToken1 = IPair(_swapPairs.swapPairToken1);
 
         setAllowances();
         applyStrategySettings(_strategySettings);

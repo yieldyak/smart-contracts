@@ -1,39 +1,32 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "../../YakStrategyV2.sol";
-import "./interfaces/IBenqiUnitroller.sol";
-import "./interfaces/IBenqiERC20Delegator.sol";
+import "../../YakStrategyV2Payable.sol";
+import "./interfaces/IJoetroller.sol";
+import "./interfaces/IJoeRewardDistributor.sol";
+import "./interfaces/IJoeERC20Delegator.sol";
 import "../../interfaces/IWAVAX.sol";
 
 import "../../interfaces/IERC20.sol";
-import "../../lib/SafeERC20.sol";
 import "../../lib/DexLibrary.sol";
 
-contract BenqiStrategyV1 is YakStrategyV2 {
+/**
+ * @title Strategy for Banker Joe ERC20
+ * @dev Bank Joe emits rewards in AVAX and ERC20. During AVAX claim, contract becomes gas bound
+ */
+contract JoeLendingStrategyV3 is YakStrategyV2 {
     using SafeMath for uint256;
-    using SafeERC20 for IERC20;
 
-    IBenqiUnitroller private rewardController;
-    IBenqiERC20Delegator private tokenDelegator;
-    IERC20 private rewardToken0;
-    IERC20 private rewardToken1;
-    IPair private swapPairToken0;
-    IPair private swapPairToken1;
+    IJoetroller private rewardController;
+    IJoeERC20Delegator private tokenDelegator; // jDAI
+    IERC20 private rewardToken0; // JOE
+    IERC20 private rewardToken1; // AVAX
+    IPair private swapPairToken0; // JOE-AVAX
+    IPair private swapPairToken1; // AVAX-DAI
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
     uint256 private leverageLevel;
     uint256 private leverageBips;
     uint256 private minMinting;
-
-    struct SwapPairs {
-        address token0;
-        address token1;
-    }
-
-    struct RewardTokens {
-        address token0;
-        address token1;
-    }
 
     struct LeverageSettings {
         uint256 leverageLevel;
@@ -46,18 +39,20 @@ contract BenqiStrategyV1 is YakStrategyV2 {
         address _depositToken,
         address _rewardController,
         address _tokenDelegator,
-        RewardTokens memory _rewardTokens,
-        SwapPairs memory _swapPairs,
+        address _rewardToken0,
+        address _rewardToken1,
+        address _swapPairToken0,
+        address _swapPairToken1,
         address _timelock,
         LeverageSettings memory _leverageSettings,
         StrategySettings memory _strategySettings
     ) {
         name = _name;
         depositToken = IERC20(_depositToken);
-        rewardController = IBenqiUnitroller(_rewardController);
-        tokenDelegator = IBenqiERC20Delegator(_tokenDelegator);
-        rewardToken0 = IERC20(_rewardTokens.token0);
-        rewardToken1 = IERC20(_rewardTokens.token1);
+        rewardController = IJoetroller(_rewardController);
+        tokenDelegator = IJoeERC20Delegator(_tokenDelegator);
+        rewardToken0 = IERC20(_rewardToken0);
+        rewardToken1 = IERC20(_rewardToken1);
         rewardToken = rewardToken1;
         minMinting = _leverageSettings.minMinting;
         _updateLeverage(_leverageSettings.leverageLevel, _leverageSettings.leverageBips);
@@ -65,7 +60,7 @@ contract BenqiStrategyV1 is YakStrategyV2 {
 
         _enterMarket();
 
-        assignSwapPairSafely(_swapPairs);
+        assignSwapPairSafely(_swapPairToken0, _swapPairToken1);
         setAllowances();
         applyStrategySettings(_strategySettings);
         updateDepositsEnabled(true);
@@ -106,8 +101,8 @@ contract BenqiStrategyV1 is YakStrategyV2 {
         onlyDev
     {
         _updateLeverage(_leverageLevel, _leverageBips);
-        _unrollDebt();
-        uint256 balance = tokenDelegator.balanceOfUnderlying(address(this));
+        uint256 balance = _totalDepositsFresh();
+        _unrollDebt(balance);
         if (balance > 0) {
             _rollupDebt(balance, 0);
         }
@@ -118,42 +113,44 @@ contract BenqiStrategyV1 is YakStrategyV2 {
      * @dev Checks that selected Pairs are valid for trading deposit tokens
      * @dev Assigns values to swapPairToken0 and swapPairToken1
      */
-    function assignSwapPairSafely(SwapPairs memory _swapPairs) private {
+    function assignSwapPairSafely(address _swapPairToken0, address _swapPairToken1)
+        private
+    {
         require(
-            _swapPairs.token0 > address(0),
+            _swapPairToken0 > address(0),
             "Swap pair 0 is necessary but not supplied"
         );
         require(
-            _swapPairs.token1 > address(0),
+            _swapPairToken1 > address(0),
             "Swap pair 1 is necessary but not supplied"
         );
 
         require(
-            address(rewardToken0) == IPair(address(_swapPairs.token0)).token0() ||
-                address(rewardToken0) == IPair(address(_swapPairs.token0)).token1(),
+            address(rewardToken0) == IPair(address(_swapPairToken0)).token0() ||
+                address(rewardToken0) == IPair(address(_swapPairToken0)).token1(),
             "Swap pair 0 does not match rewardToken0"
         );
 
         require(
-            address(rewardToken1) == IPair(address(_swapPairs.token0)).token0() ||
-                address(rewardToken1) == IPair(address(_swapPairs.token0)).token1(),
+            address(rewardToken1) == IPair(address(_swapPairToken0)).token0() ||
+                address(rewardToken1) == IPair(address(_swapPairToken0)).token1(),
             "Swap pair 0 does not match rewardToken1"
         );
 
         require(
-            address(depositToken) == IPair(address(_swapPairs.token1)).token0() ||
-                address(depositToken) == IPair(address(_swapPairs.token1)).token1(),
+            address(depositToken) == IPair(address(_swapPairToken1)).token0() ||
+                address(depositToken) == IPair(address(_swapPairToken1)).token1(),
             "Swap pair 1 does not match depositToken"
         );
 
         require(
-            address(rewardToken1) == IPair(address(_swapPairs.token1)).token0() ||
-                address(rewardToken1) == IPair(address(_swapPairs.token1)).token1(),
+            address(rewardToken1) == IPair(address(_swapPairToken1)).token0() ||
+                address(rewardToken1) == IPair(address(_swapPairToken1)).token1(),
             "Swap pair 1 does not match rewardToken1"
         );
 
-        swapPairToken0 = IPair(_swapPairs.token0);
-        swapPairToken1 = IPair(_swapPairs.token1);
+        swapPairToken0 = IPair(_swapPairToken0);
+        swapPairToken1 = IPair(_swapPairToken1);
     }
 
     function setAllowances() public override onlyOwner {
@@ -181,109 +178,113 @@ contract BenqiStrategyV1 is YakStrategyV2 {
     }
 
     function _deposit(address account, uint256 amount) private onlyAllowedDeposits {
-        require(DEPOSITS_ENABLED == true, "BenqiStrategyV1::_deposit");
+        require(DEPOSITS_ENABLED == true, "JoeLendingStrategyV3::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
             (
-                uint256 qiRewards,
-                uint256 avaxRewards,
-                uint256 totalAvaxRewards
+                uint256 joeRewards,
+                uint256 avaxBalance,
+                uint256 amountToReinvest
             ) = _checkRewards();
-            if (totalAvaxRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
-                _reinvest(qiRewards, avaxRewards, totalAvaxRewards);
+            if (amountToReinvest > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
+                _reinvest(joeRewards, avaxBalance, amountToReinvest);
             }
         }
         require(
             depositToken.transferFrom(msg.sender, address(this), amount),
-            "BenqiStrategyV1::transfer failed"
+            "JoeLendingStrategyV3::transfer failed"
         );
-        uint256 depositTokenAmount = amount;
+        uint256 shareTokenAmount = amount;
         uint256 balance = _totalDepositsFresh();
         if (totalSupply.mul(balance) > 0) {
-            depositTokenAmount = amount.mul(totalSupply).div(balance);
+            shareTokenAmount = amount.mul(totalSupply).div(balance);
         }
-        _mint(account, depositTokenAmount);
+        _mint(account, shareTokenAmount);
         _stakeDepositTokens(amount);
         emit Deposit(account, amount);
+        claimAVAXRewards();
     }
 
     function withdraw(uint256 amount) external override {
-        require(amount > minMinting, "BenqiStrategyV1:: below minimum withdraw");
         uint256 depositTokenAmount = _totalDepositsFresh().mul(amount).div(totalSupply);
-        if (depositTokenAmount > 0) {
-            _burn(msg.sender, amount);
-            _withdrawDepositTokens(depositTokenAmount);
-            IERC20(address(depositToken)).safeTransfer(msg.sender, depositTokenAmount);
-            emit Withdraw(msg.sender, depositTokenAmount);
-        }
+        require(
+            depositTokenAmount >= minMinting,
+            "JoeLendingStrategyV3:: below minimum withdraw"
+        );
+        _burn(msg.sender, amount);
+        _withdrawDepositTokens(depositTokenAmount);
+        _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
+        emit Withdraw(msg.sender, depositTokenAmount);
+        claimAVAXRewards();
     }
 
     function _withdrawDepositTokens(uint256 amount) private {
-        _unrollDebt();
+        _unrollDebt(amount);
         require(
             tokenDelegator.redeemUnderlying(amount) == 0,
-            "BenqiStrategyV1::redeem failed"
+            "JoeLendingStrategyV3::redeem failed"
         );
         uint256 balance = tokenDelegator.balanceOfUnderlying(address(this));
+        uint256 borrow = tokenDelegator.borrowBalanceCurrent(address(this));
         if (balance > 0) {
-            _rollupDebt(balance, 0);
+            _rollupDebt(balance, borrow);
         }
     }
 
     function reinvest() external override onlyEOA {
         (
-            uint256 qiRewards,
-            uint256 avaxRewards,
-            uint256 totalAvaxRewards
+            uint256 joeRewards,
+            uint256 avaxBalance,
+            uint256 amountToReinvest
         ) = _checkRewards();
-        require(totalAvaxRewards >= MIN_TOKENS_TO_REINVEST, "BenqiStrategyV1::reinvest");
-        _reinvest(qiRewards, avaxRewards, totalAvaxRewards);
+        require(
+            amountToReinvest >= MIN_TOKENS_TO_REINVEST,
+            "JoeLendingStrategyV3::reinvest"
+        );
+        _reinvest(joeRewards, avaxBalance, amountToReinvest);
+        claimAVAXRewards();
     }
 
-    receive() external payable {
-        require(
-            msg.sender == address(rewardController),
-            "BenqiStrategyV1::payments not allowed"
-        );
-    }
+    receive() external payable {}
 
     /**
      * @notice Reinvest rewards from staking contract to deposit tokens
      * @dev Reverts if the expected amount of tokens are not returned from `stakingContract`
-     * @param amount deposit tokens to reinvest
+     * @param joeRewards amount of JOE tokens to reinvest
+     * @param avaxBalance amount of AVAX to reinvest
+     * @param amount total amount of reward tokens to reinvest
      */
     function _reinvest(
-        uint256 qiRewards,
-        uint256 avaxRewards,
+        uint256 joeRewards,
+        uint256 avaxBalance,
         uint256 amount
     ) private {
-        rewardController.claimReward(0, address(this));
-        rewardController.claimReward(1, address(this));
-        if (avaxRewards > 0) {
-            WAVAX.deposit{value: avaxRewards}();
-        }
-
-        if (qiRewards > 0) {
+        if (joeRewards > 0) {
+            rewardController.claimReward(0, address(this));
             DexLibrary.swap(
-                qiRewards,
+                joeRewards,
                 address(rewardToken0),
                 address(rewardToken1),
                 swapPairToken0
             );
         }
 
+        if (avaxBalance > 0) {
+            WAVAX.deposit{value: avaxBalance}();
+        }
+
         uint256 devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
-            IERC20(address(rewardToken)).safeTransfer(devAddr, devFee);
+            _safeTransfer(address(rewardToken), devAddr, devFee);
         }
 
         uint256 adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
         if (adminFee > 0) {
-            IERC20(address(rewardToken)).safeTransfer(owner(), adminFee);
+            _safeTransfer(address(rewardToken), owner(), adminFee);
         }
 
         uint256 reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
-            IERC20(address(rewardToken)).safeTransfer(msg.sender, reinvestFee);
+            _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
         }
 
         uint256 depositTokenAmount = DexLibrary.swap(
@@ -298,6 +299,20 @@ contract BenqiStrategyV1 is YakStrategyV2 {
         emit Reinvest(totalDeposits(), totalSupply);
     }
 
+    /**
+     * @notice Claims AVAX rewards on behalf of strategy
+     * @dev Contract becomes gas bound here
+     * @dev Conditional for gas savings on repeat actions
+     * @dev Public permission in case of stuck state
+     */
+    function claimAVAXRewards() public {
+        if (DEPOSITS_ENABLED == true) {
+            if (_getReward(1, address(this)) >= MIN_TOKENS_TO_REINVEST) {
+                rewardController.claimReward(1, address(this));
+            }
+        }
+    }
+
     function _rollupDebt(uint256 principal, uint256 borrowed) internal {
         (uint256 borrowLimit, uint256 borrowBips) = _getBorrowLimit();
         uint256 supplied = principal;
@@ -305,6 +320,7 @@ contract BenqiStrategyV1 is YakStrategyV2 {
             leverageBips
         );
         uint256 totalBorrowed = borrowed;
+
         while (supplied < lendTarget) {
             uint256 toBorrowAmount = _getBorrowable(
                 supplied,
@@ -321,24 +337,15 @@ contract BenqiStrategyV1 is YakStrategyV2 {
             }
             require(
                 tokenDelegator.borrow(toBorrowAmount) == 0,
-                "BenqiStrategyV1::borrowing failed"
+                "JoeLendingStrategyV3::borrowing failed"
             );
             require(
                 tokenDelegator.mint(toBorrowAmount) == 0,
-                "BenqiStrategyV1::lending failed"
+                "JoeLendingStrategyV3::lending failed"
             );
             supplied = tokenDelegator.balanceOfUnderlying(address(this));
             totalBorrowed = totalBorrowed.add(toBorrowAmount);
         }
-    }
-
-    function _getRedeemable(
-        uint256 balance,
-        uint256 borrowed,
-        uint256 borrowLimit,
-        uint256 bips
-    ) internal pure returns (uint256) {
-        return balance.sub(borrowed.mul(bips).div(borrowLimit));
     }
 
     function _getBorrowable(
@@ -347,7 +354,7 @@ contract BenqiStrategyV1 is YakStrategyV2 {
         uint256 borrowLimit,
         uint256 bips
     ) internal pure returns (uint256) {
-        return balance.mul(borrowLimit).div(bips).sub(borrowed);
+        return balance.mul(borrowLimit).div(bips).sub(borrowed).mul(950).div(1000);
     }
 
     function _getBorrowLimit() internal view returns (uint256, uint256) {
@@ -355,13 +362,20 @@ contract BenqiStrategyV1 is YakStrategyV2 {
         return (borrowLimit, 1e18);
     }
 
-    function _unrollDebt() internal {
+    function _unrollDebt(uint256 amountToFreeUp) internal {
         uint256 borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
         uint256 balance = tokenDelegator.balanceOfUnderlying(address(this));
         (uint256 borrowLimit, uint256 borrowBips) = _getBorrowLimit();
+        uint256 targetBorrow = balance
+            .sub(borrowed)
+            .sub(amountToFreeUp)
+            .mul(leverageLevel)
+            .div(leverageBips)
+            .sub(balance.sub(borrowed).sub(amountToFreeUp));
+        uint256 toRepay = borrowed.sub(targetBorrow);
 
-        while (borrowed > 0) {
-            uint256 unrollAmount = _getRedeemable(
+        while (toRepay > 0) {
+            uint256 unrollAmount = _getBorrowable(
                 balance,
                 borrowed,
                 borrowLimit,
@@ -372,49 +386,84 @@ contract BenqiStrategyV1 is YakStrategyV2 {
             }
             require(
                 tokenDelegator.redeemUnderlying(unrollAmount) == 0,
-                "BenqiStrategyV1::failed to redeem"
+                "JoeLendingStrategyV3::failed to redeem"
             );
             require(
                 tokenDelegator.repayBorrow(unrollAmount) == 0,
-                "BenqiStrategyV1::failed to repay borrow"
+                "JoeLendingStrategyV3::failed to repay borrow"
             );
-            balance = balance.sub(unrollAmount);
+            balance = tokenDelegator.balanceOfUnderlying(address(this));
             borrowed = borrowed.sub(unrollAmount);
+            if (targetBorrow >= borrowed) {
+                break;
+            }
+            toRepay = borrowed.sub(targetBorrow);
         }
     }
 
     function _stakeDepositTokens(uint256 amount) private {
-        require(amount > 0, "BenqiStrategyV1::_stakeDepositTokens");
-        require(tokenDelegator.mint(amount) == 0, "BenqiStrategyV1::Deposit failed");
+        require(amount > 0, "JoeLendingStrategyV3::_stakeDepositTokens");
+        require(
+            tokenDelegator.mint(amount) == 0,
+            "JoeLendingStrategyV3::Deposit failed"
+        );
         uint256 borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
         uint256 principal = tokenDelegator.balanceOfUnderlying(address(this));
         _rollupDebt(principal, borrowed);
     }
 
+    /**
+     * @notice Safely transfer using an anonymous ERC20 token
+     * @dev Requires token to return true on transfer
+     * @param token address
+     * @param to recipient address
+     * @param value amount
+     */
+    function _safeTransfer(
+        address token,
+        address to,
+        uint256 value
+    ) private {
+        require(
+            IERC20(token).transfer(to, value),
+            "JoeLendingStrategyV3::TRANSFER_FROM_FAILED"
+        );
+    }
+
+    /// @notice Returns rewards that can be reinvested
     function _checkRewards()
         internal
         view
         returns (
-            uint256 qiAmount,
-            uint256 avaxAmount,
-            uint256 totalAvaxAmount
+            uint256 joeRewards,
+            uint256 avaxBalance,
+            uint256 totalAmount
         )
     {
-        uint256 qiRewards = _getReward(0, address(this));
-        uint256 avaxRewards = _getReward(1, address(this));
+        uint256 joeRewards = _getReward(0, address(this));
+        uint256 wavaxBalance = WAVAX.balanceOf(address(this));
+        uint256 avaxBalance = address(this).balance;
 
-        uint256 qiAsWavax = DexLibrary.estimateConversionThroughPair(
-            qiRewards,
+        uint256 joeRewardsAsWavax = DexLibrary.estimateConversionThroughPair(
+            joeRewards,
             address(rewardToken0),
             address(rewardToken1),
             swapPairToken0
         );
-        return (qiRewards, avaxRewards, avaxRewards.add(qiAsWavax));
+        return (
+            joeRewards,
+            avaxBalance,
+            avaxBalance.add(wavaxBalance).add(joeRewardsAsWavax)
+        );
     }
 
+    /**
+     * @notice Returns balance available to reinvest
+     * @return amount that can be reinvested
+     */
     function checkReward() public view override returns (uint256) {
-        (, , uint256 avaxRewards) = _checkRewards();
-        return avaxRewards;
+        (, , uint256 totalAmount) = _checkRewards();
+        return totalAmount;
     }
 
     function _getReward(uint8 tokenIndex, address account)
@@ -422,26 +471,28 @@ contract BenqiStrategyV1 is YakStrategyV2 {
         view
         returns (uint256)
     {
-        uint256 rewardAccrued = rewardController.rewardAccrued(tokenIndex, account);
-        (uint224 supplyIndex, ) = rewardController.rewardSupplyState(
+        IJoeRewardDistributor rewardDistributor = IJoeRewardDistributor(
+            rewardController.rewardDistributor()
+        );
+        (uint224 supplyIndex, ) = rewardDistributor.rewardSupplyState(
             tokenIndex,
             account
         );
-        uint256 supplierIndex = rewardController.rewardSupplierIndex(
+        uint256 supplierIndex = rewardDistributor.rewardSupplierIndex(
             tokenIndex,
             address(tokenDelegator),
             account
         );
+
         uint256 supplyIndexDelta = 0;
         if (supplyIndex > supplierIndex) {
             supplyIndexDelta = supplyIndex - supplierIndex;
         }
-        uint256 supplyAccrued = tokenDelegator.balanceOf(account).mul(supplyIndexDelta);
-        (uint224 borrowIndex, ) = rewardController.rewardBorrowState(
+        (uint224 borrowIndex, ) = rewardDistributor.rewardBorrowState(
             tokenIndex,
             account
         );
-        uint256 borrowerIndex = rewardController.rewardBorrowerIndex(
+        uint256 borrowerIndex = rewardDistributor.rewardBorrowerIndex(
             tokenIndex,
             address(tokenDelegator),
             account
@@ -450,10 +501,12 @@ contract BenqiStrategyV1 is YakStrategyV2 {
         if (borrowIndex > borrowerIndex) {
             borrowIndexDelta = borrowIndex - borrowerIndex;
         }
-        uint256 borrowAccrued = tokenDelegator.borrowBalanceStored(account).mul(
-            borrowIndexDelta
-        );
-        return rewardAccrued.add(supplyAccrued.sub(borrowAccrued));
+        return
+            rewardDistributor.rewardAccrued(tokenIndex, account).add(
+                tokenDelegator.balanceOf(account).mul(supplyIndexDelta).sub(
+                    tokenDelegator.borrowBalanceStored(account).mul(borrowIndexDelta)
+                )
+            );
     }
 
     function getActualLeverage() public view returns (uint256) {
@@ -477,14 +530,13 @@ contract BenqiStrategyV1 is YakStrategyV2 {
         onlyOwner
     {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
-        _unrollDebt();
-        tokenDelegator.redeemUnderlying(
-            tokenDelegator.balanceOfUnderlying(address(this))
-        );
+        uint256 balance = _totalDepositsFresh();
+        _unrollDebt(balance);
+        tokenDelegator.redeemUnderlying(balance);
         uint256 balanceAfter = depositToken.balanceOf(address(this));
         require(
             balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
-            "BenqiStrategyV1::rescueDeployedFunds"
+            "JoeLendingStrategyV3::rescueDeployedFunds"
         );
         emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
