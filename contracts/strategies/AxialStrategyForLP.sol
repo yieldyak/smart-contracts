@@ -17,7 +17,6 @@ contract AxialStrategyForLP is MasterChefStrategy {
     IAxialChef public axialChef;
     address public swapPairExtraReward;
     address public extraToken;
-    uint256 public depositFeeBips;
     ZapSettings private zapSettings;
 
     struct ZapSettings {
@@ -125,10 +124,6 @@ contract AxialStrategyForLP is MasterChefStrategy {
         (amount, ) = axialChef.userInfo(pid, user);
     }
 
-    function setDepositFeeBips(uint256 _depositFeeBips) external onlyDev {
-        depositFeeBips = _depositFeeBips;
-    }
-
     function setMaxSlippageBips(uint256 _maxSlippageBips) external onlyDev {
         zapSettings.maxSlippage = _maxSlippageBips;
     }
@@ -147,11 +142,15 @@ contract AxialStrategyForLP is MasterChefStrategy {
         }
     }
 
-    function _getDepositFeeBips(uint256 pid) internal view override returns (uint256) {
-        return depositFeeBips;
+    function _getDepositFeeBips(
+        uint256 /* pid */
+    ) internal pure override returns (uint256) {
+        return 0;
     }
 
-    function _getWithdrawFeeBips(uint256 pid) internal view override returns (uint256) {
+    function _getWithdrawFeeBips(
+        uint256 /* pid */
+    ) internal pure override returns (uint256) {
         return 0;
     }
 
