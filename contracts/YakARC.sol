@@ -6,6 +6,8 @@ import "./lib/AccessControl.sol";
 import "./timelocks/YakFeeCollectorV1.sol";
 import "./interfaces/IWAVAX.sol";
 
+import "hardhat/console.sol";
+
 /**
  * @notice YakARC is an Automated Revenue Collector
  * @dev Includes public function to distribute all WAVAX and AVAX to designated payees
@@ -31,7 +33,7 @@ contract YakARC is AccessControl {
     uint public lastPaymentEpoch;
 
     /// @notice Start time of the first epoch
-    uimt public immutable startTimestamp;
+    uint public immutable startTimestamp;
 
     /// @notice Minimum time between distributions
     uint public constant epochLength = 86400; // 24 hours
@@ -52,8 +54,8 @@ contract YakARC is AccessControl {
         address _tokenSweeper,
         address _upgrader,
         address payable _feeCollector,
-        address[] calldata distributionAddresses,
-        address[] calldata distributionRatios,
+        address[] memory _distributionAddresses,
+        uint[] memory _distributionRatios,
         uint _startTimestamp
     ) {
         _setupRole(DEFAULT_ADMIN_ROLE, _manager);
@@ -61,9 +63,13 @@ contract YakARC is AccessControl {
         _setupRole(DISTRIBUTION_UPDATER_ROLE, _upgrader);
 
         feeCollector = YakFeeCollectorV1(_feeCollector);
-        _updateDistributions(distributionAddresses, distributionRatios);
-        require(startTimestamp <= block.timestamp, "constructor");
+        _updateDistributions(_distributionAddresses, _distributionRatios);
+        require(_startTimestamp <= block.timestamp, "constructor");
         startTimestamp = _startTimestamp;
+    }
+
+    function getDistributionLength() public view returns (uint) {
+        return distributionAddresses.length;
     }
 
     /**
@@ -71,6 +77,7 @@ contract YakARC is AccessControl {
      * @return number of current epoch
      */
     function currentEpoch() public view returns (uint) {
+        // console.log(block.timestamp, startTimestamp, epochLength);
         return block.timestamp.sub(startTimestamp).div(epochLength);
     }
 
@@ -79,7 +86,11 @@ contract YakARC is AccessControl {
      * @return timestamp of next epoch
      */
     function nextEpoch() public view returns (uint) {
-        return startTimestamp.add(lastPaymentEpoch.mul(epochLength));
+        // console.log(currentEpoch(), epochLength, startTimestamp);
+        // console.log(currentEpoch().add(1).mul(epochLength).add(startTimestamp));
+        // console.log((currentEpoch().add(1)).mul(epochLength).add(startTimestamp));
+        // return currentEpoch().add(1).mul(epochLength).add(startTimestamp);
+        return startTimestamp.add(lastPaymentEpoch.add(1).mul(epochLength));
     }
 
     /**
@@ -139,6 +150,7 @@ contract YakARC is AccessControl {
     function sweepTokens(address tokenAddress, uint tokenAmount) external {
         require(hasRole(TOKEN_SWEEPER_ROLE, msg.sender), "sweepTokens::auth");
         require(tokenAddress != address(WAVAX), "sweepTokens::not allowed");
+        feeCollector.sweepTokens(tokenAddress, tokenAmount);
         uint balance = IERC20(tokenAddress).balanceOf(address(this));
         if (balance < tokenAmount) {
             tokenAmount = balance;
@@ -147,13 +159,13 @@ contract YakARC is AccessControl {
         emit Sweep(msg.sender, tokenAddress, tokenAmount);
     }
 
-    function _updateDistributions(address[] calldata addresses, uint[] calldata ratioBips) private {
+    function _updateDistributions(address[] memory addresses, uint[] memory ratioBips) private {
         require(addresses.length == ratioBips.length, "_updateDistributions::different lengths");
-        uint targetSum = 10000;
-        for (uint i = 0; i < addresses.length; i++) {
-            targetSum = targetSum.sub(ratioBips[i]);
+        uint sum;
+        for (uint i; i < addresses.length; i++) {
+            sum = sum.add(ratioBips[i]);
         }
-        require(targetSum == 0, "_updateDistributions::invalid ratioBips");
+        require(sum == 10000, "_updateDistributions::invalid ratioBips");
         distributionAddresses = addresses;
         distributionRatios = ratioBips;
         emit UpdateDistributions(addresses, ratioBips);
