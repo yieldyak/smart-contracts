@@ -110,7 +110,7 @@ contract AxialStrategyForLP is MasterChefStrategy {
             if (avaxBalance > 0) {
                 WAVAX.deposit{value: avaxBalance}();
             }
-            return extraTokenAmount;
+            return WAVAX.balanceOf(address(this));
         }
         return 0;
     }
