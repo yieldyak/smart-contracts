@@ -93,6 +93,12 @@ abstract contract MasterChefStrategyForLP is MasterChefStrategy {
     }
 
     /* VIRTUAL */
+    function _convertExtraTokensIntoReward(
+        uint256 /* extraTokenAmount */
+    ) internal virtual override returns (uint256) {
+        return 0;
+    }
+
     function _convertRewardTokenToDepositToken(uint256 fromAmount) internal override returns (uint256 toAmount) {
         toAmount = DexLibrary.convertRewardTokensToDepositTokens(
             fromAmount,

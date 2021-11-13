@@ -54,6 +54,12 @@ abstract contract MasterChefStrategyForSA is MasterChefStrategy {
     }
 
     /* VIRTUAL */
+    function _convertExtraTokensIntoReward(
+        uint256 /* extraTokenAmount */
+    ) internal virtual override returns (uint256) {
+        return 0;
+    }
+
     function _convertRewardTokenToDepositToken(uint256 fromAmount) internal override returns (uint256 toAmount) {
         toAmount = DexLibrary.swap(fromAmount, address(rewardToken), address(depositToken), IPair(swapPairToken));
     }
