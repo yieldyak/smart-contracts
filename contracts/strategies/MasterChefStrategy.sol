@@ -182,7 +182,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
     ) private {
         _getRewards(PID);
         uint256 amount = rewardTokenBalance.add(_convertPoolTokensIntoReward(poolTokenAmount));
-        amount.add(_convertExtraTokensIntoReward(extraTokenAmount));
+        amount.add(_convertExtraTokensIntoReward(rewardTokenBalance, extraTokenAmount));
 
         uint256 devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
@@ -295,7 +295,10 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
     /* VIRTUAL */
     function _convertRewardTokenToDepositToken(uint256 fromAmount) internal virtual returns (uint256 toAmount);
 
-    function _convertExtraTokensIntoReward(uint256 extraTokenAmount) internal virtual returns (uint256);
+    function _convertExtraTokensIntoReward(uint256 rewardTokenBalance, uint256 extraTokenAmount)
+        internal
+        virtual
+        returns (uint256);
 
     function _depositMasterchef(uint256 pid, uint256 amount) internal virtual;
 

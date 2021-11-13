@@ -55,7 +55,8 @@ abstract contract MasterChefStrategyForSA is MasterChefStrategy {
 
     /* VIRTUAL */
     function _convertExtraTokensIntoReward(
-        uint256 /* extraTokenAmount */
+        uint256, /* extraTokenAmount */
+        uint256 /* rewardTokenBalance */
     ) internal virtual override returns (uint256) {
         return 0;
     }

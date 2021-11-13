@@ -101,16 +101,22 @@ contract AxialStrategyForLP is MasterChefStrategy {
         axialChef.withdraw(_pid, 0);
     }
 
-    function _convertExtraTokensIntoReward(uint256 extraTokenAmount) internal virtual override returns (uint256) {
+    function _convertExtraTokensIntoReward(uint256 rewardTokenBalance, uint256 extraTokenAmount)
+        internal
+        virtual
+        override
+        returns (uint256)
+    {
         if (extraTokenAmount > 0) {
             if (swapPairExtraReward > address(0)) {
                 return DexLibrary.swap(extraTokenAmount, extraToken, address(rewardToken), IPair(swapPairExtraReward));
             }
+
             uint256 avaxBalance = address(this).balance;
             if (avaxBalance > 0) {
                 WAVAX.deposit{value: avaxBalance}();
             }
-            return WAVAX.balanceOf(address(this));
+            return WAVAX.balanceOf(address(this)).sub(rewardTokenBalance);
         }
         return 0;
     }
