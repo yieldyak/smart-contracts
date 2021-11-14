@@ -17,6 +17,9 @@ contract AxialStrategyForLP is MasterChefStrategy {
     IAxialChef public axialChef;
     ZapSettings private zapSettings;
 
+    /**
+     * @dev IAxialSwap assumes amounts to be 18 decimals. Use token with 18 decimals!
+     */
     struct ZapSettings {
         address swapPairRewardZap;
         address zapToken;

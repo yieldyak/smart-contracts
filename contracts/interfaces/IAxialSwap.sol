@@ -2,12 +2,9 @@
 pragma solidity ^0.7.0;
 
 interface IAxialSwap {
-    function calculateTokenAmount(
-        address account,
-        uint256[] calldata amounts,
-        bool deposit
-    ) external view returns (uint256);
-
+    /**
+     * @dev Assumes amounts to be 18 decimals. Use token with 18 decimals to addLiquidity or convert amount before!
+     */
     function addLiquidity(
         uint256[] calldata amounts,
         uint256 minToMint,
