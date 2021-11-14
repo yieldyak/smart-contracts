@@ -15,8 +15,6 @@ contract AxialStrategyForLP is MasterChefStrategy {
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
 
     IAxialChef public axialChef;
-    address public swapPairExtraReward;
-    address public extraToken;
     ZapSettings private zapSettings;
 
     struct ZapSettings {
@@ -31,6 +29,7 @@ contract AxialStrategyForLP is MasterChefStrategy {
         address _depositToken,
         address _poolRewardToken,
         address _swapPairPoolReward,
+        address _swapPairExtraReward,
         address _stakingContract,
         ZapSettings memory _zapSettings,
         uint256 _pid,
@@ -43,6 +42,7 @@ contract AxialStrategyForLP is MasterChefStrategy {
             address(WAVAX), /*rewardToken=*/
             _poolRewardToken,
             _swapPairPoolReward,
+            _swapPairExtraReward,
             _stakingContract,
             _timelock,
             _pid,
@@ -73,51 +73,18 @@ contract AxialStrategyForLP is MasterChefStrategy {
         returns (
             uint256,
             uint256,
-            uint256
+            address
         )
     {
         (uint256 pendingAxial, address bonusTokenAddress, , uint256 pendingBonusToken) = axialChef.pendingTokens(
             _pid,
             _user
         );
-        uint256 pendingExtraTokenRewardAmount = 0;
-        if (bonusTokenAddress > address(0)) {
-            if (bonusTokenAddress == address(WAVAX)) {
-                return (pendingAxial, pendingBonusToken, pendingBonusToken);
-            } else if (swapPairExtraReward > address(0)) {
-                pendingExtraTokenRewardAmount = DexLibrary.estimateConversionThroughPair(
-                    pendingBonusToken,
-                    bonusTokenAddress,
-                    address(rewardToken),
-                    IPair(swapPairExtraReward)
-                );
-            }
-        }
-        return (pendingAxial, pendingBonusToken, pendingExtraTokenRewardAmount);
+        return (pendingAxial, pendingBonusToken, bonusTokenAddress);
     }
 
     function _getRewards(uint256 _pid) internal override {
         axialChef.withdraw(_pid, 0);
-    }
-
-    function _convertExtraTokensIntoReward(uint256 rewardTokenBalance, uint256 extraTokenAmount)
-        internal
-        virtual
-        override
-        returns (uint256)
-    {
-        if (extraTokenAmount > 0) {
-            if (swapPairExtraReward > address(0)) {
-                return DexLibrary.swap(extraTokenAmount, extraToken, address(rewardToken), IPair(swapPairExtraReward));
-            }
-
-            uint256 avaxBalance = address(this).balance;
-            if (avaxBalance > 0) {
-                WAVAX.deposit{value: avaxBalance}();
-            }
-            return WAVAX.balanceOf(address(this)).sub(rewardTokenBalance);
-        }
-        return 0;
     }
 
     function _getDepositBalance(uint256 pid, address user) internal view override returns (uint256 amount) {
@@ -126,20 +93,6 @@ contract AxialStrategyForLP is MasterChefStrategy {
 
     function setMaxSlippageBips(uint256 _maxSlippageBips) external onlyDev {
         zapSettings.maxSlippage = _maxSlippageBips;
-    }
-
-    function setExtraRewardSwapPair(address _extraTokenSwapPair) external onlyDev {
-        if (_extraTokenSwapPair > address(0)) {
-            if (IPair(_extraTokenSwapPair).token0() == address(WAVAX)) {
-                extraToken = IPair(_extraTokenSwapPair).token1();
-            } else {
-                extraToken = IPair(_extraTokenSwapPair).token0();
-            }
-            swapPairExtraReward = _extraTokenSwapPair;
-        } else {
-            swapPairExtraReward = address(0);
-            extraToken = address(0);
-        }
     }
 
     function _getDepositFeeBips(
@@ -154,7 +107,7 @@ contract AxialStrategyForLP is MasterChefStrategy {
         return 0;
     }
 
-    function _bip() internal view override returns (uint256) {
+    function _bip() internal pure override returns (uint256) {
         return 10000;
     }
 

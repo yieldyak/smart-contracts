@@ -13,6 +13,7 @@ abstract contract MasterChefStrategyForLP is MasterChefStrategy {
 
     struct SwapPairs {
         address poolReward;
+        address extraReward;
         address token0;
         address token1;
     }
@@ -36,6 +37,7 @@ abstract contract MasterChefStrategyForLP is MasterChefStrategy {
             _depositToken,
             _ecosystemToken,
             _poolRewardToken,
+            _swapPairs.extraReward,
             _swapPairs.poolReward,
             _stakingContract,
             _timelock,
@@ -93,13 +95,6 @@ abstract contract MasterChefStrategyForLP is MasterChefStrategy {
     }
 
     /* VIRTUAL */
-    function _convertExtraTokensIntoReward(
-        uint256, /* extraTokenAmount */
-        uint256 /* rewardTokenBalance */
-    ) internal virtual override returns (uint256) {
-        return 0;
-    }
-
     function _convertRewardTokenToDepositToken(uint256 fromAmount) internal override returns (uint256 toAmount) {
         toAmount = DexLibrary.convertRewardTokensToDepositTokens(
             fromAmount,

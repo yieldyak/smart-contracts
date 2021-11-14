@@ -22,6 +22,7 @@ contract AvaiStrategyForSA is MasterChefStrategyForSA {
         address _swapPairToken, // swap rewardToken to depositToken
         address _poolRewardToken,
         address _swapPairPoolReward,
+        address _swapPairExtraReward,
         address _stakingRewards,
         uint256 _pid,
         address _timelock,
@@ -33,6 +34,7 @@ contract AvaiStrategyForSA is MasterChefStrategyForSA {
             address(WAVAX), /*rewardToken=*/
             _poolRewardToken,
             _swapPairPoolReward,
+            _swapPairExtraReward,
             _swapPairToken,
             _stakingRewards,
             _timelock,
@@ -62,10 +64,10 @@ contract AvaiStrategyForSA is MasterChefStrategyForSA {
         returns (
             uint256,
             uint256,
-            uint256
+            address
         )
     {
-        return (podLeader.pendingRewards(_pid, _user), 0, 0);
+        return (podLeader.pendingRewards(_pid, _user), 0, address(0));
     }
 
     receive() external payable {

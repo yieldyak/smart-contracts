@@ -11,6 +11,8 @@ import "../lib/DexLibrary.sol";
 abstract contract MasterChefStrategy is YakStrategyV2 {
     using SafeMath for uint256;
 
+    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+
     struct StrategySettings {
         uint256 minTokensToReinvest;
         uint256 adminFeeBips;
@@ -22,6 +24,8 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
     address private stakingContract;
     address private poolRewardToken;
     IPair private swapPairPoolReward;
+    address public swapPairExtraReward;
+    address public extraToken;
 
     constructor(
         string memory _name,
@@ -29,6 +33,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
         address _ecosystemToken,
         address _poolRewardToken,
         address _swapPairPoolReward,
+        address _swapPairExtraReward,
         address _stakingContract,
         address _timelock,
         uint256 _pid,
@@ -42,6 +47,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
         stakingContract = _stakingContract;
 
         assignSwapPairSafely(_ecosystemToken, _poolRewardToken, _swapPairPoolReward);
+        _setExtraRewardSwapPair(_swapPairExtraReward);
         setAllowances();
         updateMinTokensToReinvest(_strategySettings.minTokensToReinvest);
         updateAdminFee(_strategySettings.adminFeeBips);
@@ -85,6 +91,24 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
      */
     function setAllowances() public override onlyOwner {
         depositToken.approve(stakingContract, type(uint256).max);
+    }
+
+    function setExtraRewardSwapPair(address _extraTokenSwapPair) external onlyDev {
+        _setExtraRewardSwapPair(_extraTokenSwapPair);
+    }
+
+    function _setExtraRewardSwapPair(address _extraTokenSwapPair) internal {
+        if (_extraTokenSwapPair > address(0)) {
+            if (IPair(_extraTokenSwapPair).token0() == address(rewardToken)) {
+                extraToken = IPair(_extraTokenSwapPair).token1();
+            } else {
+                extraToken = IPair(_extraTokenSwapPair).token0();
+            }
+            swapPairExtraReward = _extraTokenSwapPair;
+        } else {
+            swapPairExtraReward = address(0);
+            extraToken = address(0);
+        }
     }
 
     /**
@@ -168,7 +192,28 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
     }
 
     function _convertPoolTokensIntoReward(uint256 poolTokenAmount) private returns (uint256) {
+        if (address(rewardToken) == poolRewardToken) {
+            return poolTokenAmount;
+        }
         return DexLibrary.swap(poolTokenAmount, address(poolRewardToken), address(rewardToken), swapPairPoolReward);
+    }
+
+    function _convertExtraTokensIntoReward(uint256 rewardTokenBalance, uint256 extraTokenAmount)
+        internal
+        returns (uint256)
+    {
+        if (extraTokenAmount > 0) {
+            if (swapPairExtraReward > address(0)) {
+                return DexLibrary.swap(extraTokenAmount, extraToken, address(rewardToken), IPair(swapPairExtraReward));
+            }
+
+            uint256 avaxBalance = address(this).balance;
+            if (avaxBalance > 0) {
+                WAVAX.deposit{value: avaxBalance}();
+            }
+            return WAVAX.balanceOf(address(this)).sub(rewardTokenBalance);
+        }
+        return 0;
     }
 
     /**
@@ -237,11 +282,10 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
         )
     {
         uint256 poolTokenBalance = IERC20(poolRewardToken).balanceOf(address(this));
-        (
-            uint256 pendingPoolTokenAmount,
-            uint256 pendingExtraTokenAmount,
-            uint256 pendingExtraTokenRewardAmount
-        ) = _pendingRewards(PID, address(this));
+        (uint256 pendingPoolTokenAmount, uint256 pendingExtraTokenAmount, address extraTokenAddress) = _pendingRewards(
+            PID,
+            address(this)
+        );
         uint256 poolTokenAmount = poolTokenBalance.add(pendingPoolTokenAmount);
         uint256 pendingRewardTokenAmount = DexLibrary.estimateConversionThroughPair(
             poolTokenAmount,
@@ -249,6 +293,19 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
             address(rewardToken),
             swapPairPoolReward
         );
+        uint256 pendingExtraTokenRewardAmount = 0;
+        if (extraTokenAddress > address(0)) {
+            if (extraTokenAddress == address(WAVAX)) {
+                pendingExtraTokenRewardAmount = pendingExtraTokenAmount;
+            } else if (swapPairExtraReward > address(0)) {
+                pendingExtraTokenRewardAmount = DexLibrary.estimateConversionThroughPair(
+                    pendingExtraTokenAmount,
+                    extraTokenAddress,
+                    address(rewardToken),
+                    IPair(swapPairExtraReward)
+                );
+            }
+        }
         uint256 rewardTokenBalance = rewardToken.balanceOf(address(this)).add(pendingExtraTokenRewardAmount);
         uint256 estimatedTotalReward = rewardTokenBalance.add(pendingRewardTokenAmount);
         return (poolTokenAmount, pendingExtraTokenAmount, rewardTokenBalance, estimatedTotalReward);
@@ -295,11 +352,6 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
     /* VIRTUAL */
     function _convertRewardTokenToDepositToken(uint256 fromAmount) internal virtual returns (uint256 toAmount);
 
-    function _convertExtraTokensIntoReward(uint256 rewardTokenBalance, uint256 extraTokenAmount)
-        internal
-        virtual
-        returns (uint256);
-
     function _depositMasterchef(uint256 pid, uint256 amount) internal virtual;
 
     function _withdrawMasterchef(uint256 pid, uint256 amount) internal virtual;
@@ -315,7 +367,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
         returns (
             uint256 poolTokenAmount,
             uint256 extraTokenAmount,
-            uint256 extraTokenRewardAmount
+            address extraTokenAddress
         );
 
     function _getDepositBalance(uint256 pid, address user) internal view virtual returns (uint256 amount);

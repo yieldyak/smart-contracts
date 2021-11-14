@@ -19,6 +19,7 @@ abstract contract MasterChefStrategyForSA is MasterChefStrategy {
         address _ecosystemToken,
         address _poolRewardToken,
         address _swapPairPoolReward,
+        address _swapPairExtraReward,
         address _swapPairToken,
         address _stakingRewards,
         address _timelock,
@@ -31,6 +32,7 @@ abstract contract MasterChefStrategyForSA is MasterChefStrategy {
             _ecosystemToken,
             _poolRewardToken,
             _swapPairPoolReward,
+            _swapPairExtraReward,
             _stakingRewards,
             _timelock,
             _pid,
@@ -54,13 +56,6 @@ abstract contract MasterChefStrategyForSA is MasterChefStrategy {
     }
 
     /* VIRTUAL */
-    function _convertExtraTokensIntoReward(
-        uint256, /* extraTokenAmount */
-        uint256 /* rewardTokenBalance */
-    ) internal virtual override returns (uint256) {
-        return 0;
-    }
-
     function _convertRewardTokenToDepositToken(uint256 fromAmount) internal override returns (uint256 toAmount) {
         toAmount = DexLibrary.swap(fromAmount, address(rewardToken), address(depositToken), IPair(swapPairToken));
     }
