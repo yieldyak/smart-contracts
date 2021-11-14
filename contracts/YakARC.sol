@@ -6,13 +6,10 @@ import "./lib/AccessControl.sol";
 import "./timelocks/YakFeeCollectorV1.sol";
 import "./interfaces/IWAVAX.sol";
 
-import "hardhat/console.sol";
-
 /**
  * @notice YakARC is an Automated Revenue Collector
  * @dev Includes public function to distribute all WAVAX and AVAX to designated payees
  * @dev Epochs are used to stagger distributions
- * @dev DRAFT
  */
 contract YakARC is AccessControl {
     using SafeMath for uint;
@@ -77,7 +74,6 @@ contract YakARC is AccessControl {
      * @return number of current epoch
      */
     function currentEpoch() public view returns (uint) {
-        // console.log(block.timestamp, startTimestamp, epochLength);
         return block.timestamp.sub(startTimestamp).div(epochLength);
     }
 
@@ -86,10 +82,6 @@ contract YakARC is AccessControl {
      * @return timestamp of next epoch
      */
     function nextEpoch() public view returns (uint) {
-        // console.log(currentEpoch(), epochLength, startTimestamp);
-        // console.log(currentEpoch().add(1).mul(epochLength).add(startTimestamp));
-        // console.log((currentEpoch().add(1)).mul(epochLength).add(startTimestamp));
-        // return currentEpoch().add(1).mul(epochLength).add(startTimestamp);
         return startTimestamp.add(lastPaymentEpoch.add(1).mul(epochLength));
     }
 
