@@ -57,8 +57,17 @@ contract AvaiStrategyForLP is MasterChefStrategyForLP {
         podLeader.emergencyWithdraw(_pid);
     }
 
-    function _pendingRewards(uint256 _pid, address _user) internal view override returns (uint256) {
-        return podLeader.pendingRewards(_pid, _user);
+    function _pendingRewards(uint256 _pid, address _user)
+        internal
+        view
+        override
+        returns (
+            uint256,
+            uint256,
+            address
+        )
+    {
+        return (podLeader.pendingRewards(_pid, _user), 0, address(0));
     }
 
     function _getRewards(uint256 _pid) internal override {
@@ -77,11 +86,11 @@ contract AvaiStrategyForLP is MasterChefStrategyForLP {
         return depositFeeBips;
     }
 
-    function _getWithdrawFeeBips(uint256 pid) internal view override returns (uint256) {
+    function _getWithdrawFeeBips(uint256 pid) internal pure override returns (uint256) {
         return 0;
     }
 
-    function _bip() internal view override returns (uint256) {
+    function _bip() internal pure override returns (uint256) {
         return 10000;
     }
 }

@@ -13,6 +13,7 @@ abstract contract MasterChefStrategyForLP is MasterChefStrategy {
 
     struct SwapPairs {
         address poolReward;
+        address extraReward;
         address token0;
         address token1;
     }
@@ -36,6 +37,7 @@ abstract contract MasterChefStrategyForLP is MasterChefStrategy {
             _depositToken,
             _ecosystemToken,
             _poolRewardToken,
+            _swapPairs.extraReward,
             _swapPairs.poolReward,
             _stakingContract,
             _timelock,
