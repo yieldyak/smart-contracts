@@ -55,7 +55,7 @@ contract JoeLendingStrategyV2 is YakStrategyV2 {
         rewardToken = rewardToken1;
         minMinting = _minMinting;
         _updateLeverage(_leverageLevel, _leverageBips);
-        devAddr = msg.sender;
+        devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
 
         _enterMarket();
 
@@ -180,7 +180,7 @@ contract JoeLendingStrategyV2 is YakStrategyV2 {
     }
 
     function _deposit(address account, uint256 amount) private onlyAllowedDeposits {
-        require(DEPOSITS_ENABLED == true, "JoeLendingStrategyV1::_deposit");
+        require(DEPOSITS_ENABLED == true, "JoeLendingStrategyV2::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
             (uint256 joeRewards, uint256 avaxBalance, uint256 amountToReinvest) = _checkRewards();
             if (
@@ -190,8 +190,8 @@ contract JoeLendingStrategyV2 is YakStrategyV2 {
             }
         }
         require(
-            depositToken.transferFrom(account, address(this), amount),
-            "JoeLendingStrategyV1::transfer failed"
+            depositToken.transferFrom(msg.sender, address(this), amount),
+            "JoeLendingStrategyV2::transfer failed"
         );
         uint256 shareTokenAmount = amount;
         uint256 balance = _totalDepositsFresh();
@@ -206,7 +206,7 @@ contract JoeLendingStrategyV2 is YakStrategyV2 {
 
     function withdraw(uint256 amount) external override {
         uint256 depositTokenAmount = _totalDepositsFresh().mul(amount).div(totalSupply);
-        require(depositTokenAmount >= minMinting, "JoeLendingStrategyV1:: below minimum withdraw");
+        require(depositTokenAmount >= minMinting, "JoeLendingStrategyV2:: below minimum withdraw");
         _burn(msg.sender, amount);
         _withdrawDepositTokens(depositTokenAmount);
         _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
@@ -218,7 +218,7 @@ contract JoeLendingStrategyV2 is YakStrategyV2 {
         _unrollDebt(amount);
         require(
             tokenDelegator.redeemUnderlying(amount) == 0,
-            "JoeLendingStrategyV1::redeem failed"
+            "JoeLendingStrategyV2::redeem failed"
         );
         uint256 balance = tokenDelegator.balanceOfUnderlying(address(this));
         uint256 borrow = tokenDelegator.borrowBalanceCurrent(address(this));
@@ -231,7 +231,7 @@ contract JoeLendingStrategyV2 is YakStrategyV2 {
         (uint256 joeRewards, uint256 avaxBalance, uint256 amountToReinvest) = _checkRewards();
         require(
             amountToReinvest >= MIN_TOKENS_TO_REINVEST,
-            "JoeLendingStrategyV1::reinvest"
+            "JoeLendingStrategyV2::reinvest"
         );
         _reinvest(joeRewards, avaxBalance, amountToReinvest);
         claimAVAXRewards();
@@ -266,18 +266,13 @@ contract JoeLendingStrategyV2 is YakStrategyV2 {
             _safeTransfer(address(rewardToken), devAddr, devFee);
         }
 
-        uint256 adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
-        if (adminFee > 0) {
-            _safeTransfer(address(rewardToken), owner(), adminFee);
-        }
-
         uint256 reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
             _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
         }
 
         uint256 depositTokenAmount = DexLibrary.swap(
-            amount.sub(devFee).sub(adminFee).sub(reinvestFee),
+            amount.sub(devFee).sub(reinvestFee),
             address(rewardToken1),
             address(depositToken),
             swapPairToken1
@@ -326,11 +321,11 @@ contract JoeLendingStrategyV2 is YakStrategyV2 {
             }
             require(
                 tokenDelegator.borrow(toBorrowAmount) == 0,
-                "JoeLendingStrategyV1::borrowing failed"
+                "JoeLendingStrategyV2::borrowing failed"
             );
             require(
                 tokenDelegator.mint(toBorrowAmount) == 0,
-                "JoeLendingStrategyV1::lending failed"
+                "JoeLendingStrategyV2::lending failed"
             );
             supplied = tokenDelegator.balanceOfUnderlying(address(this));
             totalBorrowed = totalBorrowed.add(toBorrowAmount);
@@ -375,11 +370,11 @@ contract JoeLendingStrategyV2 is YakStrategyV2 {
             }
             require(
                 tokenDelegator.redeemUnderlying(unrollAmount) == 0,
-                "JoeLendingStrategyV1::failed to redeem"
+                "JoeLendingStrategyV2::failed to redeem"
             );
             require(
                 tokenDelegator.repayBorrow(unrollAmount) == 0,
-                "JoeLendingStrategyV1::failed to repay borrow"
+                "JoeLendingStrategyV2::failed to repay borrow"
             );
             balance = tokenDelegator.balanceOfUnderlying(address(this));
             borrowed = borrowed.sub(unrollAmount);
@@ -391,10 +386,10 @@ contract JoeLendingStrategyV2 is YakStrategyV2 {
     }
 
     function _stakeDepositTokens(uint256 amount) private {
-        require(amount > 0, "JoeLendingStrategyV1::_stakeDepositTokens");
+        require(amount > 0, "JoeLendingStrategyV2::_stakeDepositTokens");
         require(
             tokenDelegator.mint(amount) == 0,
-            "JoeLendingStrategyV1::Deposit failed"
+            "JoeLendingStrategyV2::Deposit failed"
         );
         uint256 borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
         uint256 principal = tokenDelegator.balanceOfUnderlying(address(this));
@@ -415,7 +410,7 @@ contract JoeLendingStrategyV2 is YakStrategyV2 {
     ) private {
         require(
             IERC20(token).transfer(to, value),
-            "JoeLendingStrategyV1::TRANSFER_FROM_FAILED"
+            "JoeLendingStrategyV2::TRANSFER_FROM_FAILED"
         );
     }
 
@@ -521,7 +516,7 @@ contract JoeLendingStrategyV2 is YakStrategyV2 {
         uint256 balanceAfter = depositToken.balanceOf(address(this));
         require(
             balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
-            "JoeLendingStrategyV1::rescueDeployedFunds"
+            "JoeLendingStrategyV2::rescueDeployedFunds"
         );
         emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
