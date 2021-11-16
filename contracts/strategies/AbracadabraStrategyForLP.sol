@@ -108,12 +108,6 @@ contract AbracadabraStrategyForLP is MasterChefStrategy {
     }
 
     function _convertRewardTokenToDepositToken(uint256 fromAmount) internal override returns (uint256 toAmount) {
-        uint256 zapTokenAmount = DexLibrary.swap(
-            fromAmount,
-            address(rewardToken),
-            zapSettings.zapToken,
-            IPair(zapSettings.swapPairRewardZap)
-        );
-        return CurveSwap.zapToStableLP(zapTokenAmount, address(rewardToken), address(depositToken), zapSettings);
+        return CurveSwap.zapToStableLP(fromAmount, address(rewardToken), address(depositToken), zapSettings);
     }
 }
