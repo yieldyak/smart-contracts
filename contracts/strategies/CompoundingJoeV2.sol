@@ -38,7 +38,7 @@ contract CompoundingJoeV2 is YakStrategyV2 {
         conversionContract = IJoeBar(_conversionContract);
         xJoe = IERC20(_conversionContract);
         PID = _pid;
-        devAddr = msg.sender;
+        devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
 
         setAllowances();
         updateMinTokensToReinvest(_minTokensToReinvest);
@@ -97,7 +97,7 @@ contract CompoundingJoeV2 is YakStrategyV2 {
      * @param amount token amount
      */
     function _deposit(address account, uint256 amount) internal {
-        require(DEPOSITS_ENABLED == true, "CompoundingJoe::_deposit");
+        require(DEPOSITS_ENABLED == true, "CompoundingJoeV2::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
             uint256 unclaimedRewards = checkReward();
             if (unclaimedRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
@@ -106,22 +106,21 @@ contract CompoundingJoeV2 is YakStrategyV2 {
         }
 
         require(depositToken.transferFrom(msg.sender, address(this), amount));
-        _stakeDepositTokens(amount);
         _mint(account, getSharesForDepositTokens(amount));
+        _stakeDepositTokens(amount);
         emit Deposit(account, amount);
     }
 
     function withdraw(uint256 amount) external override {
         uint256 depositTokenAmount = getDepositTokensForShares(amount);
-        if (depositTokenAmount > 0) {
-            _withdrawDepositTokens(depositTokenAmount);
-            require(
-                depositToken.transfer(msg.sender, depositTokenAmount),
-                "CompoundingJoe::withdraw"
-            );
-            _burn(msg.sender, amount);
-            emit Withdraw(msg.sender, depositTokenAmount);
-        }
+        require(depositTokenAmount > 0, "CompoundingJoeV2::withdraw");
+        _withdrawDepositTokens(depositTokenAmount);
+        require(
+            depositToken.transfer(msg.sender, depositTokenAmount),
+            "CompoundingJoeV2::withdraw transfer failed"
+        );
+        _burn(msg.sender, amount);
+        emit Withdraw(msg.sender, depositTokenAmount);
     }
 
     /**
@@ -129,7 +128,6 @@ contract CompoundingJoeV2 is YakStrategyV2 {
      * @param amount deposit tokens
      */
     function _withdrawDepositTokens(uint256 amount) private {
-        require(amount > 0, "CompoundingJoe::_withdrawDepositTokens");
         uint256 xJoeAmount = _getXJoeForJoe(amount);
         stakingContract.withdraw(PID, xJoeAmount);
         conversionContract.leave(xJoeAmount);
@@ -137,7 +135,7 @@ contract CompoundingJoeV2 is YakStrategyV2 {
 
     function reinvest() external override onlyEOA {
         uint256 unclaimedRewards = checkReward();
-        require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "CompoundingJoe::reinvest");
+        require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "CompoundingJoeV2::reinvest");
         _reinvest(unclaimedRewards);
     }
 
@@ -153,15 +151,7 @@ contract CompoundingJoeV2 is YakStrategyV2 {
         if (devFee > 0) {
             require(
                 rewardToken.transfer(devAddr, devFee),
-                "CompoundingJoe::_reinvest, dev"
-            );
-        }
-
-        uint256 adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
-        if (adminFee > 0) {
-            require(
-                rewardToken.transfer(owner(), adminFee),
-                "CompoundingJoe::_reinvest, admin"
+                "CompoundingJoeV2::_reinvest, dev"
             );
         }
 
@@ -169,11 +159,11 @@ contract CompoundingJoeV2 is YakStrategyV2 {
         if (reinvestFee > 0) {
             require(
                 rewardToken.transfer(msg.sender, reinvestFee),
-                "CompoundingJoe::_reinvest, reward"
+                "CompoundingJoeV2::_reinvest, reward"
             );
         }
 
-        uint256 depositTokenAmount = amount.sub(devFee).sub(adminFee).sub(reinvestFee);
+        uint256 depositTokenAmount = amount.sub(devFee).sub(reinvestFee);
         _stakeDepositTokens(depositTokenAmount);
 
         emit Reinvest(totalDeposits(), totalSupply);
@@ -185,6 +175,7 @@ contract CompoundingJoeV2 is YakStrategyV2 {
      */
     function _stakeDepositTokens(uint256 amount) private {
         uint256 xJoeAmount = _getXJoeForJoe(amount);
+        require(xJoeAmount > 0, "CompoundingJoeV2::_stakeDepositTokens");
         _convertJoeToXJoe(amount);
         _stakeXJoe(xJoeAmount);
     }
@@ -194,7 +185,6 @@ contract CompoundingJoeV2 is YakStrategyV2 {
      * @param amount deposit token
      */
     function _convertJoeToXJoe(uint256 amount) private {
-        require(amount > 0, "CompoundingJoe::_convertJoeToXJoe");
         conversionContract.enter(amount);
     }
 
@@ -203,7 +193,6 @@ contract CompoundingJoeV2 is YakStrategyV2 {
      * @param amount xJoe
      */
     function _stakeXJoe(uint256 amount) private {
-        require(amount > 0, "CompoundingJoe::_stakeXJoe");
         stakingContract.deposit(PID, amount);
     }
 
@@ -269,7 +258,7 @@ contract CompoundingJoeV2 is YakStrategyV2 {
         uint256 balanceAfter = depositToken.balanceOf(address(this));
         require(
             balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
-            "CompoundingJoe::rescueDeployedFunds"
+            "CompoundingJoeV2::rescueDeployedFunds"
         );
         emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
