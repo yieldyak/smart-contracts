@@ -55,7 +55,7 @@ contract BenqiStrategyV2 is YakStrategyV2 {
             _leverageBips,
             _leverageBips.mul(990).div(1000) //works as long as leverageBips > 1000
         );
-        devAddr = msg.sender;
+        devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
 
         _enterMarket();
 
@@ -213,14 +213,12 @@ contract BenqiStrategyV2 is YakStrategyV2 {
     }
 
     function withdraw(uint256 amount) external override {
-        require(amount > minMinting, "BenqiStrategyV2:: below minimum withdraw");
         uint256 depositTokenAmount = _totalDepositsFresh().mul(amount).div(totalSupply);
-        if (depositTokenAmount > 0) {
-            _burn(msg.sender, amount);
-            _withdrawDepositTokens(depositTokenAmount);
-            _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
-            emit Withdraw(msg.sender, depositTokenAmount);
-        }
+        require(depositTokenAmount > 0, "BenqiStrategyV2::withdraw");
+        _burn(msg.sender, amount);
+        _withdrawDepositTokens(depositTokenAmount);
+        _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
+        emit Withdraw(msg.sender, depositTokenAmount);
     }
 
     function _withdrawDepositTokens(uint256 amount) private {
@@ -278,18 +276,13 @@ contract BenqiStrategyV2 is YakStrategyV2 {
             _safeTransfer(address(rewardToken), devAddr, devFee);
         }
 
-        uint256 adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
-        if (adminFee > 0) {
-            _safeTransfer(address(rewardToken), owner(), adminFee);
-        }
-
         uint256 reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
             _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
         }
 
         uint256 depositTokenAmount = DexLibrary.swap(
-            amount.sub(devFee).sub(adminFee).sub(reinvestFee),
+            amount.sub(devFee).sub(reinvestFee),
             address(rewardToken1),
             address(depositToken),
             swapPairToken1
