@@ -12,9 +12,7 @@ contract AvaiStrategyForLP is MasterChefStrategyForLP {
     using SafeMath for uint256;
 
     IAvaiPodLeader public podLeader;
-    address public nativeRewardToken;
     address public swapPairRewardToken;
-    uint256 public depositFeeBips;
 
     constructor(
         string memory _name,
@@ -25,7 +23,6 @@ contract AvaiStrategyForLP is MasterChefStrategyForLP {
         address _stakingRewards,
         uint256 _pid,
         address _timelock,
-        uint256 _depositFeeBips,
         StrategySettings memory _strategySettings
     )
         MasterChefStrategyForLP(
@@ -41,8 +38,6 @@ contract AvaiStrategyForLP is MasterChefStrategyForLP {
         )
     {
         podLeader = IAvaiPodLeader(_stakingRewards);
-        depositFeeBips = _depositFeeBips;
-        nativeRewardToken = _nativeRewardToken;
     }
 
     function _depositMasterchef(uint256 _pid, uint256 _amount) internal override {
@@ -69,12 +64,9 @@ contract AvaiStrategyForLP is MasterChefStrategyForLP {
         (amount, ) = podLeader.userInfo(pid, user);
     }
 
-    function setDepositFeeBips(uint256 _depositFeeBips) external onlyOwner {
-        depositFeeBips = _depositFeeBips;
-    }
-
     function _getDepositFeeBips(uint256 pid) internal view override returns (uint256) {
-        return depositFeeBips;
+        (,,,,, uint fees) = podLeader.poolInfo(pid);
+        return fees;
     }
 
     function _getWithdrawFeeBips(uint256 pid) internal view override returns (uint256) {

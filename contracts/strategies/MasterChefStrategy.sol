@@ -38,7 +38,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
         depositToken = IERC20(_depositToken);
         rewardToken = IERC20(_ecosystemToken);
         PID = _pid;
-        devAddr = msg.sender;
+        devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
         stakingContract = _stakingContract;
 
         assignSwapPairSafely(_ecosystemToken, _poolRewardToken, _swapPairPoolReward);
@@ -127,23 +127,22 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
             }
         }
         require(depositToken.transferFrom(msg.sender, address(this), amount), "MasterChefStrategyV1::transfer failed");
-        _stakeDepositTokens(amount);
         uint256 depositFeeBips = _getDepositFeeBips(PID);
         uint256 depositFee = amount.mul(depositFeeBips).div(_bip());
         _mint(account, getSharesForDepositTokens(amount.sub(depositFee)));
+        _stakeDepositTokens(amount);
         emit Deposit(account, amount);
     }
 
     function withdraw(uint256 amount) external override {
         uint256 depositTokenAmount = getDepositTokensForShares(amount);
-        if (depositTokenAmount > 0) {
-            _withdrawDepositTokens(depositTokenAmount);
-            uint256 withdrawFeeBips = _getWithdrawFeeBips(PID);
-            uint256 withdrawFee = depositTokenAmount.mul(withdrawFeeBips).div(_bip());
-            _safeTransfer(address(depositToken), msg.sender, depositTokenAmount.sub(withdrawFee));
-            _burn(msg.sender, amount);
-            emit Withdraw(msg.sender, depositTokenAmount);
-        }
+        require(depositTokenAmount > 0, "MasterChefStrategyV1::withdraw");
+        _withdrawDepositTokens(depositTokenAmount);
+        uint256 withdrawFeeBips = _getWithdrawFeeBips(PID);
+        uint256 withdrawFee = depositTokenAmount.mul(withdrawFeeBips).div(_bip());
+        _safeTransfer(address(depositToken), msg.sender, depositTokenAmount.sub(withdrawFee));
+        _burn(msg.sender, amount);
+        emit Withdraw(msg.sender, depositTokenAmount);
     }
 
     function _withdrawDepositTokens(uint256 amount) private {
@@ -174,19 +173,15 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
             _safeTransfer(address(rewardToken), devAddr, devFee);
         }
 
-        uint256 adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
-        if (adminFee > 0) {
-            _safeTransfer(address(rewardToken), owner(), adminFee);
-        }
-
         uint256 reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
             _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
         }
 
         uint256 depositTokenAmount = _convertRewardTokenToDepositToken(
-            amount.sub(devFee).sub(adminFee).sub(reinvestFee)
+            amount.sub(devFee).sub(reinvestFee)
         );
+
         _stakeDepositTokens(depositTokenAmount);
         emit Reinvest(totalDeposits(), totalSupply);
     }
@@ -244,18 +239,15 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
      * @return deposit tokens after withdraw fee
      */
     function estimateDeployedBalance() external view override returns (uint256) {
-        return _totalDeposits();
-    }
-
-    function totalDeposits() public view override returns (uint256) {
-        return _totalDeposits();
-    }
-
-    function _totalDeposits() internal view returns (uint256) {
-        uint256 depositBalance = _getDepositBalance(PID, address(this));
+        uint256 depositBalance = totalDeposits();
         uint256 withdrawFeeBips = _getWithdrawFeeBips(PID);
         uint256 withdrawFee = depositBalance.mul(withdrawFeeBips).div(_bip());
         return depositBalance.sub(withdrawFee);
+    }
+
+    function totalDeposits() public view override returns (uint256) {
+        uint256 depositBalance = _getDepositBalance(PID, address(this));
+        return depositBalance;
     }
 
     function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {

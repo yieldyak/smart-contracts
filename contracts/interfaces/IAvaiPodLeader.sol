@@ -11,4 +11,5 @@ interface IAvaiPodLeader {
   function pendingRewards(uint256 pid, address account) external view returns (uint256);
   function emergencyWithdraw(uint256 pid) external;
   function userInfo(uint256 pid, address user) external view returns (uint256 amount, uint256 rewardDebt);
+  function poolInfo(uint256 pid) external view returns (address token, uint256 allocPoint, uint256 lastRewardTimestamp, uint256 accRewardsPerShare, uint256 totalStaked, uint16 depositFeeBP);
 }
