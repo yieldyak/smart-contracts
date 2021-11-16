@@ -7,6 +7,7 @@ import "./DexLibrary.sol";
 import "../interfaces/IPair.sol";
 import "../interfaces/ICurveCryptoSwap.sol";
 import "../interfaces/ICurveStableSwap.sol";
+import "../interfaces/ICurveStableSwapAave.sol";
 import "../interfaces/ICurveBtcSwap.sol";
 
 library CurveSwap {
@@ -16,7 +17,8 @@ library CurveSwap {
     enum PoolType {
         AAVE,
         CRYPTO,
-        BTC
+        BTC,
+        STABLE
     }
 
     struct Settings {
@@ -44,15 +46,28 @@ library CurveSwap {
         );
         uint256[3] memory amounts = [uint256(0), uint256(0), uint256(0)];
         amounts[zapSettings.zapTokenIndex] = zapTokenAmount;
-        uint256 expectedAmount = ICurveStableSwap(zapSettings.zapContract)
-            .calc_token_amount(amounts, true);
+        uint256 expectedAmount = ICurveStableSwapAave(zapSettings.zapContract).calc_token_amount(amounts, true);
         uint256 slippage = expectedAmount.mul(zapSettings.maxSlippage).div(BIPS_DIVISOR);
-        return
-            ICurveStableSwap(zapSettings.zapContract).add_liquidity(
-                amounts,
-                expectedAmount.sub(slippage),
-                true
-            );
+        return ICurveStableSwapAave(zapSettings.zapContract).add_liquidity(amounts, expectedAmount.sub(slippage), true);
+    }
+
+    function zapToStableLP(
+        uint256 amount,
+        address rewardToken,
+        address, /* depositToken */
+        Settings memory zapSettings
+    ) internal returns (uint256) {
+        uint256 zapTokenAmount = DexLibrary.swap(
+            amount,
+            rewardToken,
+            zapSettings.zapToken,
+            IPair(zapSettings.swapPairRewardZap)
+        );
+        uint256[3] memory amounts = [uint256(0), uint256(0), uint256(0)];
+        amounts[zapSettings.zapTokenIndex] = zapTokenAmount;
+        uint256 expectedAmount = ICurveStableSwap(zapSettings.zapContract).calc_token_amount(amounts, true);
+        uint256 slippage = expectedAmount.mul(zapSettings.maxSlippage).div(BIPS_DIVISOR);
+        return ICurveStableSwap(zapSettings.zapContract).add_liquidity(amounts, expectedAmount.sub(slippage));
     }
 
     function zapToCryptoLP(
@@ -67,21 +82,11 @@ library CurveSwap {
             zapSettings.zapToken,
             IPair(zapSettings.swapPairRewardZap)
         );
-        uint256[5] memory amounts = [
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0),
-            uint256(0)
-        ];
+        uint256[5] memory amounts = [uint256(0), uint256(0), uint256(0), uint256(0), uint256(0)];
         amounts[zapSettings.zapTokenIndex] = zapTokenAmount;
-        uint256 expectedAmount = ICurveCryptoSwap(zapSettings.zapContract)
-            .calc_token_amount(amounts, true);
+        uint256 expectedAmount = ICurveCryptoSwap(zapSettings.zapContract).calc_token_amount(amounts, true);
         uint256 slippage = expectedAmount.mul(zapSettings.maxSlippage).div(BIPS_DIVISOR);
-        ICurveCryptoSwap(zapSettings.zapContract).add_liquidity(
-            amounts,
-            expectedAmount.sub(slippage)
-        );
+        ICurveCryptoSwap(zapSettings.zapContract).add_liquidity(amounts, expectedAmount.sub(slippage));
         return IERC20(depositToken).balanceOf(address(this));
     }
 
@@ -99,14 +104,9 @@ library CurveSwap {
         );
         uint256[2] memory amounts = [uint256(0), uint256(0)];
         amounts[zapSettings.zapTokenIndex] = zapTokenAmount;
-        uint256 expectedAmount = ICurveBtcSwap(zapSettings.zapContract)
-            .calc_token_amount(amounts, true);
+        uint256 expectedAmount = ICurveBtcSwap(zapSettings.zapContract).calc_token_amount(amounts, true);
         uint256 slippage = expectedAmount.mul(zapSettings.maxSlippage).div(BIPS_DIVISOR);
-        ICurveBtcSwap(zapSettings.zapContract).add_liquidity(
-            amounts,
-            expectedAmount.sub(slippage),
-            true
-        );
+        ICurveBtcSwap(zapSettings.zapContract).add_liquidity(amounts, expectedAmount.sub(slippage), true);
         return IERC20(depositToken).balanceOf(address(this));
     }
 
@@ -115,32 +115,25 @@ library CurveSwap {
         view
         returns (function(uint256, address, address, Settings memory) returns (uint256))
     {
-        function(uint256, address, address, Settings memory)
-            returns (uint256) zapFunction;
+        function(uint256, address, address, Settings memory) returns (uint256) zapFunction;
         if (zapSettings.poolType == CurveSwap.PoolType.AAVE) {
             require(
                 zapSettings.zapToken ==
-                    ICurveStableSwap(zapSettings.zapContract).underlying_coins(
-                        zapSettings.zapTokenIndex
-                    ),
+                    ICurveStableSwap(zapSettings.zapContract).underlying_coins(zapSettings.zapTokenIndex),
                 "Wrong zap token index"
             );
             zapFunction = zapToAaveLP;
         } else if (zapSettings.poolType == CurveSwap.PoolType.CRYPTO) {
             require(
                 zapSettings.zapToken ==
-                    ICurveCryptoSwap(zapSettings.zapContract).underlying_coins(
-                        zapSettings.zapTokenIndex
-                    ),
+                    ICurveCryptoSwap(zapSettings.zapContract).underlying_coins(zapSettings.zapTokenIndex),
                 "Wrong zap token index"
             );
             zapFunction = zapToCryptoLP;
         } else if (zapSettings.poolType == CurveSwap.PoolType.BTC) {
             require(
                 zapSettings.zapToken ==
-                    ICurveBtcSwap(zapSettings.zapContract).underlying_coins(
-                        zapSettings.zapTokenIndex
-                    ),
+                    ICurveBtcSwap(zapSettings.zapContract).underlying_coins(zapSettings.zapTokenIndex),
                 "Wrong zap token index"
             );
             zapFunction = zapToTwoPoolLP;
