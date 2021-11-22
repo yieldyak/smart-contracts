@@ -83,7 +83,6 @@ contract BlizzStrategyV1 is YakStrategyV2 {
         avDebtToken = _tokens.avDebtToken;
 
         assignSwapPairSafely(_swapPairs.swapPairRewardDeposit);
-        setAllowances();
         updateMinTokensToReinvest(_strategySettings.minTokensToReinvest);
         updateAdminFee(_strategySettings.adminFeeBips);
         updateDevFee(_strategySettings.devFeeBips);
@@ -95,7 +94,10 @@ contract BlizzStrategyV1 is YakStrategyV2 {
     }
 
     function assignSwapPairSafely(address _swapPairRewardDeposit) private {
-        require(_swapPairRewardDeposit > address(0), "Swap pair is necessary but not supplied");
+        require(
+            _swapPairRewardDeposit > address(0),
+            "Swap pair is necessary but not supplied"
+        );
         swapPairRewardDeposit = IPair(_swapPairRewardDeposit);
         require(
             isPairEquals(swapPairRewardDeposit, depositToken, rewardToken) ||
@@ -127,7 +129,10 @@ contract BlizzStrategyV1 is YakStrategyV2 {
         borrowed = IERC20(avDebtToken).balanceOf(address(this));
         borrowable = 0;
         if (balance.mul(leverageLevel.sub(leverageBips)).div(leverageLevel) > borrowed) {
-            borrowable = balance.mul(leverageLevel.sub(leverageBips)).div(leverageLevel).sub(borrowed);
+            borrowable = balance
+                .mul(leverageLevel.sub(leverageBips))
+                .div(leverageLevel)
+                .sub(borrowed);
         }
     }
 
@@ -163,8 +168,32 @@ contract BlizzStrategyV1 is YakStrategyV2 {
     }
 
     function setAllowances() public override onlyOwner {
-        IERC20(depositToken).approve(address(tokenDelegator), type(uint256).max);
-        IERC20(avToken).approve(address(tokenDelegator), type(uint256).max);
+        revert("Deprecated");
+    }
+
+    function _setAllowancesDepositToken(uint256 amount) private {
+        IERC20(depositToken).approve(address(tokenDelegator), 0);
+        IERC20(depositToken).approve(address(tokenDelegator), amount);
+    }
+
+    function _setAllowancesTokenDelegator(uint256 amount) private {
+        IERC20(avToken).approve(address(tokenDelegator), 0);
+        IERC20(avToken).approve(address(tokenDelegator), amount);
+    }
+
+    function _redeemUnderlying(uint256 amount) private returns (uint256) {
+        _setAllowancesTokenDelegator(amount);
+        return tokenDelegator.withdraw(address(depositToken), amount, address(this));
+    }
+
+    function _repayBorrow(uint256 amount) private {
+        _setAllowancesDepositToken(amount);
+        tokenDelegator.repay(address(depositToken), amount, 2, address(this));
+    }
+
+    function _depositCollateral(uint256 amount) private {
+        _setAllowancesDepositToken(amount);
+        tokenDelegator.deposit(address(depositToken), amount, address(this), 0);
     }
 
     function deposit(uint256 amount) external override {
@@ -189,12 +218,19 @@ contract BlizzStrategyV1 is YakStrategyV2 {
     function _deposit(address account, uint256 amount) private onlyAllowedDeposits {
         require(DEPOSITS_ENABLED == true, "BlizzStrategyV1::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
-            (uint256 poolTokenAmount, uint256 rewardTokenBalance, uint256 estimatedTotalReward) = _checkReward();
+            (
+                uint256 poolTokenAmount,
+                uint256 rewardTokenBalance,
+                uint256 estimatedTotalReward
+            ) = _checkReward();
             if (estimatedTotalReward > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
                 _reinvest(poolTokenAmount, rewardTokenBalance, estimatedTotalReward);
             }
         }
-        require(depositToken.transferFrom(msg.sender, address(this), amount), "BlizzStrategyV1::transfer failed");
+        require(
+            depositToken.transferFrom(msg.sender, address(this), amount),
+            "BlizzStrategyV1::transfer failed"
+        );
         _mint(account, getSharesForDepositTokens(amount));
         _stakeDepositTokens(amount);
         emit Deposit(account, amount);
@@ -202,7 +238,10 @@ contract BlizzStrategyV1 is YakStrategyV2 {
 
     function withdraw(uint256 amount) external override {
         uint256 depositTokenAmount = getDepositTokensForShares(amount);
-        require(depositTokenAmount > minMinting, "BlizzStrategyV1::below minimum withdraw");
+        require(
+            depositTokenAmount > minMinting,
+            "BlizzStrategyV1::below minimum withdraw"
+        );
         if (depositTokenAmount > 0) {
             _burn(msg.sender, amount);
             // actual amount withdrawn may change with time.
@@ -216,18 +255,34 @@ contract BlizzStrategyV1 is YakStrategyV2 {
         _unrollDebt(amount);
         (uint256 balance, , ) = _getAccountData();
         amount = amount > balance ? type(uint256).max : amount;
-        uint256 withdrawn = tokenDelegator.withdraw(address(depositToken), amount, address(this));
+        uint256 withdrawn = _redeemUnderlying(amount);
         _rollupDebt();
         return withdrawn;
     }
 
-    function _convertPoolTokensIntoReward(uint256 poolTokenAmount) private returns (uint256) {
-        return DexLibrary.swap(poolTokenAmount, address(poolRewardToken), address(rewardToken), swapPairPoolReward);
+    function _convertPoolTokensIntoReward(uint256 poolTokenAmount)
+        private
+        returns (uint256)
+    {
+        return
+            DexLibrary.swap(
+                poolTokenAmount,
+                address(poolRewardToken),
+                address(rewardToken),
+                swapPairPoolReward
+            );
     }
 
     function reinvest() external override onlyEOA {
-        (uint256 poolTokenAmount, uint256 rewardTokenBalance, uint256 estimatedTotalReward) = _checkReward();
-        require(estimatedTotalReward >= MIN_TOKENS_TO_REINVEST, "BlizzStrategyV1::reinvest");
+        (
+            uint256 poolTokenAmount,
+            uint256 rewardTokenBalance,
+            uint256 estimatedTotalReward
+        ) = _checkReward();
+        require(
+            estimatedTotalReward >= MIN_TOKENS_TO_REINVEST,
+            "BlizzStrategyV1::reinvest"
+        );
         _reinvest(poolTokenAmount, rewardTokenBalance, estimatedTotalReward);
     }
 
@@ -258,7 +313,9 @@ contract BlizzStrategyV1 is YakStrategyV2 {
             _safeTransfer(address(rewardToken), owner(), adminFee);
         }
 
-        uint256 reinvestFee = estimatedTotalReward.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
+        uint256 reinvestFee = estimatedTotalReward.mul(REINVEST_REWARD_BIPS).div(
+            BIPS_DIVISOR
+        );
         if (reinvestFee > 0) {
             _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
         }
@@ -276,7 +333,10 @@ contract BlizzStrategyV1 is YakStrategyV2 {
 
     function _rollupDebt() internal {
         (uint256 balance, uint256 borrowed, uint256 borrowable) = _getAccountData();
-        uint256 lendTarget = balance.sub(borrowed).mul(leverageLevel.sub(safetyFactor)).div(leverageBips);
+        uint256 lendTarget = balance
+            .sub(borrowed)
+            .mul(leverageLevel.sub(safetyFactor))
+            .div(leverageBips);
         while (balance < lendTarget) {
             if (balance.add(borrowable) > lendTarget) {
                 borrowable = lendTarget.sub(balance);
@@ -291,7 +351,7 @@ contract BlizzStrategyV1 is YakStrategyV2 {
                 0,
                 address(this)
             );
-            tokenDelegator.deposit(address(depositToken), borrowable, address(this), 0);
+            _depositCollateral(borrowable);
             (balance, borrowed, borrowable) = _getAccountData();
         }
     }
@@ -311,8 +371,8 @@ contract BlizzStrategyV1 is YakStrategyV2 {
             if (unrollAmount > borrowed) {
                 unrollAmount = borrowed;
             }
-            tokenDelegator.withdraw(address(depositToken), unrollAmount, address(this));
-            tokenDelegator.repay(address(depositToken), unrollAmount, 2, address(this));
+            _redeemUnderlying(unrollAmount);
+            _repayBorrow(unrollAmount);
             (balance, borrowed, borrowable) = _getAccountData();
             if (targetBorrow >= borrowed) {
                 break;
@@ -323,7 +383,7 @@ contract BlizzStrategyV1 is YakStrategyV2 {
 
     function _stakeDepositTokens(uint256 amount) private {
         require(amount > 0, "BlizzStrategyV1::_stakeDepositTokens");
-        tokenDelegator.deposit(address(depositToken), amount, address(this), 0);
+        _depositCollateral(amount);
         _rollupDebt();
     }
 
@@ -339,10 +399,17 @@ contract BlizzStrategyV1 is YakStrategyV2 {
         address to,
         uint256 value
     ) private {
-        require(IERC20(token).transfer(to, value), "BlizzStrategyV1::TRANSFER_FROM_FAILED");
+        require(
+            IERC20(token).transfer(to, value),
+            "BlizzStrategyV1::TRANSFER_FROM_FAILED"
+        );
     }
 
-    function _updatePool(IBlizzChef.PoolInfo memory pool) internal view returns (IBlizzChef.PoolInfo memory) {
+    function _updatePool(IBlizzChef.PoolInfo memory pool)
+        internal
+        view
+        returns (IBlizzChef.PoolInfo memory)
+    {
         if (block.timestamp <= pool.lastRewardTime) {
             return pool;
         }
@@ -352,10 +419,13 @@ contract BlizzStrategyV1 is YakStrategyV2 {
             return pool;
         }
         uint256 duration = block.timestamp.sub(pool.lastRewardTime);
-        uint256 reward = duration.mul(blizzChef.rewardsPerSecond()).mul(pool.allocPoint).div(
-            blizzChef.totalAllocPoint()
+        uint256 reward = duration
+            .mul(blizzChef.rewardsPerSecond())
+            .mul(pool.allocPoint)
+            .div(blizzChef.totalAllocPoint());
+        pool.accRewardPerShare = pool.accRewardPerShare.add(
+            reward.mul(1e12).div(lpSupply)
         );
-        pool.accRewardPerShare = pool.accRewardPerShare.add(reward.mul(1e12).div(lpSupply));
         return pool;
     }
 
@@ -387,7 +457,9 @@ contract BlizzStrategyV1 is YakStrategyV2 {
         poolTokenAmount = poolTokenAmount.add(rewardDebt.sub(user.rewardDebt));
 
         poolTokenAmount = poolTokenAmount.div(2);
-        poolTokenAmount = poolTokenAmount.add(IERC20(poolRewardToken).balanceOf(address(this)));
+        poolTokenAmount = poolTokenAmount.add(
+            IERC20(poolRewardToken).balanceOf(address(this))
+        );
         uint256 pendingRewardTokenAmount = DexLibrary.estimateConversionThroughPair(
             poolTokenAmount,
             poolRewardToken,
@@ -413,13 +485,22 @@ contract BlizzStrategyV1 is YakStrategyV2 {
         return totalDeposits();
     }
 
-    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits)
+        external
+        override
+        onlyOwner
+    {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         (uint256 balance, uint256 borrowed, ) = _getAccountData();
         _unrollDebt(balance.sub(borrowed));
-        tokenDelegator.withdraw(address(depositToken), type(uint256).max, address(this));
+        _redeemUnderlying(type(uint256).max);
         uint256 balanceAfter = depositToken.balanceOf(address(this));
-        require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "BlizzStrategyV1::rescueDeployedFunds");
+        require(
+            balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
+            "BlizzStrategyV1::rescueDeployedFunds"
+        );
+        IERC20(avToken).approve(address(tokenDelegator), 0);
+        IERC20(depositToken).approve(address(tokenDelegator), 0);
         emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
             updateDepositsEnabled(false);

@@ -55,7 +55,6 @@ contract BenqiStrategyAvaxV2 is YakStrategyV2Payable, ReentrancyGuard {
         _enterMarket();
 
         assignSwapPairSafely(_swapPairToken0);
-        setAllowances();
         updateMinTokensToReinvest(_minTokensToReinvest);
         updateAdminFee(_adminFeeBips);
         updateDevFee(_devFeeBips);
@@ -139,7 +138,12 @@ contract BenqiStrategyAvaxV2 is YakStrategyV2Payable, ReentrancyGuard {
     }
 
     function setAllowances() public override onlyOwner {
-        tokenDelegator.approve(address(tokenDelegator), type(uint256).max);
+        revert();
+    }
+
+    function _setAllowances(uint256 amount) private {
+        tokenDelegator.approve(address(tokenDelegator), 0);
+        tokenDelegator.approve(address(tokenDelegator), amount);
     }
 
     function deposit() external payable override nonReentrant {
@@ -352,6 +356,7 @@ contract BenqiStrategyAvaxV2 is YakStrategyV2Payable, ReentrancyGuard {
             if (unrollAmount > toRepay) {
                 unrollAmount = toRepay;
             }
+            _setAllowances(unrollAmount);
             require(
                 tokenDelegator.redeemUnderlying(unrollAmount) == 0,
                 "BenqiStrategyV2::failed to redeem"
@@ -481,6 +486,7 @@ contract BenqiStrategyAvaxV2 is YakStrategyV2Payable, ReentrancyGuard {
         uint256 borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
         uint256 balance = tokenDelegator.balanceOfUnderlying(address(this));
         _unrollDebt(balance.sub(borrowed));
+        _setAllowances(balance);
         tokenDelegator.redeemUnderlying(balance);
         uint256 balanceAfter = address(this).balance;
         require(
