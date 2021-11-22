@@ -8,11 +8,17 @@ import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
 import "./MasterChefStrategyForLP.sol";
 
+/**
+ * notice: this strategy is not handling extra reward and rewarders.
+ * we are waiting for the Pangolin team to provide additional information on the rewarders
+ */
 contract PangolinV2StrategyForLP is MasterChefStrategyForLP {
     using SafeMath for uint256;
 
     IMiniChefV2 public miniChef;
     address public swapPairRewardToken;
+
+    IERC20 private innerRewardToken;
 
     constructor(
         string memory _name,
@@ -37,6 +43,7 @@ contract PangolinV2StrategyForLP is MasterChefStrategyForLP {
             _strategySettings
         )
     {
+        innerRewardToken = IERC20(_nativeRewardToken);
         miniChef = IMiniChefV2(_stakingRewards);
     }
 
@@ -51,6 +58,7 @@ contract PangolinV2StrategyForLP is MasterChefStrategyForLP {
 
     function _emergencyWithdraw(uint256 _pid) internal override {
         miniChef.emergencyWithdraw(_pid, address(this));
+        depositToken.approve(address(miniChef), 0);
     }
 
     function _pendingRewards(uint256 _pid, address _user)
@@ -63,14 +71,19 @@ contract PangolinV2StrategyForLP is MasterChefStrategyForLP {
             address
         )
     {
-        return (miniChef.pendingRewards(_pid, _user), 0, address(0));
+        return (miniChef.pendingReward(_pid, _user), 0, address(0));
     }
 
     function _getRewards(uint256 _pid) internal override {
-        miniChef.deposit(_pid, 0, address(this));
+        miniChef.harvest(_pid, address(this));
     }
 
-    function _getDepositBalance(uint256 pid, address user) internal view override returns (uint256 amount) {
+    function _getDepositBalance(uint256 pid, address user)
+        internal
+        view
+        override
+        returns (uint256 amount)
+    {
         (amount, ) = miniChef.userInfo(pid, user);
     }
 
