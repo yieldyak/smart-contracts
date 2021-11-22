@@ -48,7 +48,6 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
 
         assignSwapPairSafely(_ecosystemToken, _poolRewardToken, _swapPairPoolReward);
         _setExtraRewardSwapPair(_swapPairExtraReward);
-        setAllowances();
         updateMinTokensToReinvest(_strategySettings.minTokensToReinvest);
         updateAdminFee(_strategySettings.adminFeeBips);
         updateDevFee(_strategySettings.devFeeBips);
@@ -87,10 +86,10 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
 
     /**
      * @notice Approve tokens for use in Strategy
-     * @dev Restricted to avoid griefing attacks
+     * @dev Deprecated; approvals should be handled in context of staking
      */
     function setAllowances() public override onlyOwner {
-        depositToken.approve(stakingContract, type(uint256).max);
+        revert("setAllowances::deprecated");
     }
 
     function setExtraRewardSwapPair(address _extraTokenSwapPair) external onlyDev {
@@ -175,7 +174,6 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
     }
 
     function _withdrawDepositTokens(uint256 amount) private {
-        require(amount > 0, "MasterChefStrategyV1::_withdrawDepositTokens");
         _withdrawMasterchef(PID, amount);
     }
 

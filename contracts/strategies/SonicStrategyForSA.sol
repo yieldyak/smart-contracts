@@ -46,6 +46,7 @@ contract SonicStrategyForSA is MasterChefStrategyForSA {
     }
 
     function _depositMasterchef(uint256 _pid, uint256 _amount) internal override {
+        depositToken.approve(address(sonicChef), _amount);
         sonicChef.deposit(_pid, _amount, referrer);
     }
 
