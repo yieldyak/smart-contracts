@@ -32,6 +32,7 @@ contract DragonStrategyForSAV1 is MasterChefStrategyForSA {
             address(WAVAX), /*rewardToken=*/
             _poolRewardToken,
             _swapPairPoolReward,
+            address(0),
             _swapPairToken,
             _stakingContract,
             _timelock,
@@ -54,8 +55,17 @@ contract DragonStrategyForSAV1 is MasterChefStrategyForSA {
         dragonChef.emergencyWithdraw(_pid);
     }
 
-    function _pendingRewards(uint256 _pid, address _user) internal view override returns (uint256) {
-        return dragonChef.pendingDcau(_pid, _user);
+    function _pendingRewards(uint256 _pid, address _user)
+        internal
+        view
+        override
+        returns (
+            uint256 poolTokenAmount,
+            uint256 extraTokenAmount,
+            address extraTokenAddress
+        )
+    {
+        return (dragonChef.pendingDcau(_pid, _user), 0, address(0));
     }
 
     function _getRewards(uint256 _pid) internal override {
@@ -71,11 +81,11 @@ contract DragonStrategyForSAV1 is MasterChefStrategyForSA {
         return poolInfo.depositFeeBP;
     }
 
-    function _getWithdrawFeeBips(uint256 pid) internal view override returns (uint256) {
+    function _getWithdrawFeeBips(uint256 pid) internal pure override returns (uint256) {
         return 0;
     }
 
-    function _bip() internal view override returns (uint256) {
+    function _bip() internal pure override returns (uint256) {
         return 10000;
     }
 }
