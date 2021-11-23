@@ -51,8 +51,13 @@ contract PangolinV2StrategyForLP is MasterChefStrategyForLP {
 
     function _emergencyWithdraw(uint256 _pid) internal override {
         miniChef.emergencyWithdraw(_pid, address(this));
+        depositToken.approve(address(miniChef), 0);
     }
 
+    /**
+     * @notice Returns pending rewards
+     * @dev `rewarder` distributions are not considered
+     */
     function _pendingRewards(uint256 _pid, address _user)
         internal
         view
@@ -63,22 +68,22 @@ contract PangolinV2StrategyForLP is MasterChefStrategyForLP {
             address
         )
     {
-        return (miniChef.pendingRewards(_pid, _user), 0, address(0));
+        return (miniChef.pendingReward(_pid, _user), 0, address(0));
     }
 
     function _getRewards(uint256 _pid) internal override {
-        miniChef.deposit(_pid, 0, address(this));
+        miniChef.harvest(_pid, address(this));
     }
 
-    function _getDepositBalance(uint256 pid, address user) internal view override returns (uint256 amount) {
-        (amount, ) = miniChef.userInfo(pid, user);
+    function _getDepositBalance(uint256 _pid, address _user) internal view override returns (uint256 amount) {
+        (amount, ) = miniChef.userInfo(_pid, _user);
     }
 
-    function _getDepositFeeBips(uint256 pid) internal pure override returns (uint256) {
+    function _getDepositFeeBips(uint256) internal pure override returns (uint256) {
         return 0;
     }
 
-    function _getWithdrawFeeBips(uint256 pid) internal pure override returns (uint256) {
+    function _getWithdrawFeeBips(uint256) internal pure override returns (uint256) {
         return 0;
     }
 
