@@ -172,7 +172,7 @@ abstract contract MasterChefVariableRewardsStrategy is YakStrategyV2 {
                 if (balance > 0) {
                     WAVAX.deposit{value: balance}();
                 }
-                avaxAmount = avaxAmount.add(rewards[i].amount);
+                avaxAmount = avaxAmount.add(amount);
             }
         }
         return avaxAmount;
