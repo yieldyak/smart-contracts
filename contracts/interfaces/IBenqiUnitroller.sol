@@ -1,6 +1,6 @@
 
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity 0.7.3;
 
 interface IBenqiUnitroller {
     function enterMarkets(address[] memory cTokens) external returns (uint[] memory);
