@@ -321,7 +321,7 @@ contract AaveStrategyV1 is YakStrategyV2 {
     }
 
     /**
-     * @notice Safely transfer using an anonymosu ERC20 token
+     * @notice Safely transfer using an anonymous ERC20 token
      * @dev Requires token to return true on transfer
      * @param token address
      * @param to recipient address
