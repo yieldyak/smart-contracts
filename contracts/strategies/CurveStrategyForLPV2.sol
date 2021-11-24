@@ -146,17 +146,15 @@ contract CurveStrategyForLPV2 is YakStrategy {
 
     function withdraw(uint256 amount) external override {
         uint256 depositTokenAmount = getDepositTokensForShares(amount);
-        if (depositTokenAmount > 0) {
-            _withdrawDepositTokens(depositTokenAmount);
-            _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
-            _burn(msg.sender, amount);
-            totalDeposits = totalDeposits.sub(depositTokenAmount);
-            emit Withdraw(msg.sender, depositTokenAmount);
-        }
+        require(depositTokenAmount > 0, "CurveStrategyForLPV2::withdraw");
+        _withdrawDepositTokens(depositTokenAmount);
+        _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
+        _burn(msg.sender, amount);
+        totalDeposits = totalDeposits.sub(depositTokenAmount);
+        emit Withdraw(msg.sender, depositTokenAmount);
     }
 
     function _withdrawDepositTokens(uint256 amount) private {
-        require(amount > 0, "CurveStrategyForLPV2::_withdrawDepositTokens");
         stakingContract.withdraw(amount);
     }
 

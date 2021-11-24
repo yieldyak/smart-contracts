@@ -89,9 +89,9 @@ contract YakVault is YakERC20, Ownable {
             YakStrategy(activeStrategy).deposit(confirmedAmount);
         }
         // todo - conversion for other token deposits
-        _mint(account, getSharesForDepositTokens(amount));
-        totalDeposits = totalDeposits.add(amount);
-        emit Deposit(account, token, amount);
+        _mint(account, getSharesForDepositTokens(confirmedAmount));
+        totalDeposits = totalDeposits.add(confirmedAmount);
+        emit Deposit(account, token, confirmedAmount);
         emit Sync(totalDeposits, totalSupply);
     }
 
@@ -125,7 +125,7 @@ contract YakVault is YakERC20, Ownable {
     }
 
     /**
-     * @notice Revoke approval for an anonymosu ERC20 token
+     * @notice Revoke approval for an anonymous ERC20 token
      * @dev Requires token to return true on approve
      * @param token address
      * @param spender address
@@ -135,7 +135,7 @@ contract YakVault is YakERC20, Ownable {
     }
 
     /**
-     * @notice Safely transfer using an anonymosu ERC20 token
+     * @notice Safely transfer using an anonymous ERC20 token
      * @dev Requires token to return true on transfer
      * @param token address
      * @param to recipient address
@@ -228,7 +228,7 @@ contract YakVault is YakERC20, Ownable {
         return deployedFunds;
     }
 
-    function resetTotalDeposits() external {
+    function resetTotalDeposits() public {
         uint liquidBalance = depositToken.balanceOf(address(this));
         uint deployedBalance = estimateDeployedBalances();
         totalDeposits = liquidBalance.add(deployedBalance);

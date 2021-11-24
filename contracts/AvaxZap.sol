@@ -2,37 +2,44 @@
 pragma solidity ^0.7.0;
 
 import "./interfaces/IWAVAX.sol";
-import "./lib/Ownable.sol";
-import "./lib/SafeMath.sol";
 import "./interfaces/IYakStrategy.sol";
+import "./interfaces/IERC20.sol";
+import "./lib/Ownable.sol";
 
 /**
- * @notice 
- * @dev Assumes User send AVAX to this contract in value of the payable deposit method
+ * @notice Zap AVAX into strategies with WAVAX deposit token
  */
 contract AvaxZap is Ownable {
-    using SafeMath for uint;
-    address public WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
-    event Recovered(address token, uint amount);
 
-    constructor (
-        address _timelock
-    ) {
-        transferOwnership(_timelock);
-    }
+  address constant private WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
 
- /**
-   * @notice deposit wavax to the contract on behalf of user
+  event Recovered(address token, uint amount);
+  
+  receive() external payable {}
+
+  /**
+   * @notice Deposit wavax to the contract on behalf of user
    * @param strategyContract strategy contract address
    */
-    function depositAVAX(address strategyContract) external payable {
-        IWAVAX(WAVAX).deposit{value: msg.value}();
-        IWAVAX(WAVAX).approve(strategyContract, msg.value);
-        require(address(IYakStrategy(strategyContract).depositToken()) == address(WAVAX));
-        IYakStrategy(strategyContract).depositFor(msg.sender, msg.value);
-    }
+  function depositAVAX(address strategyContract) external payable {
+    IWAVAX(WAVAX).deposit{value: msg.value}();
+    IWAVAX(WAVAX).approve(strategyContract, msg.value);
+    require(IYakStrategy(strategyContract).depositToken() == WAVAX, "AvaxZap::depositAvax incompatible strategy");
+    IYakStrategy(strategyContract).depositFor(msg.sender, msg.value);
+  }
 
-    /**
+  /**
+    * @notice Recover ERC20 from contract
+    * @param tokenAddress token address
+    * @param tokenAmount amount to recover
+    */
+  function recoverERC20(address tokenAddress, uint tokenAmount) external onlyOwner {
+    require(tokenAmount > 0, 'amount too low');
+    require(IERC20(tokenAddress).transfer(msg.sender, tokenAmount));
+    emit Recovered(tokenAddress, tokenAmount);
+  }
+
+  /**
    * @notice Recover AVAX from contract
    * @param amount amount
    */
