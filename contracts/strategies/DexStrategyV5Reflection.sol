@@ -38,6 +38,7 @@ contract DexStrategyV5Reflection is YakStrategy {
         rewardToken = IERC20(_rewardToken);
         stakingContract = IStakingRewards(_stakingContract);
         devAddr = msg.sender;
+        burnFeeBips = _burnFeeBips;
 
         reflectionToken = _reflectionToken;
         assignSwapPairSafely(_swapPairToken0, _swapPairToken1, _rewardToken);
@@ -47,7 +48,6 @@ contract DexStrategyV5Reflection is YakStrategy {
         updateDevFee(_devFeeBips);
         updateReinvestReward(_reinvestRewardBips);
         updateDepositsEnabled(true);
-        updateBurnFee(_burnFeeBips);
         transferOwnership(_timelock);
 
         zeroBytes = new bytes(0);
@@ -336,20 +336,11 @@ contract DexStrategyV5Reflection is YakStrategy {
         return stakingContract.balanceOf(address(this));
     }
 
-    /**
-     * @notice Updates the burning fee associated with the reflection token
-     * @dev No checks, incorrect value here might cause reinvest to fail due to balance miscalculation
-     * @param _burnFeeBips burn fee in bips meaning the percentage that the reflection burns in total
-     */
-    function updateBurnFee(uint _burnFeeBips) public onlyOwner {
-        burnFeeBips = _burnFeeBips;
-    }
-
     function rescueDeployedFunds(uint minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
         uint balanceBefore = depositToken.balanceOf(address(this));
         stakingContract.exit();
         uint balanceAfter = depositToken.balanceOf(address(this));
-        require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "DexStrategyV4::rescueDeployedFunds");
+        require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "DexStrategyV5::rescueDeployedFunds");
         totalDeposits = balanceAfter;
         emit Reinvest(totalDeposits, totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {

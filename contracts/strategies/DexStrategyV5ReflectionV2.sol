@@ -135,7 +135,7 @@ contract DexStrategyV5ReflectionV2 is YakStrategy {
 
     function reinvest() external override onlyEOA {
         uint unclaimedRewards = checkReward();
-        //require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "DexStrategyV5::reinvest");
+        require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "DexStrategyV5::reinvest");
         _reinvest(unclaimedRewards);
     }
 
@@ -356,7 +356,7 @@ contract DexStrategyV5ReflectionV2 is YakStrategy {
      * @dev No checks, incorrect value here might cause reinvest to fail due to balance miscalculation
      * @param _burnFeeBips burn fee in bips meaning the percentage that the reflection burns in total
      */
-    function updateBurnFee(uint _burnFeeBips) public onlyOwner {
+    function updateBurnFee(uint _burnFeeBips) public onlyDev {
         burnFeeBips = _burnFeeBips;
     }
 
@@ -364,7 +364,7 @@ contract DexStrategyV5ReflectionV2 is YakStrategy {
         uint balanceBefore = depositToken.balanceOf(address(this));
         stakingContract.exit();
         uint balanceAfter = depositToken.balanceOf(address(this));
-        require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "DexStrategyV4::rescueDeployedFunds");
+        require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "DexStrategyV5::rescueDeployedFunds");
         totalDeposits = balanceAfter;
         emit Reinvest(totalDeposits, totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {

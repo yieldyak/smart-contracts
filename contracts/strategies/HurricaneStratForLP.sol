@@ -10,15 +10,18 @@ import "../lib/SafeMath.sol";
 
 /**
  * @notice LP strategy for HurricaneSwap
+ * @dev Uses routes instead of pairs
  */
 contract HurricaneStratForLP is YakStrategy {
     using SafeMath for uint256;
-    using SafeMath for uint256;
+    
     IHurricaneMasterChief public stakingContract;
     IHurricaneRouter public router;
     address[] route1;
     address[] route0;
     uint256 public PID;
+
+    address public manager;
 
     constructor(
         string memory _name,
@@ -40,7 +43,8 @@ contract HurricaneStratForLP is YakStrategy {
         rewardToken = IERC20(_rewardToken);
         stakingContract = IHurricaneMasterChief(_stakingContract);
         PID = _pid;
-        devAddr = msg.sender;
+        devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
+        manager = msg.sender;
         router = IHurricaneRouter(_router);
         // Perform checks on the routes
         setRoutes(_route0, _route1);
@@ -55,10 +59,9 @@ contract HurricaneStratForLP is YakStrategy {
         emit Reinvest(0, 0);
     }
 
-    function setRoutes(address[] memory _route0, address[] memory _route1)
-        public
-        onlyDev
+    function setRoutes(address[] memory _route0, address[] memory _route1) public
     {
+        require(msg.sender == manager, "auth");
         require((_route0.length > 1) && (_route1.length > 1), "a route is too short");
         require(_route0[0] == _route1[0], "routes do not start at the same token");
         require(
@@ -68,6 +71,11 @@ contract HurricaneStratForLP is YakStrategy {
         (route0, route1) = _route0[_route0.length - 1] < _route1[_route1.length - 1]
             ? (_route0, _route1)
             : (_route1, _route0);
+    }
+
+    function updateManagerAddress(address newManager) external {
+        require(msg.sender == manager, "auth");
+        manager = newManager;
     }
 
     /**
@@ -138,17 +146,15 @@ contract HurricaneStratForLP is YakStrategy {
 
     function withdraw(uint256 amount) external override {
         uint256 depositTokenAmount = getDepositTokensForShares(amount);
-        if (depositTokenAmount > 0) {
-            _withdrawDepositTokens(depositTokenAmount);
-            _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
-            _burn(msg.sender, amount);
-            totalDeposits = totalDeposits.sub(depositTokenAmount);
-            emit Withdraw(msg.sender, depositTokenAmount);
-        }
+        require(depositTokenAmount > 0, "HurricaneStrategyForLP::withdraw");
+        _withdrawDepositTokens(depositTokenAmount);
+        _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
+        _burn(msg.sender, amount);
+        totalDeposits = totalDeposits.sub(depositTokenAmount);
+        emit Withdraw(msg.sender, depositTokenAmount);
     }
 
     function _withdrawDepositTokens(uint256 amount) private {
-        require(amount > 0, "HurricaneStrategyForLP::_withdrawDepositTokens");
         stakingContract.withdraw(PID, amount);
     }
 
@@ -176,14 +182,6 @@ contract HurricaneStratForLP is YakStrategy {
             );
         }
 
-        uint256 adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
-        if (adminFee > 0) {
-            require(
-                rewardToken.transfer(owner(), adminFee),
-                "HurricaneStrategyForLP::_reinvest, admin"
-            );
-        }
-
         uint256 reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
             require(
@@ -193,7 +191,7 @@ contract HurricaneStratForLP is YakStrategy {
         }
 
         uint256 depositTokenAmount = _convertRewardTokensToDepositTokens(
-            amount.sub(devFee).sub(adminFee).sub(reinvestFee)
+            amount.sub(devFee).sub(reinvestFee)
         );
 
         _stakeDepositTokens(depositTokenAmount);

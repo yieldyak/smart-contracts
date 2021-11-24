@@ -48,7 +48,7 @@ contract MarginswapStrategyV1 is YakStrategyV2 {
         updateDevFee(_devFeeBips);
         updateReinvestReward(_reinvestRewardBips);
         updateDepositsEnabled(true);
-        // transferOwnership(_timelock);
+        transferOwnership(_timelock);
 
         emit Reinvest(0, 0);
     }
@@ -94,16 +94,14 @@ contract MarginswapStrategyV1 is YakStrategyV2 {
 
     function withdraw(uint amount) external override {
         uint depositTokenAmount = totalDeposits().mul(amount).div(totalSupply);
-        if (depositTokenAmount > 0) {
-            _burn(msg.sender, amount);
-            _withdrawDepositTokens(depositTokenAmount);
-            _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
-            emit Withdraw(msg.sender, depositTokenAmount);
-        }
+        require(amount > 0, "MarginswapStrategyV1::withdraw");
+        _burn(msg.sender, amount);
+        _withdrawDepositTokens(depositTokenAmount);
+        _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
+        emit Withdraw(msg.sender, depositTokenAmount);
     }
 
     function _withdrawDepositTokens(uint amount) private {
-        require(amount > 0, "MarginswapStrategyV1::_withdrawDepositTokens");
         stakingContract.withdrawHourlyBond(address(depositToken), amount);
     }
 
