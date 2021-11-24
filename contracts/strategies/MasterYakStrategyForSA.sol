@@ -149,14 +149,14 @@ contract MasterYakStrategyForSA is YakStrategy {
     }
 
     /**
-     * @notice Safely transfer using an anonymosu ERC20 token
+     * @notice Safely transfer using an anonymous ERC20 token
      * @dev Requires token to return true on transfer
      * @param token address
      * @param to recipient address
      * @param value amount
      */
     function _safeTransfer(address token, address to, uint256 value) private {
-        require(IERC20(token).transfer(to, value), 'TransferHelper: TRANSFER_FROM_FAILED');
+        require(IERC20(token).transfer(to, value), 'MasterYakStrategy::TRANSFER_FROM_FAILED');
     }
 
     function checkReward() public override view returns (uint) {

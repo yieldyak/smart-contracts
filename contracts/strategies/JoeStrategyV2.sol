@@ -116,7 +116,7 @@ contract JoeStrategyV2 is YakStrategy {
     }
 
     function _deposit(address account, uint amount) private onlyAllowedDeposits {
-        require(DEPOSITS_ENABLED == true, "JoeStrategyV1::_deposit");
+        require(DEPOSITS_ENABLED == true, "JoeStrategyV2::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
             uint unclaimedRewards = checkReward();
             if (unclaimedRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
@@ -143,13 +143,13 @@ contract JoeStrategyV2 is YakStrategy {
     }
 
     function _withdrawDepositTokens(uint amount) private {
-        require(amount > 0, "JoeStrategyV1::_withdrawDepositTokens");
+        require(amount > 0, "JoeStrategyV2::_withdrawDepositTokens");
         stakingContract.withdraw(PID, amount);
     }
 
     function reinvest() external override onlyEOA {
         uint unclaimedRewards = checkReward();
-        require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "JoeStrategyV1::reinvest");
+        require(unclaimedRewards >= MIN_TOKENS_TO_REINVEST, "JoeStrategyV2::reinvest");
         (uint poolTokenAmount, address extraRewardTokenAddress, uint extraRewardTokenAmount, uint rewardTokenAmount) = _checkReward();
         _reinvest(poolTokenAmount, extraRewardTokenAddress, extraRewardTokenAmount, rewardTokenAmount);
     }
@@ -223,7 +223,7 @@ contract JoeStrategyV2 is YakStrategy {
     }
     
     function _stakeDepositTokens(uint amount) private {
-        require(amount > 0, "JoeStrategyV1::_stakeDepositTokens");
+        require(amount > 0, "JoeStrategyV2::_stakeDepositTokens");
         stakingContract.deposit(PID, amount);
     }
 
@@ -254,14 +254,14 @@ contract JoeStrategyV2 is YakStrategy {
     }
 
     /**
-     * @notice Safely transfer using an anonymosu ERC20 token
+     * @notice Safely transfer using an anonymous ERC20 token
      * @dev Requires token to return true on transfer
      * @param token address
      * @param to recipient address
      * @param value amount
      */
     function _safeTransfer(address token, address to, uint256 value) private {
-        require(IERC20(token).transfer(to, value), 'TransferHelper: TRANSFER_FROM_FAILED');
+        require(IERC20(token).transfer(to, value), 'JoeStrategyV2::TRANSFER_FROM_FAILED');
     }
 
     /**
@@ -326,7 +326,7 @@ contract JoeStrategyV2 is YakStrategy {
      */
     function _convertWAVAXToDepositTokens(uint amount) private returns (uint) {
         uint amountIn = amount.div(2);
-        require(amountIn > 0, "JoeStrategyV1::_convertRewardTokensToDepositTokens");
+        require(amountIn > 0, "JoeStrategyV2::_convertRewardTokensToDepositTokens");
 
         address token0 = IPair(address(depositToken)).token0();
         uint amountOutToken0 = amountIn;
@@ -422,7 +422,7 @@ contract JoeStrategyV2 is YakStrategy {
         uint balanceBefore = depositToken.balanceOf(address(this));
         stakingContract.emergencyWithdraw(PID);
         uint balanceAfter = depositToken.balanceOf(address(this));
-        require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "JoeStrategyV1::rescueDeployedFunds");
+        require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "JoeStrategyV2::rescueDeployedFunds");
         totalDeposits = balanceAfter;
         emit Reinvest(totalDeposits, totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {

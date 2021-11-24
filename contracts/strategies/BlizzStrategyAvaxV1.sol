@@ -68,7 +68,7 @@ contract BlizzStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         poolRewardToken = _poolRewardToken;
         swapPairPoolReward = IPair(_swapPairPoolReward);
         _updateLeverage(_leverageSettings);
-        devAddr = msg.sender;
+        devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
         avToken = _avToken;
         avDebtToken = _avDebtToken;
 
@@ -184,24 +184,19 @@ contract BlizzStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
     }
 
     function withdraw(uint256 amount) external override nonReentrant {
-        uint256 WAVAXAmount = totalDeposits().mul(amount).div(totalSupply);
+        uint256 WAVAXAmount = getDepositTokensForShares(amount);
         require(WAVAXAmount > minMinting, "BlizzStrategyAvaxV1::below minimum withdraw");
-        if (WAVAXAmount > 0) {
-            _burn(msg.sender, amount);
-            uint256 avaxAmount = _withdrawDepositTokens(WAVAXAmount);
-            (bool success, ) = msg.sender.call{value: avaxAmount}("");
-            require(success, "BlizzStrategyAvaxV1::transfer failed");
-            emit Withdraw(msg.sender, avaxAmount);
-        }
+        _burn(msg.sender, amount);
+        uint256 avaxAmount = _withdrawDepositTokens(WAVAXAmount);
+        (bool success, ) = msg.sender.call{value: avaxAmount}("");
+        require(success, "BlizzStrategyAvaxV1::transfer failed");
+        emit Withdraw(msg.sender, avaxAmount);
     }
 
     function _withdrawDepositTokens(uint256 amount) private returns (uint256) {
         _unrollDebt(amount);
         (uint256 balance, , ) = _getAccountData();
-        if (amount > balance) {
-            // withdraws all
-            amount = type(uint256).max;
-        }
+        amount = amount > balance ? type(uint256).max : amount;
         uint256 withdrawn = tokenDelegator.withdraw(address(WAVAX), amount, address(this));
         WAVAX.withdraw(withdrawn);
         _rollupDebt();
@@ -240,17 +235,12 @@ contract BlizzStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
             _safeTransfer(address(rewardToken), devAddr, devFee);
         }
 
-        uint256 adminFee = estimatedTotalReward.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
-        if (adminFee > 0) {
-            _safeTransfer(address(rewardToken), owner(), adminFee);
-        }
-
         uint256 reinvestFee = estimatedTotalReward.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
             _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
         }
 
-        _stakeDepositTokens(estimatedTotalReward.sub(devFee).sub(adminFee).sub(reinvestFee));
+        _stakeDepositTokens(estimatedTotalReward.sub(devFee).sub(reinvestFee));
 
         emit Reinvest(totalDeposits(), totalSupply);
     }
@@ -309,7 +299,7 @@ contract BlizzStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
     }
 
     /**
-     * @notice Safely transfer using an anonymosu ERC20 token
+     * @notice Safely transfer using an anonymous ERC20 token
      * @dev Requires token to return true on transfer
      * @param token address
      * @param to recipient address
