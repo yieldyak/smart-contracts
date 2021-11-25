@@ -4,7 +4,9 @@ require("hardhat-deploy");
 require("hardhat-deploy-ethers");
 require('hardhat-abi-exporter');
 require('hardhat-contract-sizer');
+require("@nomiclabs/hardhat-etherscan");
 const dotenv = require("dotenv");
+const { task } = require("hardhat/config");
 dotenv.config();
 
 const AVALANCHE_MAINNET_URL = process.env.AVALANCHE_MAINNET_URL;
@@ -14,14 +16,24 @@ const PK_USER = process.env.PK_USER;
 const PK_OWNER = process.env.PK_OWNER;
 const PK_TEST = process.env.PK_TEST;
 
+const SNOWTRACE_API_KEY = process.env.SNOWTRACE_API_KEY;
+
 // require scripts
 const farmData = require("./scripts/farm-data");
+const verifyContract = require("./scripts/verify-contract");
 
 // tasks
 task("checkFarmState", "Gives a nice output of the state of the farm")
   .addParam("farm", "Farm to check the state of")
   .setAction(async ({ farm }) => farmData(farm));
 
+// to verify all contracts use
+// find ./deployments/mainnet -maxdepth 1 -type f -not -path '*/\.*' -path "*.json" | xargs -L1 npx hardhat verifyContract --deployment-file-path
+task("verifyContract", "Verifies the contract in the snowtrace")
+.addParam("deploymentFilePath", "Deployment file path")
+.setAction(
+  async({deploymentFilePath}, hre) => verifyContract(deploymentFilePath, hre)
+)
 
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
@@ -62,6 +74,9 @@ module.exports = {
     path: './abis',
     clear: true,
     flat: true
+  },
+  etherscan: {
+    apiKey: SNOWTRACE_API_KEY
   },
   networks: {
     hardhat: {
