@@ -127,7 +127,7 @@ contract JoeStrategyV4 is YakStrategy {
     }
 
     function setAllowances() public override onlyOwner {
-        depositToken.approve(address(stakingContract), MAX_UINT);
+        depositToken.approve(address(stakingContract), type(uint256).max);
     }
 
     function deposit(uint256 amount) external override {
@@ -432,16 +432,6 @@ contract JoeStrategyV4 is YakStrategy {
         return amount;
     }
 
-    /**
-     * @notice Allows exit from Staking Contract without additional logic
-     * @dev Reward tokens are not automatically collected
-     * @dev New deposits will be effectively disabled
-     */
-    function emergencyWithdraw() external onlyOwner {
-        stakingContract.emergencyWithdraw(PID);
-        totalDeposits = 0;
-    }
-
     function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits)
         external
         override
@@ -455,6 +445,7 @@ contract JoeStrategyV4 is YakStrategy {
             "JoeStrategyV4::rescueDeployedFunds"
         );
         totalDeposits = balanceAfter;
+        depositToken.approve(address(stakingContract), 0);
         emit Reinvest(totalDeposits, totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
             updateDepositsEnabled(false);

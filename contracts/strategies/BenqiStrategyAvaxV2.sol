@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.0;
 
-import "../YakStrategyV2Payable.sol";
+import "../YakStrategyV3Payable.sol";
 import "../interfaces/IBenqiUnitroller.sol";
 import "../interfaces/IBenqiAVAXDelegator.sol";
 import "../interfaces/IWAVAX.sol";
@@ -10,7 +10,7 @@ import "../interfaces/IERC20.sol";
 import "../lib/DexLibrary.sol";
 import "../lib/ReentrancyGuard.sol";
 
-contract BenqiStrategyAvaxV2 is YakStrategyV2Payable, ReentrancyGuard {
+contract BenqiStrategyAvaxV2 is YakStrategyV3Payable, ReentrancyGuard {
     using SafeMath for uint256;
 
     IBenqiUnitroller private rewardController;
@@ -36,7 +36,8 @@ contract BenqiStrategyAvaxV2 is YakStrategyV2Payable, ReentrancyGuard {
         uint256 _minTokensToReinvest,
         uint256 _adminFeeBips,
         uint256 _devFeeBips,
-        uint256 _reinvestRewardBips
+        uint256 _reinvestRewardBips,
+        address _recoverManager
     ) {
         name = _name;
         depositToken = IERC20(address(0));
@@ -61,6 +62,7 @@ contract BenqiStrategyAvaxV2 is YakStrategyV2Payable, ReentrancyGuard {
         updateDevFee(_devFeeBips);
         updateReinvestReward(_reinvestRewardBips);
         updateDepositsEnabled(true);
+        updateRecoverFundsManager(_recoverManager);
         transferOwnership(_timelock);
 
         emit Reinvest(0, 0);
@@ -169,7 +171,7 @@ contract BenqiStrategyAvaxV2 is YakStrategyV2Payable, ReentrancyGuard {
     }
 
     function _deposit(address account, uint256 amount) private onlyAllowedDeposits {
-        require(DEPOSITS_ENABLED == true, "BenqiStrategyV1::_deposit");
+        require(DEPOSITS_ENABLED == true, "BenqiStrategyAvaxV2::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
             (
                 uint256 qiRewards,
@@ -191,13 +193,13 @@ contract BenqiStrategyAvaxV2 is YakStrategyV2Payable, ReentrancyGuard {
     }
 
     function withdraw(uint256 amount) external override nonReentrant {
-        require(amount > minMinting, "BenqiStrategyV1::below minimum withdraw");
+        require(amount > minMinting, "BenqiStrategyAvaxV2::below minimum withdraw");
         uint256 depositTokenAmount = _totalDepositsFresh().mul(amount).div(totalSupply);
         if (depositTokenAmount > 0) {
             _burn(msg.sender, amount);
             _withdrawDepositTokens(depositTokenAmount);
             (bool success, ) = msg.sender.call{value: depositTokenAmount}("");
-            require(success, "BenqiStrategyV1::withdraw transfer failed");
+            require(success, "BenqiStrategyAvaxV2::withdraw transfer failed");
             emit Withdraw(msg.sender, depositTokenAmount);
         }
     }
@@ -216,7 +218,10 @@ contract BenqiStrategyAvaxV2 is YakStrategyV2Payable, ReentrancyGuard {
             uint256 avaxRewards,
             uint256 totalAvaxRewards
         ) = _checkRewards();
-        require(totalAvaxRewards >= MIN_TOKENS_TO_REINVEST, "BenqiStrategyV1::reinvest");
+        require(
+            totalAvaxRewards >= MIN_TOKENS_TO_REINVEST,
+            "BenqiStrategyAvaxV2::reinvest"
+        );
         _reinvest(qiRewards, avaxRewards, totalAvaxRewards);
     }
 
@@ -225,7 +230,7 @@ contract BenqiStrategyAvaxV2 is YakStrategyV2Payable, ReentrancyGuard {
             msg.sender == address(rewardController) ||
                 msg.sender == address(WAVAX) ||
                 msg.sender == address(tokenDelegator),
-            "BenqiStrategyV1::payments not allowed"
+            "BenqiStrategyAvaxV2::payments not allowed"
         );
     }
 
@@ -296,7 +301,7 @@ contract BenqiStrategyAvaxV2 is YakStrategyV2Payable, ReentrancyGuard {
             }
             require(
                 tokenDelegator.borrow(toBorrowAmount) == 0,
-                "BenqiStrategyV1::borrowing failed"
+                "BenqiStrategyAvaxV2::borrowing failed"
             );
             tokenDelegator.mint{value: toBorrowAmount}();
             supplied = tokenDelegator.balanceOfUnderlying(address(this));
@@ -367,7 +372,7 @@ contract BenqiStrategyAvaxV2 is YakStrategyV2Payable, ReentrancyGuard {
     }
 
     function _stakeDepositTokens(uint256 amount) private {
-        require(amount > 0, "BenqiStrategyV1::_stakeDepositTokens");
+        require(amount > 0, "BenqiStrategyAvaxV2::_stakeDepositTokens");
         tokenDelegator.mint{value: amount}();
         uint256 borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
         uint256 principal = tokenDelegator.balanceOfUnderlying(address(this));
@@ -388,7 +393,7 @@ contract BenqiStrategyAvaxV2 is YakStrategyV2Payable, ReentrancyGuard {
     ) private {
         require(
             IERC20(token).transfer(to, value),
-            "BenqiStrategyV1::TRANSFER_FROM_FAILED"
+            "BenqiStrategyAvaxV2::TRANSFER_FROM_FAILED"
         );
     }
 
@@ -472,24 +477,20 @@ contract BenqiStrategyAvaxV2 is YakStrategyV2Payable, ReentrancyGuard {
         return totalDeposits();
     }
 
-    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits)
-        external
-        override
-        onlyOwner
-    {
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted) internal override {
         uint256 balanceBefore = address(this).balance;
         uint256 borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
         uint256 balance = tokenDelegator.balanceOfUnderlying(address(this));
         _unrollDebt(balance.sub(borrowed));
-        tokenDelegator.redeemUnderlying(balance);
+        require(
+            tokenDelegator.redeemUnderlying(balance.sub(borrowed)) == 0,
+            "BenqiStrategyV2::failed to redeem"
+        );
         uint256 balanceAfter = address(this).balance;
         require(
             balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
-            "BenqiStrategyV1::rescueDeployedFunds"
+            "BenqiStrategyV2::rescueDeployedFunds"
         );
         emit Reinvest(totalDeposits(), totalSupply);
-        if (DEPOSITS_ENABLED == true && disableDeposits == true) {
-            updateDepositsEnabled(false);
-        }
     }
 }

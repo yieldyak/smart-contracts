@@ -5,6 +5,7 @@ import "./lib/SafeMath.sol";
 import "./lib/Ownable.sol";
 import "./lib/Permissioned.sol";
 import "./interfaces/IERC20.sol";
+import "./protocol/RecoverFunds.sol";
 import "./interfaces/IRecoverFundsManager.sol";
 import "./YakERC20.sol";
 
@@ -39,10 +40,7 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
     event UpdateDevFee(uint256 oldValue, uint256 newValue);
     event UpdateReinvestReward(uint256 oldValue, uint256 newValue);
     event UpdateMinTokensToReinvest(uint256 oldValue, uint256 newValue);
-    event UpdateMaxTokensToDepositWithoutReinvest(
-        uint256 oldValue,
-        uint256 newValue
-    );
+    event UpdateMaxTokensToDepositWithoutReinvest(uint256 oldValue, uint256 newValue);
     event UpdateDevAddr(address oldValue, address newValue);
     event DepositsEnabled(bool newValue);
 
@@ -73,10 +71,7 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
      * @param token address
      * @param spender address
      */
-    function revokeAllowance(address token, address spender)
-        external
-        onlyOwner
-    {
+    function revokeAllowance(address token, address spender) external onlyOwner {
         require(IERC20(token).approve(spender, 0));
     }
 
@@ -151,9 +146,7 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
      * @notice Rescue all available deployed deposit tokens back to Strategy to booststrap rescue strategy
      * @param minReturnAmountAccepted min deposit tokens to receive
      */
-    function rescueDeployedFunds(uint256 minReturnAmountAccepted)
-        internal
-        virtual;
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted) internal virtual;
 
     /**
      * @notice This function returns a snapshot of last available quotes
@@ -168,11 +161,7 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
      * @param amount deposit tokens
      * @return receipt tokens
      */
-    function getSharesForDepositTokens(uint256 amount)
-        public
-        view
-        returns (uint256)
-    {
+    function getSharesForDepositTokens(uint256 amount) public view returns (uint256) {
         if (totalSupply.mul(totalDeposits()) == 0) {
             return amount;
         }
@@ -184,11 +173,7 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
      * @param amount receipt tokens
      * @return deposit tokens
      */
-    function getDepositTokensForShares(uint256 amount)
-        public
-        view
-        returns (uint256)
-    {
+    function getDepositTokensForShares(uint256 amount) public view returns (uint256) {
         if (totalSupply.mul(totalDeposits()) == 0) {
             return 0;
         }
@@ -209,19 +194,14 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
         onlyOwner
     {
         require(recoverFunds == address(0), "recover funds already triggered");
-        recoverFundsManager = IRecoverFundsManager(
-            newRecoverFundsManagerAddress
-        );
+        recoverFundsManager = IRecoverFundsManager(newRecoverFundsManagerAddress);
     }
 
     /**
      * @notice Update reinvest max threshold before a deposit
      * @param newValue threshold
      */
-    function updateMaxTokensToDepositWithoutReinvest(uint256 newValue)
-        public
-        onlyOwner
-    {
+    function updateMaxTokensToDepositWithoutReinvest(uint256 newValue) public onlyOwner {
         emit UpdateMaxTokensToDepositWithoutReinvest(
             MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST,
             newValue
@@ -234,10 +214,7 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
      * @param newValue fee in BIPS
      */
     function updateDevFee(uint256 newValue) public onlyOwner {
-        require(
-            newValue.add(ADMIN_FEE_BIPS).add(REINVEST_REWARD_BIPS) <=
-                BIPS_DIVISOR
-        );
+        require(newValue.add(ADMIN_FEE_BIPS).add(REINVEST_REWARD_BIPS) <= BIPS_DIVISOR);
         emit UpdateDevFee(DEV_FEE_BIPS, newValue);
         DEV_FEE_BIPS = newValue;
     }
@@ -247,9 +224,7 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
      * @param newValue fee in BIPS
      */
     function updateAdminFee(uint256 newValue) public onlyOwner {
-        require(
-            newValue.add(DEV_FEE_BIPS).add(REINVEST_REWARD_BIPS) <= BIPS_DIVISOR
-        );
+        require(newValue.add(DEV_FEE_BIPS).add(REINVEST_REWARD_BIPS) <= BIPS_DIVISOR);
         emit UpdateAdminFee(ADMIN_FEE_BIPS, newValue);
         ADMIN_FEE_BIPS = newValue;
     }
@@ -288,10 +263,7 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
      * @param tokenAddress token address
      * @param tokenAmount amount to recover
      */
-    function recoverERC20(address tokenAddress, uint256 tokenAmount)
-        external
-        onlyOwner
-    {
+    function recoverERC20(address tokenAddress, uint256 tokenAmount) external onlyOwner {
         require(tokenAmount > 0);
         require(
             tokenAddress != address(depositToken),
@@ -327,17 +299,12 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
             updateDepositsEnabled(false);
         }
         recoverFunds = recoverFundsManager.recoverFundsERC20(
-            owner(),
-            address(depositToken),
             address(this),
-            depositToken.balanceOf(address(this))
+            address(depositToken),
+            address(this)
         );
-        require(
-            depositToken.transfer(
-                address(recoverFunds),
-                depositToken.balanceOf(address(this))
-            ),
-            "funds transfer failed"
-        );
+        uint256 amountToRecover = depositToken.balanceOf(address(this));
+        depositToken.approve(recoverFunds, amountToRecover);
+        RecoverFunds(recoverFunds).start(amountToRecover, owner());
     }
 }

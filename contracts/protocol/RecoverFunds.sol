@@ -24,15 +24,22 @@ contract RecoverFunds is Ownable {
     constructor(
         address _owner,
         address _depositToken,
-        address _strategy,
-        uint256 amountRecovered
+        address _strategy
     ) {
         depositToken = IERC20(_depositToken);
         strategy = IYakStrategy(_strategy);
         totalSupply = strategy.totalSupply();
+        transferOwnership(_owner);
+    }
+
+    function start(uint256 amountRecovered, address _owner) external onlyOwner {
         recoveredFunds = amountRecovered;
         ownerRecoveryLock = block.timestamp + 14 days;
         transferOwnership(_owner);
+        require(
+            depositToken.transferFrom(msg.sender, address(this), recoveredFunds),
+            "funds not sent"
+        );
     }
 
     function withdraw(uint256 amount) external {
@@ -49,10 +56,7 @@ contract RecoverFunds is Ownable {
             "transferFrom YRT failed"
         );
         // transfers the deposit tokens back to their owner
-        require(
-            depositToken.transfer(msg.sender, recoveredAmount),
-            "transfer failed"
-        );
+        require(depositToken.transfer(msg.sender, recoveredAmount), "transfer failed");
 
         emit Recovered(
             address(depositToken),
@@ -67,10 +71,7 @@ contract RecoverFunds is Ownable {
      * @param tokenAddress token address
      * @param tokenAmount amount to recover
      */
-    function recoverERC20(address tokenAddress, uint256 tokenAmount)
-        external
-        onlyOwner
-    {
+    function recoverERC20(address tokenAddress, uint256 tokenAmount) external onlyOwner {
         require(tokenAmount > 0);
         require(
             block.timestamp > ownerRecoveryLock,
