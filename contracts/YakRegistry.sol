@@ -31,7 +31,6 @@ contract YakRegistry is Ownable {
     }
 
     event AddStrategy(address indexed strategy);
-    event RemoveStrategy(address indexed strategy);
 
     constructor() {}
 
