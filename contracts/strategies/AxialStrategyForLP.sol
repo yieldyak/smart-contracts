@@ -21,6 +21,7 @@ contract AxialStrategyForLP is MasterChefStrategy {
      * @dev IAxialSwap assumes amounts to be 18 decimals. Use token with 18 decimals!
      */
     struct ZapSettings {
+        uint256 tokenCount;
         address swapPairRewardZap;
         address zapToken;
         address zapContract;
@@ -58,6 +59,7 @@ contract AxialStrategyForLP is MasterChefStrategy {
     }
 
     function _depositMasterchef(uint256 _pid, uint256 _amount) internal override {
+        depositToken.approve(address(axialChef), _amount);
         axialChef.deposit(_pid, _amount);
     }
 
@@ -67,6 +69,7 @@ contract AxialStrategyForLP is MasterChefStrategy {
 
     function _emergencyWithdraw(uint256 _pid) internal override {
         axialChef.emergencyWithdraw(_pid);
+        depositToken.approve(address(axialChef), 0);
     }
 
     function _pendingRewards(uint256 _pid, address _user)
@@ -121,7 +124,7 @@ contract AxialStrategyForLP is MasterChefStrategy {
             zapSettings.zapToken,
             IPair(zapSettings.swapPairRewardZap)
         );
-        uint256[] memory amounts = new uint256[](4);
+        uint256[] memory amounts = new uint256[](zapSettings.tokenCount);
         uint256 zapTokenIndex = IAxialSwap(zapSettings.zapContract).getTokenIndex(zapSettings.zapToken);
         amounts[zapTokenIndex] = zapTokenAmount;
         uint256 slippage = zapTokenAmount.mul(zapSettings.maxSlippage).div(BIPS_DIVISOR);
