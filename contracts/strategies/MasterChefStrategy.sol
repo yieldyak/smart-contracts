@@ -236,9 +236,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
             _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
         }
 
-        uint256 depositTokenAmount = _convertRewardTokenToDepositToken(
-            amount.sub(devFee).sub(reinvestFee)
-        );
+        uint256 depositTokenAmount = _convertRewardTokenToDepositToken(amount.sub(devFee).sub(reinvestFee));
 
         _stakeDepositTokens(depositTokenAmount);
         emit Reinvest(totalDeposits(), totalSupply);
@@ -291,6 +289,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
             if (extraTokenAddress == address(WAVAX)) {
                 pendingExtraTokenRewardAmount = pendingExtraTokenAmount;
             } else if (swapPairExtraReward > address(0)) {
+                pendingExtraTokenAmount = pendingExtraTokenAmount.add(IERC20(extraToken).balanceOf(address(this)));
                 pendingExtraTokenRewardAmount = DexLibrary.estimateConversionThroughPair(
                     pendingExtraTokenAmount,
                     extraTokenAddress,
