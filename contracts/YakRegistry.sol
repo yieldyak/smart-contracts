@@ -8,14 +8,12 @@ import "./YakStrategy.sol";
 
 /**
  * @notice YakRegistry is a list of officially supported strategies.
- * @dev DRAFT
  */
 contract YakRegistry is Ownable {
-    uint256 public strategiesLength;
-    mapping(address => uint256[]) public strategyIdsForDepositToken;
+    using EnumerableSet for EnumerableSet.AddressSet;
 
-    mapping(address => bool) private registeredStrategies;
-    address[] private strategies;
+    mapping(address => uint256[]) public strategyIdsForDepositToken;
+    EnumerableSet.AddressSet private strategies;
 
     struct StrategyInfo {
         uint256 id;
@@ -34,20 +32,21 @@ contract YakRegistry is Ownable {
 
     constructor() {}
 
-    function isActiveStrategy(address _strategy) external view returns (bool) {
-        YakStrategy strategy = YakStrategy(_strategy);
-        return registeredStrategies[_strategy] && strategy.DEPOSITS_ENABLED();
+    function isActiveStrategy(address _strategyAddress) external view returns (bool) {
+        YakStrategy strategy = YakStrategy(_strategyAddress);
+        return strategies.contains(_strategyAddress) && strategy.DEPOSITS_ENABLED();
     }
 
-    function strategiesForDepositTokenCount(address depositToken) external view returns (uint256) {
-        return strategyIdsForDepositToken[depositToken].length;
+    function strategiesForDepositTokenCount(address _depositToken) external view returns (uint256) {
+        return strategyIdsForDepositToken[_depositToken].length;
     }
 
-    function strategyInfo(uint256 id) external view returns (StrategyInfo memory) {
-        YakStrategy strategy = YakStrategy(strategies[id]);
+    function strategyInfo(uint256 _id) external view returns (StrategyInfo memory) {
+        address strategyAddress = strategies.at(_id);
+        YakStrategy strategy = YakStrategy(strategyAddress);
         return
             StrategyInfo({
-                id: id,
+                id: _id,
                 strategyAddress: address(strategy),
                 depositsEnabled: strategy.DEPOSITS_ENABLED(),
                 depositToken: address(strategy.depositToken()),
@@ -60,17 +59,15 @@ contract YakRegistry is Ownable {
             });
     }
 
-    function addStrategy(address strategyAddress) external onlyOwner {
-        strategies.push(strategyAddress);
-        strategiesLength++;
-        uint256 id = strategies.length - 1;
-        address depositToken = address(YakStrategy(strategyAddress).depositToken());
-        strategyIdsForDepositToken[depositToken].push(id);
-        _addRegisteredStrategy(strategyAddress);
+    function strategiesCount() external view returns (uint256) {
+        return strategies.length();
     }
 
-    function _addRegisteredStrategy(address strategy) private {
-        registeredStrategies[strategy] = true;
-        emit AddStrategy(strategy);
+    function addStrategy(address _strategyAddress) external onlyOwner {
+        require(strategies.add(_strategyAddress), "YakRegistry::strategy already added");
+        uint256 id = strategies.length() - 1;
+        address depositToken = address(YakStrategy(_strategyAddress).depositToken());
+        strategyIdsForDepositToken[depositToken].push(id);
+        emit AddStrategy(_strategyAddress);
     }
 }
