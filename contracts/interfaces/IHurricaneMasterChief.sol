@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity 0.7.3;
 
 interface IHurricaneMasterChief {
     function pending(uint256 pid, address user) external view returns (uint256, uint256);

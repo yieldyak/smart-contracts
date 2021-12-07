@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity 0.7.3;
 pragma experimental ABIEncoderV2;
 
 import "../YakStrategyV2.sol";
@@ -328,7 +328,7 @@ contract BlizzStrategyV1 is YakStrategyV2 {
     }
 
     /**
-     * @notice Safely transfer using an anonymosu ERC20 token
+     * @notice Safely transfer using an anonymous ERC20 token
      * @dev Requires token to return true on transfer
      * @param token address
      * @param to recipient address

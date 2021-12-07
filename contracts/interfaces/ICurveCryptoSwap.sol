@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity 0.7.3;
 
 interface ICurveCryptoSwap {
     function calc_token_amount(uint256[5] memory _amounts, bool _is_deposit)
