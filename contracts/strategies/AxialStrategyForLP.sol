@@ -124,11 +124,7 @@ contract AxialStrategyForLP is MasterChefStrategy {
             zapSettings.zapToken,
             IPair(zapSettings.swapPairRewardZap)
         );
-<<<<<<< HEAD
-        uint256[] memory amounts = new uint256[](3);
-=======
         uint256[] memory amounts = new uint256[](zapSettings.tokenCount);
->>>>>>> origin/master
         uint256 zapTokenIndex = IAxialSwap(zapSettings.zapContract).getTokenIndex(zapSettings.zapToken);
         amounts[zapTokenIndex] = zapTokenAmount;
         uint256 slippage = zapTokenAmount.mul(zapSettings.maxSlippage).div(BIPS_DIVISOR);
