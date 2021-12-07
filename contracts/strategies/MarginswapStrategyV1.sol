@@ -40,9 +40,8 @@ contract MarginswapStrategyV1 is YakStrategyV2 {
         fundContract = _fundContract;
         swapPairWAVAXMfi = IPair(_swapPairWAVAXMfi);
         swapPairToken = IPair(_swapPairToken);
-        devAddr = msg.sender;
+        devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
 
-        setAllowances();
         updateMinTokensToReinvest(_minTokensToReinvest);
         updateAdminFee(_adminFeeBips);
         updateDevFee(_devFeeBips);
@@ -58,7 +57,7 @@ contract MarginswapStrategyV1 is YakStrategyV2 {
     }
 
     function setAllowances() public override onlyOwner {
-        depositToken.approve(address(fundContract), type(uint256).max);
+        revert("deprecated");
     }
 
     function deposit(uint amount) external override {
@@ -124,17 +123,12 @@ contract MarginswapStrategyV1 is YakStrategyV2 {
             _safeTransfer(address(rewardToken), devAddr, devFee);
         }
 
-        uint adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
-        if (adminFee > 0) {
-            _safeTransfer(address(rewardToken), owner(), adminFee);
-        }
-
         uint reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
             _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
         }
 
-        uint depositTokenAmount = amount.sub(devFee).sub(adminFee).sub(reinvestFee);
+        uint depositTokenAmount = amount.sub(devFee).sub(reinvestFee);
         if (address(swapPairWAVAXMfi) != address(0)) {
             if (address(swapPairToken) != address(0)) {
                 uint amountWavax = DexLibrary.swap(depositTokenAmount, address(rewardToken), address(WAVAX), swapPairWAVAXMfi);
@@ -155,6 +149,7 @@ contract MarginswapStrategyV1 is YakStrategyV2 {
 
     function _stakeDepositTokens(uint amount) private {
         require(amount > 0, "MarginswapStrategyV1::_stakeDepositTokens");
+        depositToken.approve(address(fundContract), amount);
         stakingContract.buyHourlyBondSubscription(address(depositToken), amount);
     }
 
@@ -223,6 +218,7 @@ contract MarginswapStrategyV1 is YakStrategyV2 {
     function rescueDeployedFunds(uint minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
         uint balanceBefore = depositToken.balanceOf(address(this));
         stakingContract.withdrawHourlyBond(address(depositToken), minReturnAmountAccepted);
+        depositToken.approve(address(fundContract), 0);
         uint balanceAfter = depositToken.balanceOf(address(this));
         require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "MarginswapStrategyV1::rescueDeployedFunds");
         emit Reinvest(totalDeposits(), totalSupply);
