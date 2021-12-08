@@ -6,6 +6,7 @@ import "./YakERC20.sol";
 import "./lib/SafeMath.sol";
 import "./lib/Ownable.sol";
 import "./lib/EnumerableSet.sol";
+import "./lib/SafeERC20.sol";
 import "./interfaces/IERC20.sol";
 import "./YakRegistry.sol";
 import "./YakStrategy.sol";
@@ -16,6 +17,7 @@ import "./YakStrategy.sol";
  */
 contract YakVault is YakERC20, Ownable {
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /// @notice Vault version number
@@ -49,7 +51,6 @@ contract YakVault is YakERC20, Ownable {
     ) {
         name = _name;
         depositToken = IERC20(_depositToken);
-
         yakRegistry = YakRegistry(_yakRegistry);
     }
 
@@ -85,7 +86,9 @@ contract YakVault is YakERC20, Ownable {
         uint256 confirmedAmount = balanceAfter.sub(balanceBefore);
         require(confirmedAmount > 0, "YakVault::deposit, amount too low");
         if (activeStrategy != address(0)) {
+            depositToken.safeApprove(activeStrategy, confirmedAmount);
             YakStrategy(activeStrategy).deposit(confirmedAmount);
+            depositToken.safeApprove(activeStrategy, 0);
         }
         _mint(account, getSharesForDepositTokens(confirmedAmount));
         totalDeposits = totalDeposits.add(confirmedAmount);
@@ -114,36 +117,11 @@ contract YakVault is YakERC20, Ownable {
                 }
             }
         }
-        _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
+        depositToken.safeTransfer(msg.sender, depositTokenAmount);
         _burn(msg.sender, amount);
         totalDeposits = totalDeposits.sub(depositTokenAmount);
         emit Withdraw(msg.sender, depositTokenAmount);
         emit Sync(totalDeposits, totalSupply);
-    }
-
-    /**
-     * @notice Revoke approval for an anonymous ERC20 token
-     * @dev Requires token to return true on approve
-     * @param token address
-     * @param spender address
-     */
-    function _revokeApproval(address token, address spender) private {
-        require(IERC20(token).approve(spender, 0), "YakVault::revokeApproval");
-    }
-
-    /**
-     * @notice Safely transfer using an anonymous ERC20 token
-     * @dev Requires token to return true on transfer
-     * @param token address
-     * @param to recipient address
-     * @param value amount
-     */
-    function _safeTransfer(
-        address token,
-        address to,
-        uint256 value
-    ) private {
-        require(IERC20(token).transfer(to, value), "YakVault::TRANSFER_FROM_FAILED");
     }
 
     /**
@@ -153,7 +131,6 @@ contract YakVault is YakERC20, Ownable {
      */
     function setActiveStrategy(address strategy) public onlyOwner {
         require(supportedStrategies.contains(strategy), "YakVault::setActiveStrategy, not found");
-        require(depositToken.approve(strategy, uint256(-1)));
         activeStrategy = strategy;
         emit SetActiveStrategy(strategy);
     }
@@ -179,7 +156,7 @@ contract YakVault is YakERC20, Ownable {
         require(strategy != activeStrategy, "YakVault::removeStrategy, cannot remove activeStrategy");
         require(strategy != address(depositToken), "YakVault::removeStrategy, cannot remove deposit token");
         require(supportedStrategies.contains(strategy) == false, "YakVault::removeStrategy, not supported");
-        _revokeApproval(address(depositToken), strategy);
+        depositToken.safeApprove(strategy, 0);
         supportedStrategies.remove(strategy);
         emit RemoveStrategy(strategy);
     }
@@ -207,7 +184,9 @@ contract YakVault is YakERC20, Ownable {
         uint256 depositTokenBalance = depositToken.balanceOf(address(this));
         require(depositTokenBalance >= amount, "YakVault::depositToStrategy amount");
         require(supportedStrategies.contains(strategy), "YakVault::depositToStrategy strategy");
+        depositToken.safeApprove(activeStrategy, amount);
         YakStrategy(strategy).deposit(amount);
+        depositToken.safeApprove(activeStrategy, 0);
         resetTotalDeposits();
     }
 
