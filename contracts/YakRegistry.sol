@@ -12,6 +12,7 @@ import "./YakStrategy.sol";
 contract YakRegistry is Ownable {
     using EnumerableSet for EnumerableSet.AddressSet;
 
+    mapping(address => uint256) public strategyIdForStrategyAddress;
     mapping(address => uint256[]) public strategyIdsForDepositToken;
     EnumerableSet.AddressSet private strategies;
 
@@ -32,21 +33,21 @@ contract YakRegistry is Ownable {
 
     constructor() {}
 
-    function isActiveStrategy(address _strategyAddress) external view returns (bool) {
-        YakStrategy strategy = YakStrategy(_strategyAddress);
-        return strategies.contains(_strategyAddress) && strategy.DEPOSITS_ENABLED();
+    function isActiveStrategy(address _strategy) external view returns (bool) {
+        YakStrategy strategy = YakStrategy(_strategy);
+        return strategies.contains(_strategy) && strategy.DEPOSITS_ENABLED();
     }
 
     function strategiesForDepositTokenCount(address _depositToken) external view returns (uint256) {
         return strategyIdsForDepositToken[_depositToken].length;
     }
 
-    function strategyInfo(uint256 _id) external view returns (StrategyInfo memory) {
-        address strategyAddress = strategies.at(_id);
+    function strategyInfo(uint256 _sId) external view returns (StrategyInfo memory) {
+        address strategyAddress = strategies.at(_sId);
         YakStrategy strategy = YakStrategy(strategyAddress);
         return
             StrategyInfo({
-                id: _id,
+                id: _sId,
                 strategyAddress: address(strategy),
                 depositsEnabled: strategy.DEPOSITS_ENABLED(),
                 depositToken: address(strategy.depositToken()),
@@ -59,15 +60,20 @@ contract YakRegistry is Ownable {
             });
     }
 
+    function strategyId(address _strategy) external view returns (uint256) {
+        return strategyIdForStrategyAddress[_strategy];
+    }
+
     function strategiesCount() external view returns (uint256) {
         return strategies.length();
     }
 
-    function addStrategy(address _strategyAddress) external onlyOwner {
-        require(strategies.add(_strategyAddress), "YakRegistry::strategy already added");
+    function addStrategy(address _strategy) external onlyOwner {
+        require(strategies.add(_strategy), "YakRegistry::strategy already added");
         uint256 id = strategies.length() - 1;
-        address depositToken = address(YakStrategy(_strategyAddress).depositToken());
+        address depositToken = address(YakStrategy(_strategy).depositToken());
         strategyIdsForDepositToken[depositToken].push(id);
-        emit AddStrategy(_strategyAddress);
+        strategyIdForStrategyAddress[_strategy] = id;
+        emit AddStrategy(_strategy);
     }
 }
