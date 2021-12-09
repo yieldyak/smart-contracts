@@ -20,7 +20,6 @@ contract DexStrategySA is YakStrategy {
         address _stakingContract,
         address _timelock,
         uint _minTokensToReinvest,
-        uint _adminFeeBips,
         uint _devFeeBips,
         uint _reinvestRewardBips
     ) {
@@ -29,11 +28,9 @@ contract DexStrategySA is YakStrategy {
         depositToken = IERC20(_depositToken);
         rewardToken = IERC20(_rewardToken);
         stakingContract = IStakingRewards(_stakingContract);
-        devAddr = msg.sender;
+        devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
 
-        setAllowances();
         updateMinTokensToReinvest(_minTokensToReinvest);
-        updateAdminFee(_adminFeeBips);
         updateDevFee(_devFeeBips);
         updateReinvestReward(_reinvestRewardBips);
         updateDepositsEnabled(true);
@@ -43,7 +40,7 @@ contract DexStrategySA is YakStrategy {
     }
 
     function setAllowances() public override onlyOwner {
-        depositToken.approve(address(stakingContract), MAX_UINT);
+        revert("Deprecated");
     }
 
     function deposit(uint amount) external override {
@@ -68,26 +65,24 @@ contract DexStrategySA is YakStrategy {
             }
         }
         require(depositToken.transferFrom(msg.sender, address(this), amount));
-        _stakeDepositTokens(amount);
         _mint(account, getSharesForDepositTokens(amount));
+        _stakeDepositTokens(amount);
         totalDeposits = totalDeposits.add(amount);
         emit Deposit(account, amount);
     }
 
     function withdraw(uint amount) external override {
         uint depositTokenAmount = getDepositTokensForShares(amount);
-        if (depositTokenAmount > 0) {
-            _withdrawDepositTokens(depositTokenAmount);
-            require(depositToken.transfer(msg.sender, depositTokenAmount), "DexStrategySA::withdraw");
-            _burn(msg.sender, amount);
-            totalDeposits = totalDeposits.sub(depositTokenAmount);
-            emit Withdraw(msg.sender, depositTokenAmount);
-        }
+        require(depositTokenAmount > 0, "DexStrategySA::withdraw");
+        _burn(msg.sender, amount);
+        totalDeposits = totalDeposits.sub(depositTokenAmount);
+        emit Withdraw(msg.sender, depositTokenAmount);
+        _withdrawDepositTokens(depositTokenAmount);
     }
 
     function _withdrawDepositTokens(uint amount) private {
-        require(amount > 0, "DexStrategySA::_withdrawDepositTokens");
         stakingContract.withdraw(amount);
+        require(depositToken.transfer(msg.sender, amount), "DexStrategySA::_withdrawDepositTokens");
     }
 
     function reinvest() external override onlyEOA {
@@ -109,17 +104,12 @@ contract DexStrategySA is YakStrategy {
             require(rewardToken.transfer(devAddr, devFee), "DexStrategySA::_reinvest, dev");
         }
 
-        uint adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
-        if (adminFee > 0) {
-            require(rewardToken.transfer(owner(), adminFee), "DexStrategySA::_reinvest, admin");
-        }
-
         uint reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
             require(rewardToken.transfer(msg.sender, reinvestFee), "DexStrategySA::_reinvest, reward");
         }
 
-        uint depositTokenAmount = amount.sub(devFee).sub(adminFee).sub(reinvestFee);
+        uint depositTokenAmount = amount.sub(devFee).sub(reinvestFee);
 
         _stakeDepositTokens(depositTokenAmount);
         totalDeposits = totalDeposits.add(depositTokenAmount);
@@ -129,6 +119,7 @@ contract DexStrategySA is YakStrategy {
     
     function _stakeDepositTokens(uint amount) private {
         require(amount > 0, "DexStrategySA::_stakeDepositTokens");
+        depositToken.approve(address(stakingContract), amount);
         stakingContract.stake(amount);
     }
     
@@ -143,12 +134,11 @@ contract DexStrategySA is YakStrategy {
     function rescueDeployedFunds(uint minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
         uint balanceBefore = depositToken.balanceOf(address(this));
         stakingContract.exit();
+        depositToken.approve(address(stakingContract), 0);
         uint balanceAfter = depositToken.balanceOf(address(this));
         require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "DexStrategySA::rescueDeployedFunds");
         totalDeposits = balanceAfter;
         emit Reinvest(totalDeposits, totalSupply);
-        if (DEPOSITS_ENABLED == true && disableDeposits == true) {
-            updateDepositsEnabled(false);
-        }
+        updateDepositsEnabled(false);
     }
 }
