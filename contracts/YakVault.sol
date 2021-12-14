@@ -21,6 +21,8 @@ contract YakVault is YakERC20, Ownable {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
 
+    uint256 internal constant BIPS_DIVISOR = 10000;
+
     /// @notice Vault version number
     string public constant version = "0.0.1";
 
@@ -105,10 +107,10 @@ contract YakVault is YakERC20, Ownable {
                 address strategy = supportedStrategies.at(i);
                 uint256 deployedBalance = getDeployedBalance(strategy);
                 if (deployedBalance > remainingDebt) {
-                    withdrawFromStrategy(strategy, remainingDebt, false);
+                    withdrawFromStrategy(strategy, remainingDebt, 0);
                     break;
                 } else if (deployedBalance > 0) {
-                    withdrawFromStrategy(strategy, deployedBalance, true);
+                    withdrawFromStrategy(strategy, deployedBalance, 10000);
                     remainingDebt = remainingDebt.sub(deployedBalance);
                     if (remainingDebt <= 1) {
                         break;
@@ -162,20 +164,23 @@ contract YakVault is YakERC20, Ownable {
      * @notice Owner method for removing funds from strategy (to rebalance, typically)
      * @param strategy address
      * @param amount deposit tokens
+     * @param withdrawPercentageBips percentage to withdraw from strategy, pass 0 to use amount parameter
      */
     function withdrawFromStrategy(
         address strategy,
         uint256 amount,
-        bool withdrawBalance
+        uint256 withdrawPercentageBips
     ) public onlyOwner {
+        require(withdrawPercentageBips <= BIPS_DIVISOR, "YakVault::withdrawFromStrategy invalid percentage");
         uint256 balanceBefore = depositToken.balanceOf(address(this));
-        uint256 strategyShares = 0;
-        if (withdrawBalance) {
-            strategyShares = YakStrategy(strategy).balanceOf(address(this));
+        uint256 withdrawalStrategyShares = 0;
+        if (withdrawPercentageBips > 0) {
+            uint256 shareBalance = YakStrategy(strategy).balanceOf(address(this));
+            withdrawalStrategyShares = shareBalance.mul(withdrawPercentageBips).div(BIPS_DIVISOR);
         } else {
-            strategyShares = YakStrategy(strategy).getSharesForDepositTokens(amount);
+            withdrawalStrategyShares = YakStrategy(strategy).getSharesForDepositTokens(amount);
         }
-        YakStrategy(strategy).withdraw(strategyShares);
+        YakStrategy(strategy).withdraw(withdrawalStrategyShares);
         uint256 balanceAfter = depositToken.balanceOf(address(this));
         require(balanceAfter > balanceBefore, "YakVault::withdrawFromStrategy");
     }
@@ -184,14 +189,23 @@ contract YakVault is YakERC20, Ownable {
      * @notice Owner method for deposit funds into strategy
      * @param strategy address
      * @param amount deposit tokens
+     * @param depositPercentageBips percentage to deposit into strategy, pass 0 to use amount parameter
      */
-    function depositToStrategy(address strategy, uint256 amount) public onlyOwner {
+    function depositToStrategy(
+        address strategy,
+        uint256 amount,
+        uint256 depositPercentageBips
+    ) public onlyOwner {
+        require(depositPercentageBips <= BIPS_DIVISOR, "YakVault::depositToStrategy invalid percentage");
+        require(supportedStrategies.contains(strategy), "YakVault::depositToStrategy strategy");
         uint256 depositTokenBalance = depositToken.balanceOf(address(this));
         require(depositTokenBalance >= amount, "YakVault::depositToStrategy amount");
-        require(supportedStrategies.contains(strategy), "YakVault::depositToStrategy strategy");
-        depositToken.safeApprove(activeStrategy, amount);
+        if (depositPercentageBips > 0) {
+            amount = depositTokenBalance.mul(depositPercentageBips).div(BIPS_DIVISOR);
+        }
+        depositToken.safeApprove(strategy, amount);
         YakStrategy(strategy).deposit(amount);
-        depositToken.safeApprove(activeStrategy, 0);
+        depositToken.safeApprove(strategy, 0);
     }
 
     /**
