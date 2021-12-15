@@ -79,18 +79,15 @@ contract YakVault is YakERC20, Ownable {
     }
 
     function _deposit(address account, uint256 amount) private {
-        uint256 balanceBefore = IERC20(depositToken).balanceOf(address(this));
-        require(IERC20(depositToken).transferFrom(msg.sender, address(this), amount), "YakVault::deposit, failed");
-        uint256 balanceAfter = IERC20(depositToken).balanceOf(address(this));
-        uint256 confirmedAmount = balanceAfter.sub(balanceBefore);
-        require(confirmedAmount > 0, "YakVault::deposit, amount too low");
+        require(amount > 0, "YakVault::deposit, amount too low");
+        _mint(account, getSharesForDepositTokens(amount));
+        IERC20(depositToken).safeTransferFrom(msg.sender, address(this), amount);
         if (activeStrategy != address(0)) {
-            depositToken.safeApprove(activeStrategy, confirmedAmount);
-            YakStrategy(activeStrategy).deposit(confirmedAmount);
+            depositToken.safeApprove(activeStrategy, amount);
+            YakStrategy(activeStrategy).deposit(amount);
             depositToken.safeApprove(activeStrategy, 0);
         }
-        _mint(account, getSharesForDepositTokens(confirmedAmount));
-        emit Deposit(account, address(depositToken), confirmedAmount);
+        emit Deposit(account, address(depositToken), amount);
     }
 
     /**
@@ -107,10 +104,10 @@ contract YakVault is YakERC20, Ownable {
                 address strategy = supportedStrategies.at(i);
                 uint256 deployedBalance = getDeployedBalance(strategy);
                 if (deployedBalance > remainingDebt) {
-                    withdrawFromStrategy(strategy, remainingDebt, 0);
+                    _withdrawFromStrategy(strategy, remainingDebt, 0);
                     break;
                 } else if (deployedBalance > 0) {
-                    withdrawFromStrategy(strategy, deployedBalance, 10000);
+                    _withdrawFromStrategy(strategy, deployedBalance, 10000);
                     remainingDebt = remainingDebt.sub(deployedBalance);
                     if (remainingDebt <= 1) {
                         break;
@@ -171,6 +168,14 @@ contract YakVault is YakERC20, Ownable {
         uint256 amount,
         uint256 withdrawPercentageBips
     ) public onlyOwner {
+        _withdrawFromStrategy(strategy, amount, withdrawPercentageBips);
+    }
+
+    function _withdrawFromStrategy(
+        address strategy,
+        uint256 amount,
+        uint256 withdrawPercentageBips
+    ) private {
         require(withdrawPercentageBips <= BIPS_DIVISOR, "YakVault::withdrawFromStrategy invalid percentage");
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         uint256 withdrawalStrategyShares = 0;
