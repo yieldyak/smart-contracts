@@ -36,7 +36,6 @@ contract AbracadabraStrategyForLP is MasterChefStrategy {
             _poolRewardToken,
             _swapPairPoolReward,
             _swapPairExtraReward,
-            _stakingContract,
             _timelock,
             _pid,
             _strategySettings

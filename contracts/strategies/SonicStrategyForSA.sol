@@ -36,7 +36,6 @@ contract SonicStrategyForSA is MasterChefStrategyForSA {
             _swapPairPoolReward,
             _swapPairExtraReward,
             _swapPairToken,
-            _stakingContract,
             _timelock,
             _pid,
             _strategySettings

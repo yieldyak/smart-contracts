@@ -37,7 +37,6 @@ contract StakeDaoStrategyForLP is MasterChefStrategy {
             address(WAVAX),
             address(0),
             address(0),
-            address(0),
             _timelock,
             0,
             _strategySettings

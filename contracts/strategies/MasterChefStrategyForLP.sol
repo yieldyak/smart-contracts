@@ -27,7 +27,6 @@ abstract contract MasterChefStrategyForLP is MasterChefStrategy {
         address _ecosystemToken,
         address _poolRewardToken,
         SwapPairs memory _swapPairs,
-        address _stakingContract,
         address _timelock,
         uint256 _pid,
         StrategySettings memory _strategySettings
@@ -39,7 +38,6 @@ abstract contract MasterChefStrategyForLP is MasterChefStrategy {
             _poolRewardToken,
             _swapPairs.poolReward,
             _swapPairs.extraReward,
-            _stakingContract,
             _timelock,
             _pid,
             _strategySettings

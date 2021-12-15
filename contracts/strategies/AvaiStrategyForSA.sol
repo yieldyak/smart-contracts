@@ -36,7 +36,6 @@ contract AvaiStrategyForSA is MasterChefStrategyForSA {
             _swapPairPoolReward,
             _swapPairExtraReward,
             _swapPairToken,
-            _stakingRewards,
             _timelock,
             _pid,
             _strategySettings

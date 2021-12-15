@@ -21,7 +21,6 @@ abstract contract MasterChefStrategyForSA is MasterChefStrategy {
         address _swapPairPoolReward,
         address _swapPairExtraReward,
         address _swapPairToken,
-        address _stakingRewards,
         address _timelock,
         uint256 _pid,
         StrategySettings memory _strategySettings
@@ -33,7 +32,6 @@ abstract contract MasterChefStrategyForSA is MasterChefStrategy {
             _poolRewardToken,
             _swapPairPoolReward,
             _swapPairExtraReward,
-            _stakingRewards,
             _timelock,
             _pid,
             _strategySettings
