@@ -10,13 +10,12 @@ import "./lib/SafeERC20.sol";
 import "./interfaces/IERC20.sol";
 import "./YakRegistry.sol";
 import "./YakStrategy.sol";
-import "hardhat/console.sol";
 
 /**
  * @notice YakVault is a managed vault for `deposit tokens` that accepts deposits in the form of `deposit tokens` OR `strategy tokens`.
  * @dev DRAFT
  */
-contract YakVault is YakERC20, Ownable {
+contract YakVaultForSA is YakERC20, Ownable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -152,6 +151,7 @@ contract YakVault is YakERC20, Ownable {
     function removeStrategy(address strategy) public onlyOwner {
         require(strategy != activeStrategy, "YakVault::removeStrategy, cannot remove activeStrategy");
         require(supportedStrategies.contains(strategy) == true, "YakVault::removeStrategy, not supported");
+        require(getDeployedBalance(strategy) == 0, "YakVault::cannot remove strategy with funds");
         depositToken.safeApprove(strategy, 0);
         supportedStrategies.remove(strategy);
         emit RemoveStrategy(strategy);
