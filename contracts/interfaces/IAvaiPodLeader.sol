@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity 0.7.3;
 
 // This interface should work for both LP and ORCA staking.
 // https://github.com/UrsaMaritimus/orca/blob/main/apps/avai/src/contracts/PodLeader.sol

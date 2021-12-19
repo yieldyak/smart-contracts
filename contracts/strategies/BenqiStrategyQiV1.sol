@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity 0.7.3;
 
 import "../YakStrategyV2.sol";
 import "../interfaces/IBenqiUnitroller.sol";
@@ -285,7 +285,7 @@ contract BenqiStrategyQiV1 is YakStrategyV2 {
     }
 
     /**
-     * @notice Safely transfer using an anonymosu ERC20 token
+     * @notice Safely transfer using an anonymous ERC20 token
      * @dev Requires token to return true on transfer
      * @param token address
      * @param to recipient address

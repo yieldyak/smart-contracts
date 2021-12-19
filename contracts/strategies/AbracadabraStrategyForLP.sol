@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma experimental ABIEncoderV2;
-pragma solidity ^0.7.0;
+pragma solidity 0.7.3;
 
 import "../interfaces/IAbracadabraChef.sol";
 import "../lib/CurveSwap.sol";

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity 0.7.3;
 
 // https://github.com/traderjoe-xyz/joe-lending/blob/main/contracts/RewardDistributor.sol
 interface IJoeRewardDistributor {

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity 0.7.3;
 
 interface IElevenChef {
     function userInfo(uint pid, address user) external view returns (
