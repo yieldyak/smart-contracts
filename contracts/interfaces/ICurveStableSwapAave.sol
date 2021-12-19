@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity 0.7.3;
 
 interface ICurveStableSwapAave {
     function calc_token_amount(uint256[3] memory _amounts, bool _is_deposit) external view returns(uint);

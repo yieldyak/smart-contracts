@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity 0.7.3;
 
 import "../YakStrategyV2.sol";
 import "../interfaces/IPair.sol";
@@ -236,9 +236,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
             _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
         }
 
-        uint256 depositTokenAmount = _convertRewardTokenToDepositToken(
-            amount.sub(devFee).sub(reinvestFee)
-        );
+        uint256 depositTokenAmount = _convertRewardTokenToDepositToken(amount.sub(devFee).sub(reinvestFee));
 
         _stakeDepositTokens(depositTokenAmount);
         emit Reinvest(totalDeposits(), totalSupply);
@@ -250,7 +248,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
     }
 
     /**
-     * @notice Safely transfer using an anonymosu ERC20 token
+     * @notice Safely transfer using an anonymous ERC20 token
      * @dev Requires token to return true on transfer
      * @param token address
      * @param to recipient address
@@ -291,6 +289,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
             if (extraTokenAddress == address(WAVAX)) {
                 pendingExtraTokenRewardAmount = pendingExtraTokenAmount;
             } else if (swapPairExtraReward > address(0)) {
+                pendingExtraTokenAmount = pendingExtraTokenAmount.add(IERC20(extraToken).balanceOf(address(this)));
                 pendingExtraTokenRewardAmount = DexLibrary.estimateConversionThroughPair(
                     pendingExtraTokenAmount,
                     extraTokenAddress,

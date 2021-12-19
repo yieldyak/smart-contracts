@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity 0.7.3;
 
 interface IPenguinChef {
     function pefi() external view returns (address);
