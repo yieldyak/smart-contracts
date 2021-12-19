@@ -13,7 +13,6 @@ import "./YakStrategy.sol";
 
 /**
  * @notice YakVault is a managed vault for `deposit tokens` that accepts deposits in the form of `deposit tokens` OR `strategy tokens`.
- * @dev DRAFT
  */
 contract YakVaultForSA is YakERC20, Ownable {
     using SafeMath for uint256;
@@ -103,10 +102,10 @@ contract YakVaultForSA is YakERC20, Ownable {
                 address strategy = supportedStrategies.at(i);
                 uint256 deployedBalance = getDeployedBalance(strategy);
                 if (deployedBalance > remainingDebt) {
-                    _withdrawFromStrategy(strategy, remainingDebt, 0);
+                    _withdrawFromStrategy(strategy, remainingDebt);
                     break;
                 } else if (deployedBalance > 0) {
-                    _withdrawFromStrategy(strategy, deployedBalance, 10000);
+                    _withdrawPercentageFromStrategy(strategy, 10000);
                     remainingDebt = remainingDebt.sub(deployedBalance);
                     if (remainingDebt <= 1) {
                         break;
@@ -161,53 +160,71 @@ contract YakVaultForSA is YakERC20, Ownable {
      * @notice Owner method for removing funds from strategy (to rebalance, typically)
      * @param strategy address
      * @param amount deposit tokens
-     * @param withdrawPercentageBips percentage to withdraw from strategy, pass 0 to use amount parameter
      */
-    function withdrawFromStrategy(
-        address strategy,
-        uint256 amount,
-        uint256 withdrawPercentageBips
-    ) public onlyOwner {
-        _withdrawFromStrategy(strategy, amount, withdrawPercentageBips);
+    function withdrawFromStrategy(address strategy, uint256 amount) public onlyOwner {
+        _withdrawFromStrategy(strategy, amount);
     }
 
-    function _withdrawFromStrategy(
-        address strategy,
-        uint256 amount,
-        uint256 withdrawPercentageBips
-    ) private {
-        require(withdrawPercentageBips <= BIPS_DIVISOR, "YakVault::withdrawFromStrategy invalid percentage");
+    /**
+     * @notice Owner method for removing funds from strategy (to rebalance, typically)
+     * @param strategy address
+     * @param withdrawPercentageBips percentage to withdraw from strategy, 10000 = 100%
+     */
+    function withdrawPercentageFromStrategy(address strategy, uint256 withdrawPercentageBips) public onlyOwner {
+        _withdrawPercentageFromStrategy(strategy, withdrawPercentageBips);
+    }
+
+    function _withdrawFromStrategy(address strategy, uint256 amount) private {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         uint256 withdrawalStrategyShares = 0;
-        if (withdrawPercentageBips > 0) {
-            uint256 shareBalance = YakStrategy(strategy).balanceOf(address(this));
-            withdrawalStrategyShares = shareBalance.mul(withdrawPercentageBips).div(BIPS_DIVISOR);
-        } else {
-            withdrawalStrategyShares = YakStrategy(strategy).getSharesForDepositTokens(amount);
-        }
+        withdrawalStrategyShares = YakStrategy(strategy).getSharesForDepositTokens(amount);
         YakStrategy(strategy).withdraw(withdrawalStrategyShares);
         uint256 balanceAfter = depositToken.balanceOf(address(this));
-        require(balanceAfter > balanceBefore, "YakVault::withdrawFromStrategy");
+        require(balanceAfter > balanceBefore, "YakVault::_withdrawDepositTokensFromStrategy withdrawal failed");
+    }
+
+    function _withdrawPercentageFromStrategy(address strategy, uint256 withdrawPercentageBips) private {
+        require(
+            withdrawPercentageBips > 0 && withdrawPercentageBips <= BIPS_DIVISOR,
+            "YakVault::_withdrawPercentageFromStrategy invalid percentage"
+        );
+        uint256 balanceBefore = depositToken.balanceOf(address(this));
+        uint256 withdrawalStrategyShares = 0;
+        uint256 shareBalance = YakStrategy(strategy).balanceOf(address(this));
+        withdrawalStrategyShares = shareBalance.mul(withdrawPercentageBips).div(BIPS_DIVISOR);
+        YakStrategy(strategy).withdraw(withdrawalStrategyShares);
+        uint256 balanceAfter = depositToken.balanceOf(address(this));
+        require(balanceAfter > balanceBefore, "YakVault::_withdrawPercentageFromStrategy withdrawal failed");
     }
 
     /**
      * @notice Owner method for deposit funds into strategy
      * @param strategy address
      * @param amount deposit tokens
-     * @param depositPercentageBips percentage to deposit into strategy, pass 0 to use amount parameter
      */
-    function depositToStrategy(
-        address strategy,
-        uint256 amount,
-        uint256 depositPercentageBips
-    ) public onlyOwner {
-        require(depositPercentageBips <= BIPS_DIVISOR, "YakVault::depositToStrategy invalid percentage");
+    function depositToStrategy(address strategy, uint256 amount) public onlyOwner {
         require(supportedStrategies.contains(strategy), "YakVault::depositToStrategy strategy");
         uint256 depositTokenBalance = depositToken.balanceOf(address(this));
         require(depositTokenBalance >= amount, "YakVault::depositToStrategy amount");
-        if (depositPercentageBips > 0) {
-            amount = depositTokenBalance.mul(depositPercentageBips).div(BIPS_DIVISOR);
-        }
+        depositToken.safeApprove(strategy, amount);
+        YakStrategy(strategy).deposit(amount);
+        depositToken.safeApprove(strategy, 0);
+    }
+
+    /**
+     * @notice Owner method for deposit funds into strategy
+     * @param strategy address
+     * @param depositPercentageBips percentage to deposit into strategy, 10000 = 100%
+     */
+    function depositPercentageToStrategy(address strategy, uint256 depositPercentageBips) public onlyOwner {
+        require(
+            depositPercentageBips > 0 && depositPercentageBips <= BIPS_DIVISOR,
+            "YakVault::depositPercentageToStrategy invalid percentage"
+        );
+        require(supportedStrategies.contains(strategy), "YakVault::depositPercentageToStrategy strategy");
+        uint256 depositTokenBalance = depositToken.balanceOf(address(this));
+        require(depositTokenBalance >= 0, "YakVault::depositPercentageToStrategy balance zero");
+        uint256 amount = depositTokenBalance.mul(depositPercentageBips).div(BIPS_DIVISOR);
         depositToken.safeApprove(strategy, amount);
         YakStrategy(strategy).deposit(amount);
         depositToken.safeApprove(strategy, 0);
