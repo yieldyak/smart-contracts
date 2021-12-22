@@ -78,6 +78,7 @@ contract YakVaultForSA is YakERC20, Ownable {
 
     function _deposit(address account, uint256 amount) private {
         require(amount > 0, "YakVault::deposit, amount too low");
+        require(checkStrategies() == true, "YakVault::deposit paused");
         _mint(account, getSharesForDepositTokens(amount));
         IERC20(depositToken).safeTransferFrom(msg.sender, address(this), amount);
         if (activeStrategy != address(0)) {
@@ -93,6 +94,7 @@ contract YakVaultForSA is YakERC20, Ownable {
      * @param amount receipt tokens
      */
     function withdraw(uint256 amount) external {
+        require(checkStrategies() == true, "YakVault::withdraw paused");
         uint256 depositTokenAmount = getDepositTokensForShares(amount);
         require(depositTokenAmount > 0, "YakVault::withdraw, amount too low");
         uint256 liquidDeposits = depositToken.balanceOf(address(this));
@@ -117,6 +119,15 @@ contract YakVaultForSA is YakERC20, Ownable {
         depositToken.safeTransfer(msg.sender, withdrawAmount);
         _burn(msg.sender, amount);
         emit Withdraw(msg.sender, depositTokenAmount);
+    }
+
+    function checkStrategies() internal view returns (bool) {
+        for (uint256 i = 0; i < supportedStrategies.length(); i++) {
+            if (!yakRegistry.isEnabledStrategy(supportedStrategies.at(i))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -148,9 +159,16 @@ contract YakVaultForSA is YakERC20, Ownable {
      * @param strategy address for new strategy
      */
     function removeStrategy(address strategy) public onlyOwner {
+        require(
+            yakRegistry.pausedStrategies(strategy) == false,
+            "YakVault::removeStrategy, cannot remove paused strategy"
+        );
         require(strategy != activeStrategy, "YakVault::removeStrategy, cannot remove activeStrategy");
         require(supportedStrategies.contains(strategy) == true, "YakVault::removeStrategy, not supported");
-        require(getDeployedBalance(strategy) == 0, "YakVault::cannot remove strategy with funds");
+        require(
+            getDeployedBalance(strategy) == 0 || yakRegistry.disabledStrategies(strategy) == true,
+            "YakVault::cannot remove enabled strategy with funds"
+        );
         depositToken.safeApprove(strategy, 0);
         supportedStrategies.remove(strategy);
         emit RemoveStrategy(strategy);
@@ -165,15 +183,6 @@ contract YakVaultForSA is YakERC20, Ownable {
         _withdrawFromStrategy(strategy, amount);
     }
 
-    /**
-     * @notice Owner method for removing funds from strategy (to rebalance, typically)
-     * @param strategy address
-     * @param withdrawPercentageBips percentage to withdraw from strategy, 10000 = 100%
-     */
-    function withdrawPercentageFromStrategy(address strategy, uint256 withdrawPercentageBips) public onlyOwner {
-        _withdrawPercentageFromStrategy(strategy, withdrawPercentageBips);
-    }
-
     function _withdrawFromStrategy(address strategy, uint256 amount) private {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         uint256 withdrawalStrategyShares = 0;
@@ -181,6 +190,15 @@ contract YakVaultForSA is YakERC20, Ownable {
         YakStrategy(strategy).withdraw(withdrawalStrategyShares);
         uint256 balanceAfter = depositToken.balanceOf(address(this));
         require(balanceAfter > balanceBefore, "YakVault::_withdrawDepositTokensFromStrategy withdrawal failed");
+    }
+
+    /**
+     * @notice Owner method for removing funds from strategy (to rebalance, typically)
+     * @param strategy address
+     * @param withdrawPercentageBips percentage to withdraw from strategy, 10000 = 100%
+     */
+    function withdrawPercentageFromStrategy(address strategy, uint256 withdrawPercentageBips) public onlyOwner {
+        _withdrawPercentageFromStrategy(strategy, withdrawPercentageBips);
     }
 
     function _withdrawPercentageFromStrategy(address strategy, uint256 withdrawPercentageBips) private {

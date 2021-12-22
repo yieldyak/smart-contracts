@@ -14,6 +14,8 @@ contract YakRegistry is Ownable {
 
     mapping(address => uint256) public strategyIdForStrategyAddress;
     mapping(address => uint256[]) public strategyIdsForDepositToken;
+    mapping(address => bool) public pausedStrategies;
+    mapping(address => bool) public disabledStrategies;
     EnumerableSet.AddressSet private strategies;
 
     struct StrategyInfo {
@@ -35,7 +37,15 @@ contract YakRegistry is Ownable {
 
     function isActiveStrategy(address _strategy) external view returns (bool) {
         YakStrategy strategy = YakStrategy(_strategy);
-        return strategies.contains(_strategy) && strategy.DEPOSITS_ENABLED();
+        return
+            strategies.contains(_strategy) &&
+            strategy.DEPOSITS_ENABLED() &&
+            !pausedStrategies[_strategy] &&
+            !disabledStrategies[_strategy];
+    }
+
+    function isEnabledStrategy(address _strategy) external view returns (bool) {
+        return !pausedStrategies[_strategy] && !disabledStrategies[_strategy];
     }
 
     function strategiesForDepositTokenCount(address _depositToken) external view returns (uint256) {
@@ -83,5 +93,19 @@ contract YakRegistry is Ownable {
         StrategyInfo memory info = this.strategyInfo(id);
         emit AddStrategy(_strategy);
         return info;
+    }
+
+    function pauseStrategy(address _strategy) external onlyOwner {
+        pausedStrategies[_strategy] = true;
+    }
+
+    function disableStrategy(address _strategy) external onlyOwner {
+        pausedStrategies[_strategy] = false;
+        disabledStrategies[_strategy] = true;
+    }
+
+    function resumeStrategy(address _strategy) external onlyOwner {
+        pausedStrategies[_strategy] = false;
+        disabledStrategies[_strategy] = false;
     }
 }
