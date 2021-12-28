@@ -67,18 +67,20 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
         address _poolRewardToken,
         address _swapPairPoolReward
     ) private {
-        if (_poolRewardToken == IPair(_swapPairPoolReward).token0()) {
-            require(
-                IPair(_swapPairPoolReward).token1() == _ecosystemToken,
-                "Swap pair 'swapPairPoolReward' does not contain ecosystem token"
-            );
-        } else if (_poolRewardToken == IPair(_swapPairPoolReward).token1()) {
-            require(
-                IPair(_swapPairPoolReward).token0() == _ecosystemToken,
-                "Swap pair 'swapPairPoolReward' does not contain ecosystem token"
-            );
-        } else {
-            revert("Swap pair 'swapPairPoolReward' does not contain pool reward token");
+        if (_poolRewardToken != _ecosystemToken) {
+            if (_poolRewardToken == IPair(_swapPairPoolReward).token0()) {
+                require(
+                    IPair(_swapPairPoolReward).token1() == _ecosystemToken,
+                    "Swap pair 'swapPairPoolReward' does not contain ecosystem token"
+                );
+            } else if (_poolRewardToken == IPair(_swapPairPoolReward).token1()) {
+                require(
+                    IPair(_swapPairPoolReward).token0() == _ecosystemToken,
+                    "Swap pair 'swapPairPoolReward' does not contain ecosystem token"
+                );
+            } else {
+                revert("Swap pair 'swapPairPoolReward' does not contain pool reward token");
+            }
         }
         poolRewardToken = _poolRewardToken;
         swapPairPoolReward = IPair(_swapPairPoolReward);
@@ -278,12 +280,15 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
             address(this)
         );
         uint256 poolTokenAmount = poolTokenBalance.add(pendingPoolTokenAmount);
-        uint256 pendingRewardTokenAmount = DexLibrary.estimateConversionThroughPair(
-            poolTokenAmount,
-            poolRewardToken,
-            address(rewardToken),
-            swapPairPoolReward
-        );
+
+        uint256 pendingRewardTokenAmount = poolRewardToken != address(rewardToken)
+            ? DexLibrary.estimateConversionThroughPair(
+                poolTokenAmount,
+                poolRewardToken,
+                address(rewardToken),
+                swapPairPoolReward
+            )
+            : pendingPoolTokenAmount;
         uint256 pendingExtraTokenRewardAmount = 0;
         if (extraTokenAddress > address(0)) {
             if (extraTokenAddress == address(WAVAX)) {
