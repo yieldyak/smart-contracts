@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity 0.7.3;
 
 import "../lib/AccessControl.sol";
 import "../lib/SafeMath.sol";
@@ -24,6 +24,7 @@ interface IStrategy {
     function recoverERC20(address tokenAddress, uint tokenAmount) external;
     function recoverAVAX(uint amount) external;
     function setAllowances() external;
+    function revokeAllowance(address token, address spender) external;
     function allowDepositor(address depositor) external;
     function removeDepositor(address depositor) external;
 }
@@ -41,8 +42,8 @@ contract YakStrategyManagerV1 is AccessControl {
 
     uint public constant timelockLengthForOwnershipTransfer = 14 days;
 
-    /// @notice Sets a global maximum for fee changes using bips (10,000 bips = 1%)
-    uint public maxFeeBips = 100000;
+    /// @notice Sets a global maximum for fee changes using bips (100 bips = 1%)
+    uint public maxFeeBips = 1000;
 
     /// @notice Pending strategy owners (strategy => pending owner)
     mapping(address => address) public pendingOwners;
@@ -188,6 +189,18 @@ contract YakStrategyManagerV1 is AccessControl {
         require(hasRole(TOKEN_APPROVER_ROLE, msg.sender), "setFees::auth");
         IStrategy(strategy).setAllowances();
         emit SetAllowances(strategy);
+    }
+
+    /**
+     * @notice Revokes token approvals
+     * @dev Restricted to `TOKEN_APPROVER_ROLE` to avoid griefing
+     * @param strategy address
+     * @param token address
+     * @param spender address
+     */
+    function revokeAllowance(address strategy, address token, address spender) external {
+        require(hasRole(TOKEN_APPROVER_ROLE, msg.sender), "setFees::auth");
+        IStrategy(strategy).revokeAllowance(token, spender);
     }
 
     /**
