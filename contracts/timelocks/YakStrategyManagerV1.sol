@@ -6,23 +6,23 @@ import "../lib/SafeMath.sol";
 
 interface IERC20 {
     function transfer(address recipient, uint256 amount) external returns (bool);
-    function balanceOf(address owner) external view returns (uint);
+    function balanceOf(address owner) external view returns (uint256);
 }
 
 interface IStrategy {
-    function REINVEST_REWARD_BIPS() external view returns (uint);
-    function ADMIN_FEE_BIPS() external view returns (uint);
-    function DEV_FEE_BIPS() external view returns (uint);
+    function REINVEST_REWARD_BIPS() external view returns (uint256);
+    function ADMIN_FEE_BIPS() external view returns (uint256);
+    function DEV_FEE_BIPS() external view returns (uint256);
     function transferOwnership(address newOwner) external;
-    function updateMinTokensToReinvest(uint newValue) external;
-    function updateAdminFee(uint newValue) external;
-    function updateDevFee(uint newValue) external;
+    function updateMinTokensToReinvest(uint256 newValue) external;
+    function updateAdminFee(uint256 newValue) external;
+    function updateDevFee(uint256 newValue) external;
     function updateDepositsEnabled(bool newValue) external;
-    function updateMaxTokensToDepositWithoutReinvest(uint newValue) external;
-    function rescueDeployedFunds(uint minReturnAmountAccepted, bool disableDeposits) external;
-    function updateReinvestReward(uint newValue) external;
-    function recoverERC20(address tokenAddress, uint tokenAmount) external;
-    function recoverAVAX(uint amount) external;
+    function updateMaxTokensToDepositWithoutReinvest(uint256 newValue) external;
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external;
+    function updateReinvestReward(uint256 newValue) external;
+    function recoverERC20(address tokenAddress, uint256 tokenAmount) external;
+    function recoverAVAX(uint256 amount) external;
     function setAllowances() external;
     function revokeAllowance(address token, address spender) external;
     function allowDepositor(address depositor) external;
@@ -38,18 +38,18 @@ interface IYakFeeCollector {
  * @dev YakStrategyManager may be used as `owner` on YakStrategy contracts
  */
 contract YakStrategyManagerV1 is AccessControl {
-    using SafeMath for uint;
+    using SafeMath for uint256;
 
-    uint public constant timelockLengthForOwnershipTransfer = 14 days;
+    uint256 public constant timelockLengthForOwnershipTransfer = 14 days;
 
     /// @notice Sets a global maximum for fee changes using bips (100 bips = 1%)
-    uint public maxFeeBips = 1000;
+    uint256 public maxFeeBips = 1000;
 
     /// @notice Pending strategy owners (strategy => pending owner)
     mapping(address => address) public pendingOwners;
 
     /// @notice Earliest time pending owner can take effect (strategy => timestamp)
-    mapping(address => uint) public pendingOwnersTimelock;
+    mapping(address => uint256) public pendingOwnersTimelock;
 
     /// @notice Role to manage strategy owners
     bytes32 public constant STRATEGY_OWNER_SETTER_ROLE = keccak256("STRATEGY_OWNER_SETTER_ROLE");
@@ -77,16 +77,16 @@ contract YakStrategyManagerV1 is AccessControl {
 
     event ProposeOwner(address indexed strategy, address indexed newOwner);
     event SetOwner(address indexed strategy, address indexed newValue);
-    event SetAdminFee(address indexed strategy, uint newValue);
+    event SetAdminFee(address indexed strategy, uint256 newValue);
     event SetDev(address indexed strategy, address newValue);
-    event SetDevFee(address indexed strategy, uint newValue);
-    event SetMinTokensToReinvest(address indexed strategy, uint newValue);
-    event SetMaxTokensToDepositWithoutReinvest(address indexed strategy, uint newValue);
-    event SetGlobalMaxFee(uint maxFeeBips, uint newMaxFeeBips);
-    event SetReinvestReward(address indexed strategy, uint newValue);
+    event SetDevFee(address indexed strategy, uint256 newValue);
+    event SetMinTokensToReinvest(address indexed strategy, uint256 newValue);
+    event SetMaxTokensToDepositWithoutReinvest(address indexed strategy, uint256 newValue);
+    event SetGlobalMaxFee(uint256 maxFeeBips, uint256 newMaxFeeBips);
+    event SetReinvestReward(address indexed strategy, uint256 newValue);
     event SetDepositsEnabled(address indexed strategy, bool newValue);
     event SetAllowances(address indexed strategy);
-    event Recover(address indexed strategy, address indexed token, uint amount);
+    event Recover(address indexed strategy, address indexed token, uint256 amount);
     event EmergencyWithdraw(address indexed strategy);
     event AllowDepositor(address indexed strategy, address indexed depositor);
     event RemoveDepositor(address indexed strategy, address indexed depositor);
@@ -163,7 +163,7 @@ contract YakStrategyManagerV1 is AccessControl {
      * @param devFeeBips platform fees
      * @param reinvestRewardBips reinvest reward
      */
-    function setFees(address strategy, uint adminFeeBips, uint devFeeBips, uint reinvestRewardBips) external {
+    function setFees(address strategy, uint256 adminFeeBips, uint256 devFeeBips, uint256 reinvestRewardBips) external {
         require(hasRole(FEE_SETTER_ROLE, msg.sender), "setFees::auth");
         require(adminFeeBips.add(devFeeBips).add(reinvestRewardBips) <= maxFeeBips, "setFees::Fees too high");
         if (adminFeeBips != IStrategy(strategy).ADMIN_FEE_BIPS()){
@@ -208,7 +208,7 @@ contract YakStrategyManagerV1 is AccessControl {
      * @dev Restricted to `GLOBAL_MAX_FEE_SETTER_ROLE`
      * @param newMaxFeeBips max strategy fees
      */
-    function updateGlobalMaxFees(uint newMaxFeeBips) external {
+    function updateGlobalMaxFees(uint256 newMaxFeeBips) external {
         require(hasRole(GLOBAL_MAX_FEE_SETTER_ROLE, msg.sender), "updateGlobalMaxFees::auth");
         emit SetGlobalMaxFee(maxFeeBips, newMaxFeeBips);
         maxFeeBips = newMaxFeeBips;
@@ -220,8 +220,8 @@ contract YakStrategyManagerV1 is AccessControl {
      * @param strategy address
      * @param newValue min tokens to reinvest
      */
-    function setMinTokensToReinvest(address strategy, uint newValue) external {
-        require(hasRole(FEE_SETTER_ROLE, msg.sender), "setFees::auth");
+    function setMinTokensToReinvest(address strategy, uint256 newValue) external {
+        require(hasRole(FEE_SETTER_ROLE, msg.sender), "setMinTokensToReinvest::auth");
         IStrategy(strategy).updateMinTokensToReinvest(newValue);
         emit SetMinTokensToReinvest(strategy, newValue);
     }
@@ -232,7 +232,7 @@ contract YakStrategyManagerV1 is AccessControl {
      * @param strategy address
      * @param newValue max tokens to deposit without reinvest
      */
-    function setMaxTokensToDepositWithoutReinvest(address strategy, uint newValue) external {
+    function setMaxTokensToDepositWithoutReinvest(address strategy, uint256 newValue) external {
         require(hasRole(FEE_SETTER_ROLE, msg.sender), "setMaxTokensToDepositWithoutReinvest::auth");
         IStrategy(strategy).updateMaxTokensToDepositWithoutReinvest(newValue);
         emit SetMaxTokensToDepositWithoutReinvest(strategy, newValue);
@@ -275,31 +275,30 @@ contract YakStrategyManagerV1 is AccessControl {
     }
 
     /**
-     * @notice Immediately pull deployed assets back into the strategy contract
+     * @notice Immediately pull deployed assets back into the strategy contract and disable deposits
      * @dev Restricted to `EMERGENCY_RESCUER_ROLE`
      * @dev Rescued funds stay in strategy until recovered (see `recoverTokens`)
      * @param strategy address
      * @param minReturnAmountAccepted amount
-     * @param disableDeposits bool
      */
-    function rescueDeployedFunds(address strategy, uint minReturnAmountAccepted, bool disableDeposits) external {
+    function rescueDeployedFunds(address strategy, uint256 minReturnAmountAccepted) external {
         require(hasRole(EMERGENCY_RESCUER_ROLE, msg.sender), "rescueDeployedFunds::auth");
-        IStrategy(strategy).rescueDeployedFunds(minReturnAmountAccepted, disableDeposits);
+        IStrategy(strategy).rescueDeployedFunds(minReturnAmountAccepted, true);
         emit EmergencyWithdraw(strategy);
     }
 
     /**
-     * @notice Recover any token, including deposit tokens from strategy
+     * @notice Recover any token from strategy
      * @dev Restricted to `EMERGENCY_SWEEPER_ROLE`
-     * @dev Intended for use in case of `rescueDeployedFunds`, as deposit tokens will be locked in the strategy.
+     * @dev Intended for use in case of `rescueDeployedFunds`, as deposit tokens will be held by strategy.
      * @param strategy address
      * @param tokenAddress address
      * @param tokenAmount amount
      */
-    function recoverTokens(address strategy, address tokenAddress, uint tokenAmount) external {
+    function recoverTokens(address strategy, address tokenAddress, uint256 tokenAmount) external {
         require(hasRole(EMERGENCY_SWEEPER_ROLE, msg.sender), "recoverTokens::auth");
         IStrategy(strategy).recoverERC20(tokenAddress, tokenAmount);
-        uint balance = IERC20(tokenAddress).balanceOf(address(this));
+        uint256 balance = IERC20(tokenAddress).balanceOf(address(this));
         if (tokenAmount < balance) {
             tokenAmount = balance;
         }
@@ -315,7 +314,7 @@ contract YakStrategyManagerV1 is AccessControl {
      * @param strategy address
      * @param amount amount
      */
-    function recoverAVAX(address strategy, uint amount) external {
+    function recoverAVAX(address strategy, uint256 amount) external {
         require(hasRole(EMERGENCY_SWEEPER_ROLE, msg.sender), "recoverAVAX::auth");
         IStrategy(strategy).recoverAVAX(amount);
         emit Recover(strategy, address(0), amount);
@@ -326,9 +325,9 @@ contract YakStrategyManagerV1 is AccessControl {
      * @dev Restricted to `EMERGENCY_SWEEPER_ROLE`
      * @param amount amount
      */
-    function sweepAVAX(uint amount) external {
+    function sweepAVAX(uint256 amount) external {
         require(hasRole(EMERGENCY_SWEEPER_ROLE, msg.sender), "sweepAVAX::auth");
-        uint balance = address(this).balance;
+        uint256 balance = address(this).balance;
         if (amount < balance) {
             amount = balance;
         }
