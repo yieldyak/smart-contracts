@@ -67,8 +67,8 @@ module.exports = {
     hardhat: {
       chainId: 43114,
       gasPrice: 25000000000,
-      throwOnTransactionFailures: false,
-      loggingEnabled: true,
+      // throwOnTransactionFailures: false,
+      // loggingEnabled: true,
       forking: {
         url: AVALANCHE_MAINNET_URL,
         enabled: true,
