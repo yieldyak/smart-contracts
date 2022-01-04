@@ -29,10 +29,6 @@ interface IStrategy {
     function removeDepositor(address depositor) external;
 }
 
-interface IYakFeeCollector {
-    function setDev(address strategy, address newDevAddr) external;
-}
-
 /**
  * @notice Role-based manager for YakStrategy contracts
  * @dev YakStrategyManager may be used as `owner` on YakStrategy contracts
@@ -69,48 +65,42 @@ contract YakStrategyManagerV1 is AccessControl {
     /// @notice Role to allow/deny use of strategies
     bytes32 public constant STRATEGY_PERMISSIONER_ROLE = keccak256("STRATEGY_PERMISSIONER_ROLE");
 
-    /// @notice Role to enable/disable deposits on strategies
+    /// @notice Role to disable deposits on strategies
     bytes32 public constant STRATEGY_DISABLER_ROLE = keccak256("STRATEGY_DISABLER_ROLE");
 
-    /// @notice Role to allow/revoke token approvals on strategies
-    bytes32 public constant TOKEN_APPROVER_ROLE = keccak256("TOKEN_APPROVER_ROLE");
+    /// @notice Role to enable deposits on strategies
+    bytes32 public constant STRATEGY_ENABLER_ROLE = keccak256("STRATEGY_ENABLER_ROLE");
 
     event ProposeOwner(address indexed strategy, address indexed newOwner);
     event SetOwner(address indexed strategy, address indexed newValue);
-    event SetAdminFee(address indexed strategy, uint256 newValue);
-    event SetDev(address indexed strategy, address newValue);
-    event SetDevFee(address indexed strategy, uint256 newValue);
+    event SetFees(address indexed strategy, uint256 adminFeeBips, uint256 devFeeBips, uint256 reinvestFeeBips);
     event SetMinTokensToReinvest(address indexed strategy, uint256 newValue);
     event SetMaxTokensToDepositWithoutReinvest(address indexed strategy, uint256 newValue);
     event SetGlobalMaxFee(uint256 maxFeeBips, uint256 newMaxFeeBips);
-    event SetReinvestReward(address indexed strategy, uint256 newValue);
     event SetDepositsEnabled(address indexed strategy, bool newValue);
     event SetAllowances(address indexed strategy);
     event Recover(address indexed strategy, address indexed token, uint256 amount);
+    event Recovered(address token, uint amount);
     event EmergencyWithdraw(address indexed strategy);
     event AllowDepositor(address indexed strategy, address indexed depositor);
     event RemoveDepositor(address indexed strategy, address indexed depositor);
 
     constructor(
         address _manager,
-        address _emergencyRescuer,
-        address _emergencySweeper,
-        address _globalFeeSetter,
-        address _feeSetter,
-        address _tokenApprover,
-        address _strategyOwnerSetter,
-        address _strategyDisabler,
-        address _strategyPermissioner
+        address _team,
+        address _deployer
     ) {
         _setupRole(DEFAULT_ADMIN_ROLE, _manager);
-        _setupRole(EMERGENCY_RESCUER_ROLE, _emergencyRescuer);
-        _setupRole(EMERGENCY_SWEEPER_ROLE, _emergencySweeper);
-        _setupRole(STRATEGY_OWNER_SETTER_ROLE, _strategyOwnerSetter);
-        _setupRole(GLOBAL_MAX_FEE_SETTER_ROLE, _globalFeeSetter);
-        _setupRole(FEE_SETTER_ROLE, _feeSetter);
-        _setupRole(TOKEN_APPROVER_ROLE, _tokenApprover);
-        _setupRole(STRATEGY_PERMISSIONER_ROLE, _strategyPermissioner);
-        _setupRole(STRATEGY_DISABLER_ROLE, _strategyDisabler);
+        _setupRole(EMERGENCY_RESCUER_ROLE, _team);
+        _setupRole(EMERGENCY_SWEEPER_ROLE, _deployer);
+        _setupRole(GLOBAL_MAX_FEE_SETTER_ROLE, _team);
+        _setupRole(FEE_SETTER_ROLE, _deployer);
+        _setupRole(FEE_SETTER_ROLE, _team);
+        _setupRole(STRATEGY_OWNER_SETTER_ROLE, _manager);
+        _setupRole(STRATEGY_DISABLER_ROLE, _deployer);
+        _setupRole(STRATEGY_DISABLER_ROLE, _team);
+        _setupRole(STRATEGY_ENABLER_ROLE, _team);
+        _setupRole(STRATEGY_PERMISSIONER_ROLE, _team);
     }
 
     receive() external payable {}
@@ -144,22 +134,10 @@ contract YakStrategyManagerV1 is AccessControl {
     }
 
     /**
-     * @notice Set new value of `devAddr`
-     * @dev Restricted to `STRATEGY_OWNER_SETTER_ROLE`
-     * @param yakFeeCollector existing dev
-     * @param strategy address
-     * @param newDevAddr new value
-     */
-    function setDev(address yakFeeCollector, address strategy, address newDevAddr) external {
-        require(hasRole(STRATEGY_OWNER_SETTER_ROLE, msg.sender), "setDev::auth");
-        IYakFeeCollector(yakFeeCollector).setDev(strategy, newDevAddr);
-        emit SetDev(strategy, newDevAddr);
-    }
-
-    /**
      * @notice Set strategy fees
-     * @dev Restricted to `feeSetter` and max fee
+     * @dev Restricted to `FEE_SETTER_ROLE` and global max fee
      * @param strategy address
+     * @param adminFeeBips deprecated
      * @param devFeeBips platform fees
      * @param reinvestRewardBips reinvest reward
      */
@@ -168,38 +146,36 @@ contract YakStrategyManagerV1 is AccessControl {
         require(adminFeeBips.add(devFeeBips).add(reinvestRewardBips) <= maxFeeBips, "setFees::Fees too high");
         if (adminFeeBips != IStrategy(strategy).ADMIN_FEE_BIPS()){
             IStrategy(strategy).updateAdminFee(adminFeeBips);
-            emit SetAdminFee(strategy, adminFeeBips);
         }
         if (devFeeBips != IStrategy(strategy).DEV_FEE_BIPS()){
             IStrategy(strategy).updateDevFee(devFeeBips);
-            emit SetDevFee(strategy, devFeeBips);
         }
         if (reinvestRewardBips != IStrategy(strategy).REINVEST_REWARD_BIPS()){
             IStrategy(strategy).updateReinvestReward(reinvestRewardBips);
-            emit SetReinvestReward(strategy, reinvestRewardBips);
         }
+        emit SetFees(strategy, adminFeeBips, devFeeBips, reinvestRewardBips);
     }
 
     /**
-     * @notice Sets token approvals
-     * @dev Restricted to `TOKEN_APPROVER_ROLE` to avoid griefing
+     * @notice Set token approvals
+     * @dev Restricted to `STRATEGY_ENABLER_ROLE` to avoid griefing
      * @param strategy address
      */
     function setAllowances(address strategy) external {
-        require(hasRole(TOKEN_APPROVER_ROLE, msg.sender), "setFees::auth");
+        require(hasRole(STRATEGY_ENABLER_ROLE, msg.sender), "setAllowances::auth");
         IStrategy(strategy).setAllowances();
         emit SetAllowances(strategy);
     }
 
     /**
-     * @notice Revokes token approvals
-     * @dev Restricted to `TOKEN_APPROVER_ROLE` to avoid griefing
+     * @notice Revoke token approvals
+     * @dev Restricted to `STRATEGY_DISABLER_ROLE` to avoid griefing
      * @param strategy address
      * @param token address
      * @param spender address
      */
     function revokeAllowance(address strategy, address token, address spender) external {
-        require(hasRole(TOKEN_APPROVER_ROLE, msg.sender), "setFees::auth");
+        require(hasRole(STRATEGY_DISABLER_ROLE, msg.sender) || hasRole(EMERGENCY_RESCUER_ROLE, msg.sender), "revokeAllowance::auth");
         IStrategy(strategy).revokeAllowance(token, spender);
     }
 
@@ -215,7 +191,7 @@ contract YakStrategyManagerV1 is AccessControl {
     }
 
     /**
-     * @notice Set min tokens to reinvest
+     * @notice Permissioned function to set min tokens to reinvest
      * @dev Restricted to `FEE_SETTER_ROLE`
      * @param strategy address
      * @param newValue min tokens to reinvest
@@ -239,19 +215,29 @@ contract YakStrategyManagerV1 is AccessControl {
     }
 
     /**
-     * @notice Enable/disable deposits
-     * @dev Restricted to `STRATEGY_DISABLER_ROLE`
+     * @notice Permissioned function to enable deposits
+     * @dev Restricted to `STRATEGY_ENABLER_ROLE`
      * @param strategy address
-     * @param newValue bool
      */
-    function setDepositsEnabled(address strategy, bool newValue) external {
-        require(hasRole(STRATEGY_DISABLER_ROLE, msg.sender), "setDepositsEnabled::auth");
-        IStrategy(strategy).updateDepositsEnabled(newValue);
-        emit SetDepositsEnabled(strategy, newValue);
+    function enableDeposits(address strategy) external {
+        require(hasRole(STRATEGY_ENABLER_ROLE, msg.sender), "enableDeposits::auth");
+        IStrategy(strategy).updateDepositsEnabled(true);
+        emit SetDepositsEnabled(strategy, true);
     }
 
     /**
-     * @notice Add to list of allowed depositors
+     * @notice Permissioned function to disable deposits
+     * @dev Restricted to `STRATEGY_DISABLER_ROLE`
+     * @param strategy address
+     */
+    function disableDeposits(address strategy) external {
+        require(hasRole(STRATEGY_DISABLER_ROLE, msg.sender), "disableDeposits::auth");
+        IStrategy(strategy).updateDepositsEnabled(false);
+        emit SetDepositsEnabled(strategy, false);
+    }
+
+    /**
+     * @notice Permissioned function to add to list of allowed depositors
      * @dev Restricted to `STRATEGY_PERMISSIONER_ROLE`
      * @param strategy address
      * @param depositor address
@@ -263,7 +249,7 @@ contract YakStrategyManagerV1 is AccessControl {
     }
 
     /**
-     * @notice Remove from list of allowed depositors
+     * @notice Permissioned function to remove from list of allowed depositors
      * @dev Restricted to `STRATEGY_PERMISSIONER_ROLE`
      * @param strategy address
      * @param depositor address
@@ -275,9 +261,10 @@ contract YakStrategyManagerV1 is AccessControl {
     }
 
     /**
-     * @notice Immediately pull deployed assets back into the strategy contract and disable deposits
+     * @notice Permissioned function to recover deployed assets back into the strategy contract
      * @dev Restricted to `EMERGENCY_RESCUER_ROLE`
-     * @dev Rescued funds stay in strategy until recovered (see `recoverTokens`)
+     * @dev Always passes `true` to disable deposits
+     * @dev Rescued funds stay in strategy until recovered (see `recover*`)
      * @param strategy address
      * @param minReturnAmountAccepted amount
      */
@@ -288,9 +275,9 @@ contract YakStrategyManagerV1 is AccessControl {
     }
 
     /**
-     * @notice Recover any token from strategy
+     * @notice Permissioned function to recover and transfer any token from strategy contract
      * @dev Restricted to `EMERGENCY_SWEEPER_ROLE`
-     * @dev Intended for use in case of `rescueDeployedFunds`, as deposit tokens will be held by strategy.
+     * @dev Intended for use in case of `rescueDeployedFunds`
      * @param strategy address
      * @param tokenAddress address
      * @param tokenAmount amount
@@ -298,30 +285,51 @@ contract YakStrategyManagerV1 is AccessControl {
     function recoverTokens(address strategy, address tokenAddress, uint256 tokenAmount) external {
         require(hasRole(EMERGENCY_SWEEPER_ROLE, msg.sender), "recoverTokens::auth");
         IStrategy(strategy).recoverERC20(tokenAddress, tokenAmount);
-        uint256 balance = IERC20(tokenAddress).balanceOf(address(this));
-        if (tokenAmount < balance) {
-            tokenAmount = balance;
-        }
-        require(IERC20(tokenAddress).transfer(msg.sender, tokenAmount), "recoverDepositTokens::transfer failed");
+        _transferTokens(tokenAddress, tokenAmount);
         emit Recover(strategy, tokenAddress, tokenAmount);
     }
 
     /**
-     * @notice Recover AVAX from strategy
+     * @notice Permissioned function to transfer any token from this contract
      * @dev Restricted to `EMERGENCY_SWEEPER_ROLE`
-     * @dev After recovery, use `sweepAVAX`. Contract becomes gas-bound.
+     * @param tokenAddress token address
+     * @param tokenAmount amount
+     */
+    function sweepTokens(address tokenAddress, uint256 tokenAmount) external {
+        require(hasRole(EMERGENCY_SWEEPER_ROLE, msg.sender), "sweepTokens::auth");
+        _transferTokens(tokenAddress, tokenAmount);
+        emit Recovered(tokenAddress, tokenAmount);
+    }
+
+    /**
+     * @notice Internal function to transfer tokens to msg.sender
+     * @param tokenAddress token address
+     * @param tokenAmount amount
+     */
+    function _transferTokens(address tokenAddress, uint256 tokenAmount) internal {
+        uint256 balance = IERC20(tokenAddress).balanceOf(address(this));
+        if (tokenAmount < balance) {
+            tokenAmount = balance;
+        }
+        require(IERC20(tokenAddress).transfer(msg.sender, tokenAmount), "_transferTokens::transfer failed");
+    }
+
+    /**
+     * @notice Permissioned function to transfer AVAX from any strategy into this contract
+     * @dev Restricted to `EMERGENCY_SWEEPER_ROLE`
+     * @dev After recovery, contract may become gas-bound.
      * @dev Intended for use in case of `rescueDeployedFunds`, as deposit tokens will be locked in the strategy.
      * @param strategy address
      * @param amount amount
      */
     function recoverAVAX(address strategy, uint256 amount) external {
         require(hasRole(EMERGENCY_SWEEPER_ROLE, msg.sender), "recoverAVAX::auth");
-        IStrategy(strategy).recoverAVAX(amount);
         emit Recover(strategy, address(0), amount);
+        IStrategy(strategy).recoverAVAX(amount);
     }
 
     /**
-     * @notice Sweep AVAX from contract
+     * @notice Permissioned function to transfer AVAX from this contract
      * @dev Restricted to `EMERGENCY_SWEEPER_ROLE`
      * @param amount amount
      */
@@ -333,5 +341,6 @@ contract YakStrategyManagerV1 is AccessControl {
         }
         (bool success, ) = msg.sender.call{value: amount}("");
         require(success == true, "recoverAVAX::transfer failed");
+        emit Recovered(address(0), amount);
     }
 }
