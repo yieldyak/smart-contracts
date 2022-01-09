@@ -44,9 +44,9 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
     address public stakedToken; // MEMO
     uint256 private currentEpoch;
 
-    // address _depositToken, // WAVAX-TIME LP
-    // address _rewardToken, // WAVAX
-    // address _nativeRewardToken, // TIME
+    uint256 public PID;
+    address private poolRewardToken; // TIME
+    IPair private swapPairPoolReward;
 
     struct StrategySettings {
         uint256 minTokensToReinvest;
@@ -55,19 +55,11 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         uint256 reinvestRewardBips;
     }
 
-    uint256 public PID;
-    address private poolRewardToken;
-    IPair private swapPairPoolReward;
-    address public swapPairExtraReward;
-    address public extraToken;
-
     constructor(
         string memory _name,
-        address _depositToken,
-        address _ecosystemToken,
-        address _poolRewardToken,
-        address _swapPairPoolReward,
-        address _swapPairExtraReward,
+        address _depositToken, // WAVAX-TIME LP
+        address _ecosystemToken, // WAVAX
+        address _poolRewardToken, // TIME
         address _stakingContract,
         address _timelock,
         uint256 _pid,
@@ -80,8 +72,6 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
         stakingContract = _stakingContract;
 
-        assignSwapPairSafely(_ecosystemToken, _poolRewardToken, _swapPairPoolReward);
-        _setExtraRewardSwapPair(_swapPairExtraReward);
         updateMinTokensToReinvest(_strategySettings.minTokensToReinvest);
         updateAdminFee(_strategySettings.adminFeeBips);
         updateDevFee(_strategySettings.devFeeBips);
@@ -92,58 +82,11 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
     }
 
     /**
-     * @notice Initialization helper for Pair deposit tokens
-     * @dev Checks that selected Pairs are valid for trading reward tokens
-     * @dev Assigns values to IPair(swapPairToken0) and IPair(swapPairToken1)
-     */
-    function assignSwapPairSafely(
-        address _ecosystemToken,
-        address _poolRewardToken,
-        address _swapPairPoolReward
-    ) private {
-        if (_poolRewardToken != _ecosystemToken) {
-            if (_poolRewardToken == IPair(_swapPairPoolReward).token0()) {
-                require(
-                    IPair(_swapPairPoolReward).token1() == _ecosystemToken,
-                    "Swap pair 'swapPairPoolReward' does not contain ecosystem token"
-                );
-            } else if (_poolRewardToken == IPair(_swapPairPoolReward).token1()) {
-                require(
-                    IPair(_swapPairPoolReward).token0() == _ecosystemToken,
-                    "Swap pair 'swapPairPoolReward' does not contain ecosystem token"
-                );
-            } else {
-                revert("Swap pair 'swapPairPoolReward' does not contain pool reward token");
-            }
-        }
-        poolRewardToken = _poolRewardToken;
-        swapPairPoolReward = IPair(_swapPairPoolReward);
-    }
-
-    /**
      * @notice Approve tokens for use in Strategy
      * @dev Deprecated; approvals should be handled in context of staking
      */
     function setAllowances() public override onlyOwner {
         revert("setAllowances::deprecated");
-    }
-
-    function setExtraRewardSwapPair(address _extraTokenSwapPair) external onlyDev {
-        _setExtraRewardSwapPair(_extraTokenSwapPair);
-    }
-
-    function _setExtraRewardSwapPair(address _extraTokenSwapPair) internal {
-        if (_extraTokenSwapPair > address(0)) {
-            if (IPair(_extraTokenSwapPair).token0() == address(rewardToken)) {
-                extraToken = IPair(_extraTokenSwapPair).token1();
-            } else {
-                extraToken = IPair(_extraTokenSwapPair).token0();
-            }
-            swapPairExtraReward = _extraTokenSwapPair;
-        } else {
-            swapPairExtraReward = address(0);
-            extraToken = address(0);
-        }
     }
 
     /**
@@ -234,41 +177,6 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         emit Reinvest(totalDeposits(), totalSupply);
         return true;
     }
-
-    function _convertPoolTokensIntoReward(uint256 poolTokenAmount) private returns (uint256) {
-        if (address(rewardToken) == poolRewardToken) {
-            return poolTokenAmount;
-        }
-        return DexLibrary.swap(poolTokenAmount, address(poolRewardToken), address(rewardToken), swapPairPoolReward);
-    }
-
-    function _convertExtraTokensIntoReward(uint256 rewardTokenBalance, uint256 extraTokenAmount)
-        internal
-        returns (uint256)
-    {
-        if (extraTokenAmount > 0) {
-            if (swapPairExtraReward > address(0)) {
-                return DexLibrary.swap(extraTokenAmount, extraToken, address(rewardToken), IPair(swapPairExtraReward));
-            }
-
-            uint256 avaxBalance = address(this).balance;
-            if (avaxBalance > 0) {
-                WAVAX.deposit{value: avaxBalance}();
-            }
-            return WAVAX.balanceOf(address(this)).sub(rewardTokenBalance);
-        }
-        return 0;
-    }
-
-    /**
-     * @notice Reinvest rewards from staking contract to deposit tokens
-     * @dev Reverts if the expected amount of tokens are not returned from `MasterChef`
-     */
-    function _reinvest(
-        uint256 rewardTokenBalance,
-        uint256 poolTokenAmount
-    ) private {
-            }
 
     function _stakeDepositTokens(uint256 amount) private {
         require(amount > 0, "RebasingStrategyForLP::_stakeDepositTokens");
@@ -494,6 +402,10 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         } else {
             _stakeAll();
         }
+    }
+
+    function _convertPoolTokensIntoReward(uint256 poolTokenAmount) private returns (uint256) {
+        return DexLibrary.swap(poolTokenAmount, address(poolRewardToken), address(rewardToken), IPair(address(depositToken)));
     }
 
     function _convertRewardTokenToDepositToken(uint256 fromAmount) internal returns (uint256 toAmount) {
