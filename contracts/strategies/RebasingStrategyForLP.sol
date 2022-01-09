@@ -68,6 +68,7 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         name = _name;
         depositToken = IERC20(_depositToken);
         rewardToken = IERC20(_ecosystemToken);
+        poolRewardToken = _poolRewardToken;
         PID = _pid;
         devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
         stakingContract = _stakingContract;
@@ -125,7 +126,10 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
             _reinvest();
         }
-        require(depositToken.transferFrom(msg.sender, address(this), amount), "RebasingStrategyForLP::transfer failed");
+        require(
+            depositToken.transferFrom(msg.sender, address(this), amount),
+            "RebasingStrategyForLP::transfer failed"
+        );
         _mint(account, getSharesForDepositTokens(amount));
         _stakeDepositTokens(amount);
         emit Deposit(account, amount);
@@ -152,8 +156,8 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
     // Returns bool to indicate whether it happens.
     function _reinvest() internal returns (bool) {
         (
+            uint256 rewardTokenAmount,
             uint256 poolTokenAmount,
-            uint256 rewardTokenBalance,
             uint256 estimatedTotalReward
         ) = _checkReward();
         if (estimatedTotalReward < MIN_TOKENS_TO_REINVEST) {
@@ -161,7 +165,9 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         }
 
         _getRewards(PID);
-        uint256 amount = rewardTokenBalance.add(_convertPoolTokensIntoReward(poolTokenAmount));
+        uint256 amount = rewardTokenAmount.add(
+            _convertPoolTokensIntoReward(poolTokenAmount)
+        );
         uint256 devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
             _safeTransfer(address(rewardToken), devAddr, devFee);
@@ -172,7 +178,9 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
             _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
         }
 
-        uint256 depositTokenAmount = _convertRewardTokenToDepositToken(amount.sub(devFee).sub(reinvestFee));
+        uint256 depositTokenAmount = _convertRewardTokenToDepositToken(
+            amount.sub(devFee).sub(reinvestFee)
+        );
         _stakeDepositTokens(depositTokenAmount);
         emit Reinvest(totalDeposits(), totalSupply);
         return true;
@@ -195,40 +203,41 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         address to,
         uint256 value
     ) private {
-        require(IERC20(token).transfer(to, value), "RebasingStrategyForLP::TRANSFER_FROM_FAILED");
+        require(
+            IERC20(token).transfer(to, value),
+            "RebasingStrategyForLP::TRANSFER_FROM_FAILED"
+        );
     }
 
     function _checkReward()
         internal
         view
         returns (
-            uint256 _poolTokenAmount,
-            uint256 _rewardTokenBalance,
-            uint256 _estimatedTotalReward
+            uint256 rewardTokenAmount,
+            uint256 poolTokenAmount,
+            uint256 estimatedTotalReward
         )
     {
-        uint256 poolTokenBalance = IERC20(poolRewardToken).balanceOf(address(this));
-        (uint256 pendingPoolTokenAmount) = _pendingRewards(
-            PID,
-            address(this)
-        );
-        uint256 poolTokenAmount = poolTokenBalance.add(pendingPoolTokenAmount);
-
-        uint256 pendingRewardTokenAmount = poolRewardToken != address(rewardToken)
-            ? DexLibrary.estimateConversionThroughPair(
-                poolTokenAmount,
-                poolRewardToken,
-                address(rewardToken),
-                swapPairPoolReward
-            )
-            : pendingPoolTokenAmount;
-        uint256 rewardTokenBalance = rewardToken.balanceOf(address(this));
-        uint256 estimatedTotalReward = rewardTokenBalance.add(pendingRewardTokenAmount);
-        return (poolTokenAmount, rewardTokenBalance, estimatedTotalReward);
+        if (PID == STAKED) {
+            rewardTokenAmount = 0;
+            poolTokenAmount = _pendingRewards(PID, address(0));
+            estimatedTotalReward = poolTokenAmount == 0
+                ? 0
+                : DexLibrary.estimateConversionThroughPair(
+                    poolTokenAmount,
+                    poolRewardToken,
+                    address(WAVAX),
+                    IPair(address(depositToken))
+                );
+        } else {
+            rewardTokenAmount = _pendingRewards(PID, address(0));
+            poolTokenAmount = 0;
+            estimatedTotalReward = rewardTokenAmount;
+        }
     }
 
     function checkReward() public view override returns (uint256) {
-        (,, uint256 estimatedTotalReward) = _checkReward();
+        (, , uint256 estimatedTotalReward) = _checkReward();
         return estimatedTotalReward;
     }
 
@@ -244,7 +253,11 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         return _getDepositBalance(PID, address(this));
     }
 
-    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits)
+        external
+        override
+        onlyOwner
+    {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         _emergencyWithdraw(PID);
         uint256 balanceAfter = depositToken.balanceOf(address(this));
@@ -378,16 +391,26 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
     }
 
     // Total reward is about 0.6% TIME. Allocate 20% to unstaking and 80% to staking.
-    function _pendingRewards(uint256 _pid, address)
-        internal
-        view
-        returns (uint256) {
-        // FIXME:
-        // _checkReward returns the sum of rewardToken (WAVAX) and poolToken (TIME) balance and pending poolToken.
+    function _pendingRewards(uint256 _pid, address) internal view returns (uint256) {
+        // rewardTokens: {WAVAX, TIME}
+        // WAVAX rewards will always be 0, but this is the currency we pay bot and display.
+        // TIME will comes from unstaking MEMO.
+        /*
+        if (staked) { // MEMO and WAVAX
+            if epoch has not advanced, returns 0; //don't unstake yet
+            calculate delta TIME from unstaking
+            convert that to WAVAX (use DexLibrary)
+            returns remainder (deduct the 20% for LP case that incentives bot to stake.)
+        } else { // TIME-AVAX LP
+            if epoch is not ending, returns 0; //underlying YTR farm auto-compounds
+            returns 20% of expected TIME rewards in new epoch (~0.06%)
+        }
+        */
+
         // When UNSTAKED, we have no rewardToken and poolToken balance.
         // When STAKED, we have 50% rewardToken balance and 0 poolToken balance.
         if (_pid == UNSTAKED) {
-            // look at our LP. estimate 
+            // look at our LP. estimate
             return 0;
         } else {
             return 0;
@@ -404,11 +427,25 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         }
     }
 
-    function _convertPoolTokensIntoReward(uint256 poolTokenAmount) private returns (uint256) {
-        return DexLibrary.swap(poolTokenAmount, address(poolRewardToken), address(rewardToken), IPair(address(depositToken)));
+    function _convertPoolTokensIntoReward(uint256 poolTokenAmount)
+        private
+        returns (uint256)
+    {
+        if (poolTokenAmount == 0) return 0;
+
+        return
+            DexLibrary.swap(
+                poolTokenAmount,
+                address(poolRewardToken),
+                address(rewardToken),
+                IPair(address(depositToken))
+            );
     }
 
-    function _convertRewardTokenToDepositToken(uint256 fromAmount) internal returns (uint256 toAmount) {
+    function _convertRewardTokenToDepositToken(uint256 fromAmount)
+        internal
+        returns (uint256 toAmount)
+    {
         toAmount = DexLibrary.convertRewardTokensToDepositTokens(
             fromAmount,
             address(rewardToken),
