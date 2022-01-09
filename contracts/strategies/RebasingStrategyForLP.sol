@@ -178,19 +178,11 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
     }
 
     function _deposit(address account, uint256 amount) internal {
-        require(DEPOSITS_ENABLED == true, "MasterChefStrategyV1::_deposit");
+        require(DEPOSITS_ENABLED == true, "RebasingStrategyForLP::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
-            (
-                uint256 poolTokenAmount,
-                uint256 extraTokenAmount,
-                uint256 rewardTokenBalance,
-                uint256 estimatedTotalReward
-            ) = _checkReward();
-            if (estimatedTotalReward > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
-                _reinvest(rewardTokenBalance, poolTokenAmount, extraTokenAmount);
-            }
+            _reinvest();
         }
-        require(depositToken.transferFrom(msg.sender, address(this), amount), "MasterChefStrategyV1::transfer failed");
+        require(depositToken.transferFrom(msg.sender, address(this), amount), "RebasingStrategyForLP::transfer failed");
         _mint(account, getSharesForDepositTokens(amount));
         _stakeDepositTokens(amount);
         emit Deposit(account, amount);
@@ -198,7 +190,7 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
 
     function withdraw(uint256 amount) external override {
         uint256 depositTokenAmount = getDepositTokensForShares(amount);
-        require(depositTokenAmount > 0, "MasterChefStrategyV1::withdraw");
+        require(depositTokenAmount > 0, "RebasingStrategyForLP::withdraw");
         _withdrawDepositTokens(depositTokenAmount);
         _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
         _burn(msg.sender, amount);
@@ -210,14 +202,37 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
     }
 
     function reinvest() external override onlyEOA {
+        require(_reinvest(), "RebasingStrategyForLP::reinvest");
+    }
+
+    // Reinvest if there are sufficient rewards.
+    // Returns bool to indicate whether it happens.
+    function _reinvest() internal returns (bool) {
         (
             uint256 poolTokenAmount,
-            uint256 extraTokenAmount,
             uint256 rewardTokenBalance,
             uint256 estimatedTotalReward
         ) = _checkReward();
-        require(estimatedTotalReward >= MIN_TOKENS_TO_REINVEST, "MasterChefStrategyV1::reinvest");
-        _reinvest(rewardTokenBalance, poolTokenAmount, extraTokenAmount);
+        if (estimatedTotalReward < MIN_TOKENS_TO_REINVEST) {
+            return false;
+        }
+
+        _getRewards(PID);
+        uint256 amount = rewardTokenBalance.add(_convertPoolTokensIntoReward(poolTokenAmount));
+        uint256 devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
+        if (devFee > 0) {
+            _safeTransfer(address(rewardToken), devAddr, devFee);
+        }
+
+        uint256 reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
+        if (reinvestFee > 0) {
+            _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
+        }
+
+        uint256 depositTokenAmount = _convertRewardTokenToDepositToken(amount.sub(devFee).sub(reinvestFee));
+        _stakeDepositTokens(depositTokenAmount);
+        emit Reinvest(totalDeposits(), totalSupply);
+        return true;
     }
 
     function _convertPoolTokensIntoReward(uint256 poolTokenAmount) private returns (uint256) {
@@ -251,31 +266,12 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
      */
     function _reinvest(
         uint256 rewardTokenBalance,
-        uint256 poolTokenAmount,
-        uint256 extraTokenAmount
+        uint256 poolTokenAmount
     ) private {
-        _getRewards(PID);
-        uint256 amount = rewardTokenBalance.add(_convertPoolTokensIntoReward(poolTokenAmount));
-        amount.add(_convertExtraTokensIntoReward(rewardTokenBalance, extraTokenAmount));
-
-        uint256 devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
-        if (devFee > 0) {
-            _safeTransfer(address(rewardToken), devAddr, devFee);
-        }
-
-        uint256 reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
-        if (reinvestFee > 0) {
-            _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
-        }
-
-        uint256 depositTokenAmount = _convertRewardTokenToDepositToken(amount.sub(devFee).sub(reinvestFee));
-
-        _stakeDepositTokens(depositTokenAmount);
-        emit Reinvest(totalDeposits(), totalSupply);
-    }
+            }
 
     function _stakeDepositTokens(uint256 amount) private {
-        require(amount > 0, "MasterChefStrategyV1::_stakeDepositTokens");
+        require(amount > 0, "RebasingStrategyForLP::_stakeDepositTokens");
         _depositMasterchef(PID, amount);
     }
 
@@ -291,7 +287,7 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         address to,
         uint256 value
     ) private {
-        require(IERC20(token).transfer(to, value), "MasterChefStrategyV1::TRANSFER_FROM_FAILED");
+        require(IERC20(token).transfer(to, value), "RebasingStrategyForLP::TRANSFER_FROM_FAILED");
     }
 
     function _checkReward()
@@ -299,13 +295,12 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         view
         returns (
             uint256 _poolTokenAmount,
-            uint256 _extraTokenAmount,
             uint256 _rewardTokenBalance,
             uint256 _estimatedTotalReward
         )
     {
         uint256 poolTokenBalance = IERC20(poolRewardToken).balanceOf(address(this));
-        (uint256 pendingPoolTokenAmount, uint256 pendingExtraTokenAmount, address extraTokenAddress) = _pendingRewards(
+        (uint256 pendingPoolTokenAmount) = _pendingRewards(
             PID,
             address(this)
         );
@@ -319,27 +314,13 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
                 swapPairPoolReward
             )
             : pendingPoolTokenAmount;
-        uint256 pendingExtraTokenRewardAmount = 0;
-        if (extraTokenAddress > address(0)) {
-            if (extraTokenAddress == address(WAVAX)) {
-                pendingExtraTokenRewardAmount = pendingExtraTokenAmount;
-            } else if (swapPairExtraReward > address(0)) {
-                pendingExtraTokenAmount = pendingExtraTokenAmount.add(IERC20(extraToken).balanceOf(address(this)));
-                pendingExtraTokenRewardAmount = DexLibrary.estimateConversionThroughPair(
-                    pendingExtraTokenAmount,
-                    extraTokenAddress,
-                    address(rewardToken),
-                    IPair(swapPairExtraReward)
-                );
-            }
-        }
-        uint256 rewardTokenBalance = rewardToken.balanceOf(address(this)).add(pendingExtraTokenRewardAmount);
+        uint256 rewardTokenBalance = rewardToken.balanceOf(address(this));
         uint256 estimatedTotalReward = rewardTokenBalance.add(pendingRewardTokenAmount);
-        return (poolTokenAmount, pendingExtraTokenAmount, rewardTokenBalance, estimatedTotalReward);
+        return (poolTokenAmount, rewardTokenBalance, estimatedTotalReward);
     }
 
     function checkReward() public view override returns (uint256) {
-        (, , , uint256 estimatedTotalReward) = _checkReward();
+        (,, uint256 estimatedTotalReward) = _checkReward();
         return estimatedTotalReward;
     }
 
@@ -352,8 +333,7 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
     }
 
     function totalDeposits() public view override returns (uint256) {
-        uint256 depositBalance = _getDepositBalance(PID, address(this));
-        return depositBalance;
+        return _getDepositBalance(PID, address(this));
     }
 
     function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
@@ -362,7 +342,7 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         uint256 balanceAfter = depositToken.balanceOf(address(this));
         require(
             balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
-            "MasterChefStrategyV1::rescueDeployedFunds"
+            "RebasingStrategyForLP::rescueDeployedFunds"
         );
         emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
@@ -486,23 +466,17 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
     function _pendingRewards(uint256 _pid, address)
         internal
         view
-        returns (
-            uint256,
-            uint256,
-            address
-        )
-    {
+        returns (uint256) {
         // FIXME:
         // _checkReward returns the sum of rewardToken (WAVAX) and poolToken (TIME) balance and pending poolToken.
         // When UNSTAKED, we have no rewardToken and poolToken balance.
         // When STAKED, we have 50% rewardToken balance and 0 poolToken balance.
         if (_pid == UNSTAKED) {
             // look at our LP. estimate 
-            return (123, 0, address(0));
+            return 0;
         } else {
-            return (123, 0, address(0));
+            return 0;
         }
-
     }
 
     function _getRewards(uint256 _pid) internal {
@@ -516,7 +490,13 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
     }
 
     function _convertRewardTokenToDepositToken(uint256 fromAmount) internal returns (uint256 toAmount) {
-        //dex library swap
+        toAmount = DexLibrary.convertRewardTokensToDepositTokens(
+            fromAmount,
+            address(rewardToken),
+            address(depositToken),
+            IPair(address(depositToken)),
+            IPair(address(depositToken))
+        );
     }
 
     function _getDepositBalance(uint256 pid, address user)
