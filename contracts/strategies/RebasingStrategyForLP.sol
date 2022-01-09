@@ -35,18 +35,15 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
 
     // Represent the state of PID.
     // 0 = YRT (unstaked); 1 = MEMO + WAVAX (staked)
-    uint256 private UNSTAKED = 0;
-    uint256 private STAKED = 1;
+    uint256 public PID;
+    uint256 private constant UNSTAKED = 0;
+    uint256 private constant STAKED = 1;
 
     address public yrt; // Yak farm for WAVAX-TIME LP
+    address private poolRewardToken; // TIME
     address public stakingContract; // TIME <-> MEMO
-    address public swapPairRewardToken;
     address public stakedToken; // MEMO
     uint256 private currentEpoch;
-
-    uint256 public PID;
-    address private poolRewardToken; // TIME
-    IPair private swapPairPoolReward;
 
     struct StrategySettings {
         uint256 minTokensToReinvest;
@@ -218,21 +215,19 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
             uint256 estimatedTotalReward
         )
     {
+        uint256 pendingRewards = _pendingRewards(PID, address(0));
+        estimatedTotalReward = DexLibrary.estimateConversionThroughPair(
+            poolTokenAmount,
+            poolRewardToken,
+            address(WAVAX),
+            IPair(address(depositToken))
+        );
         if (PID == STAKED) {
             rewardTokenAmount = 0;
-            poolTokenAmount = _pendingRewards(PID, address(0));
-            estimatedTotalReward = poolTokenAmount == 0
-                ? 0
-                : DexLibrary.estimateConversionThroughPair(
-                    poolTokenAmount,
-                    poolRewardToken,
-                    address(WAVAX),
-                    IPair(address(depositToken))
-                );
+            poolTokenAmount = pendingRewards;
         } else {
-            rewardTokenAmount = _pendingRewards(PID, address(0));
+            rewardTokenAmount = estimatedTotalReward;
             poolTokenAmount = 0;
-            estimatedTotalReward = rewardTokenAmount;
         }
     }
 
@@ -390,30 +385,26 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         YakStrategyV2(yrt).withdraw(yrtBalance);
     }
 
-    // Total reward is about 0.6% TIME. Allocate 20% to unstaking and 80% to staking.
+    // Returns pending rewards in pool token (~0.6% TIME).
+    // This reward is split to 20% for staking and 80% for unstaking.
     function _pendingRewards(uint256 _pid, address) internal view returns (uint256) {
-        // rewardTokens: {WAVAX, TIME}
-        // WAVAX rewards will always be 0, but this is the currency we pay bot and display.
-        // TIME will comes from unstaking MEMO.
-        /*
-        if (staked) { // MEMO and WAVAX
-            if epoch has not advanced, returns 0; //don't unstake yet
-            calculate delta TIME from unstaking
-            convert that to WAVAX (use DexLibrary)
-            returns remainder (deduct the 20% for LP case that incentives bot to stake.)
-        } else { // TIME-AVAX LP
-            if epoch is not ending, returns 0; //underlying YTR farm auto-compounds
-            returns 20% of expected TIME rewards in new epoch (~0.06%)
+        if (_pid == _getState()) {
+            return 0;
         }
+        /*
+            To calculate the real reward:
+            const stakingReward = epoch.distribute;
+            const circ = await memoContract.circulatingSupply();
+            const stakingRebase = stakingReward / circ;
+            const trimmedMemoBalance = trim(Number(memoBalance), 6);
+            const stakingRebasePercentage = trim(stakingRebase * 100, 4);
+            const nextRewardValue = trim((Number(stakingRebasePercentage) / 100) * Number(trimmedMemoBalance), 6);
         */
-
-        // When UNSTAKED, we have no rewardToken and poolToken balance.
-        // When STAKED, we have 50% rewardToken balance and 0 poolToken balance.
+        uint256 totalPendingRewards = 0;
         if (_pid == UNSTAKED) {
-            // look at our LP. estimate
-            return 0;
+            return totalPendingRewards.mul(20).div(100);
         } else {
-            return 0;
+            return totalPendingRewards.mul(80).div(100);
         }
     }
 
@@ -431,8 +422,6 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         private
         returns (uint256)
     {
-        if (poolTokenAmount == 0) return 0;
-
         return
             DexLibrary.swap(
                 poolTokenAmount,
