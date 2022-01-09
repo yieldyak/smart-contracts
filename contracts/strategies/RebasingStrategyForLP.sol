@@ -460,7 +460,14 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         }
     }
 
-    function _emergencyWithdraw(uint256 _pid) internal {}
+    function _emergencyWithdraw(uint256 _pid) internal {
+        if (_pid == STAKED) {
+            _unstakeAll();
+        }
+
+        uint256 yrtBalance = IERC20(yrt).balanceOf(address(this));
+        YakStrategyV2(yrt).withdraw(yrtBalance);
+    }
 
     // Total reward is about 0.6% TIME. Allocate 20% to unstaking and 80% to staking.
     function _pendingRewards(uint256 _pid, address)
