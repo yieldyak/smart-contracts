@@ -341,12 +341,12 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         require(unstakedBalance > 0, "RebasingTokenStrategyForLP: no unstaked");
 
         // 2. add liquidity WAVAX-TIME.
-        // FIXME: zap the extra TIME to liquidity too.
         uint256 liquidity = DexLibrary.addLiquidity(
             address(depositToken),
             WAVAX.balanceOf(address(this)),
             unstakedBalance
         );
+        // TODO: convert leftover TIME/WAVAX to LP.
         require(liquidity > 0, "RebasingTokenStrategyForLP: no liquidity");
 
         // 3. deposit liquidity to YY.
