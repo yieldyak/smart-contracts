@@ -4,7 +4,6 @@ pragma solidity 0.7.3;
 
 import "../interfaces/IMasterPlatypus.sol";
 import "../interfaces/IPlatypusPool.sol";
-import "../interfaces/IPlatypusVoterProxy.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/IPair.sol";
 import "../interfaces/IWAVAX.sol";
@@ -22,25 +21,20 @@ contract PlatypusStrategy is PlatypusMasterChefStrategy {
 
     IMasterPlatypus public masterchef;
     IPlatypusPool public pool;
-    IPlatypusVoterProxy public proxy;
     uint256 public maxSlippage;
     IERC20 public immutable asset;
     address private swapPairToken;
 
-    struct SwapPairs {
-        address swapPairToken; // swap rewardToken to depositToken
-        address swapPairPoolReward;
-        address swapPairExtraReward;
-    }
-
     constructor(
         string memory _name,
         address _depositToken,
+        address _swapPairToken, // swap rewardToken to depositToken
         address _poolRewardToken,
-        SwapPairs memory swapPairs,
+        address _swapPairPoolReward,
+        address _swapPairExtraReward,
         address _pool,
         address _stakingContract,
-        address _voterProxy,
+        //address _voterProxy,
         uint256 _pid,
         address _timelock,
         StrategySettings memory _strategySettings
@@ -50,8 +44,8 @@ contract PlatypusStrategy is PlatypusMasterChefStrategy {
             _depositToken,
             address(WAVAX), /*rewardToken=*/
             _poolRewardToken,
-            swapPairs.swapPairPoolReward,
-            swapPairs.swapPairExtraReward,
+            _swapPairPoolReward,
+            _swapPairExtraReward,
             _stakingContract,
             _timelock,
             _pid,
@@ -61,19 +55,21 @@ contract PlatypusStrategy is PlatypusMasterChefStrategy {
         masterchef = IMasterPlatypus(_stakingContract);
         pool = IPlatypusPool(_pool);
         asset = IERC20(pool.assetOf(_depositToken));
-        proxy = IPlatypusVoterProxy(_voterProxy);
         maxSlippage = 50;
-        assignSwapPairSafely(swapPairs.swapPairToken);
+        assignSwapPairSafely(_swapPairToken);
     }
 
-    function setPlatypusVoterProxy(address _voterProxy) external onlyOwner {
-        proxy = IPlatypusVoterProxy(_voterProxy);
-    }
+    receive() external payable {}
 
     function updateMaxWithdrawSlippage(uint256 slippageBips) public onlyDev {
         maxSlippage = slippageBips;
     }
 
+    /**
+     * @notice Initialization helper for Pair deposit tokens
+     * @dev Checks that selected Pairs are valid for trading reward tokens
+     * @dev Assigns values to swapPairToken
+     */
     function assignSwapPairSafely(address _swapPairToken) private {
         require(
             DexLibrary.checkSwapPairCompatibility(IPair(_swapPairToken), address(depositToken), address(rewardToken)),
@@ -82,29 +78,66 @@ contract PlatypusStrategy is PlatypusMasterChefStrategy {
         swapPairToken = _swapPairToken;
     }
 
+    /* VIRTUAL */
     function _convertRewardTokenToDepositToken(uint256 fromAmount) internal override returns (uint256 toAmount) {
         toAmount = DexLibrary.swap(fromAmount, address(rewardToken), address(depositToken), IPair(swapPairToken));
     }
 
     function _depositMasterchef(uint256 _pid, uint256 _amount) internal override {
-        depositToken.safeTransfer(address(proxy), _amount);
-        proxy.deposit(_pid, address(masterchef), address(pool), address(depositToken), address(asset), _amount);
+        depositToken.safeApprove(address(pool), _amount);
+        uint256 liquidity = pool.deposit(address(depositToken), _amount, address(this), type(uint256).max);
+        asset.safeApprove(address(masterchef), liquidity);
+        masterchef.deposit(_pid, liquidity);
+    }
+
+    function getLiquidityForDepositTokens(uint256 amount) public view returns (uint256) {
+        return amount.mul(asset.balanceOf(address(this))).div(totalDeposits());
+    }
+
+    function _calculateWithdrawFee(
+        uint256, /*pid*/
+        uint256 _amount
+    ) internal view returns (uint256 fee) {
+        (, fee, ) = pool.quotePotentialWithdraw(address(depositToken), _amount);
     }
 
     function _withdrawMasterchef(uint256 _pid, uint256 _amount) internal override returns (uint256 withdrawalAmount) {
-        return
-            proxy.withdraw(
-                _pid,
-                address(masterchef),
-                address(pool),
-                address(depositToken),
-                address(asset),
-                maxSlippage,
-                _amount
-            );
+        masterchef.withdraw(_pid, _amount);
+        asset.safeApprove(address(pool), _amount);
+        uint256 withdrawAmount = _amount.sub(_calculateWithdrawFee(_pid, _amount));
+        uint256 slippage = withdrawAmount.mul(maxSlippage).div(BIPS_DIVISOR);
+        withdrawAmount = withdrawAmount.sub(slippage);
+        uint256 amount = pool.withdraw(
+            address(depositToken),
+            _amount,
+            withdrawAmount,
+            address(this),
+            type(uint256).max
+        );
+        return amount;
     }
 
-    function _pendingRewards(uint256 _pid)
+    /**
+     * @notice Estimate recoverable balance after withdraw fee
+     * @return deposit tokens after withdraw fee
+     */
+    function estimateDeployedBalance() external view override returns (uint256) {
+        uint256 balance = totalDeposits();
+        (uint256 expectedAmount, , ) = pool.quotePotentialWithdraw(address(depositToken), balance);
+        return expectedAmount;
+    }
+
+    function _emergencyWithdraw(uint256 _pid) internal override {
+        masterchef.emergencyWithdraw(_pid);
+        uint256 balance = asset.balanceOf(address(this));
+        (uint256 expectedAmount, , ) = pool.quotePotentialWithdraw(address(depositToken), balance);
+        asset.safeApprove(address(pool), balance);
+        pool.withdraw(address(depositToken), balance, expectedAmount, address(this), type(uint256).max);
+        asset.safeApprove(address(masterchef), 0);
+        depositToken.safeApprove(address(pool), 0);
+    }
+
+    function _pendingRewards(uint256 _pid, address _user)
         internal
         view
         override
@@ -116,37 +149,25 @@ contract PlatypusStrategy is PlatypusMasterChefStrategy {
     {
         (uint256 pendingPtp, address bonusTokenAddress, , uint256 pendingBonusToken) = masterchef.pendingTokens(
             _pid,
-            proxy.platypusVoter()
+            _user
         );
-        uint256 ptpFee = proxy.ptpFee();
-        uint256 boostFee = pendingPtp.mul(ptpFee).div(BIPS_DIVISOR);
-
-        return (pendingPtp.sub(boostFee), pendingBonusToken, bonusTokenAddress);
+        return (pendingPtp, pendingBonusToken, bonusTokenAddress);
     }
 
     function _getRewards(uint256 _pid) internal override {
-        proxy.claimReward(address(masterchef), _pid, address(asset));
-    }
+        uint256[] memory pids = new uint256[](1);
+        pids[0] = _pid;
 
-    function _getDepositBalance(uint256 _pid) internal view override returns (uint256 amount) {
-        (uint256 balance, , ) = masterchef.userInfo(_pid, proxy.platypusVoter());
-        return balance;
-    }
+        masterchef.multiClaim(pids);
 
-    /**
-     * @notice Estimate recoverable balance after withdraw fee
-     * @return deposit tokens after withdraw fee
-     */
-    function estimateDeployedBalance() external view override returns (uint256) {
-        uint256 balance = totalDeposits();
-        if (balance == 0) {
-            return 0;
+        uint256 balance = address(this).balance;
+        if (balance > 0) {
+            WAVAX.deposit{value: balance}();
         }
-        (uint256 expectedAmount, , ) = pool.quotePotentialWithdraw(address(depositToken), balance);
-        return expectedAmount;
     }
 
-    function _emergencyWithdraw(uint256 _pid) internal override {
-        proxy.emergencyWithdraw(_pid, address(masterchef), address(pool), address(depositToken), address(asset));
+    function _getDepositBalance(uint256 _pid, address user) internal view override returns (uint256 amount) {
+        (uint256 balance, , ) = masterchef.userInfo(_pid, user);
+        return balance;
     }
 }

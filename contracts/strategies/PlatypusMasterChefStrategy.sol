@@ -268,7 +268,8 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
     {
         uint256 poolTokenBalance = IERC20(poolRewardToken).balanceOf(address(this));
         (uint256 pendingPoolTokenAmount, uint256 pendingExtraTokenAmount, address extraTokenAddress) = _pendingRewards(
-            PID
+            PID,
+            address(this)
         );
         uint256 poolTokenAmount = poolTokenBalance.add(pendingPoolTokenAmount);
 
@@ -305,7 +306,7 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
     }
 
     function totalDeposits() public view override returns (uint256) {
-        uint256 depositBalance = _getDepositBalance(PID);
+        uint256 depositBalance = _getDepositBalance(PID, address(this));
         return depositBalance;
     }
 
@@ -334,7 +335,7 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
 
     function _getRewards(uint256 pid) internal virtual;
 
-    function _pendingRewards(uint256 pid)
+    function _pendingRewards(uint256 pid, address user)
         internal
         view
         virtual
@@ -344,5 +345,5 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
             address extraTokenAddress
         );
 
-    function _getDepositBalance(uint256 pid) internal view virtual returns (uint256 amount);
+    function _getDepositBalance(uint256 pid, address user) internal view virtual returns (uint256 amount);
 }
