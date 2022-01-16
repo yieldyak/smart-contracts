@@ -45,6 +45,7 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
     address public stakingContract; // TIME <-> MEMO
     address public stakedToken; // MEMO
     uint256 private currentEpoch;
+    uint256 private deposits; // track total deposits.
 
     struct StrategySettings {
         uint256 minTokensToReinvest;
@@ -130,6 +131,7 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         );
         _mint(account, getSharesForDepositTokens(amount));
         _stakeDepositTokens(amount);
+        deposits = deposits.add(amount);
         emit Deposit(account, amount);
     }
 
@@ -139,6 +141,7 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         _withdrawDepositTokens(depositTokenAmount);
         _safeTransfer(address(depositToken), msg.sender, depositTokenAmount);
         _burn(msg.sender, amount);
+        deposits = deposits.sub(depositTokenAmount);
         emit Withdraw(msg.sender, depositTokenAmount);
     }
 
@@ -246,7 +249,7 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
     }
 
     function totalDeposits() public view override returns (uint256) {
-        return _getDepositBalance(PID, address(this));
+        return deposits;
     }
 
     function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits)
@@ -453,10 +456,4 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
             IPair(address(depositToken))
         );
     }
-
-    function _getDepositBalance(uint256 pid, address user)
-        internal
-        view
-        returns (uint256 amount)
-    {}
 }
