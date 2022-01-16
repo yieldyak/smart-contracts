@@ -5,6 +5,7 @@ pragma solidity 0.7.3;
 import "../YakStrategyV2.sol";
 import "../interfaces/IPair.sol";
 import "../interfaces/IYakStrategy.sol";
+import "../interfaces/RebasingToken.sol";
 import "../interfaces/TimeStaking.sol";
 import "../lib/DexLibrary.sol";
 
@@ -391,16 +392,12 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         if (_pid == _getState()) {
             return 0;
         }
-        /*
-            To calculate the real reward:
-            const stakingReward = epoch.distribute;
-            const circ = await memoContract.circulatingSupply();
-            const stakingRebase = stakingReward / circ;
-            const trimmedMemoBalance = trim(Number(memoBalance), 6);
-            const stakingRebasePercentage = trim(stakingRebase * 100, 4);
-            const nextRewardValue = trim((Number(stakingRebasePercentage) / 100) * Number(trimmedMemoBalance), 6);
-        */
-        uint256 totalPendingRewards = 0;
+
+        (, uint256 stakingReward, , ) = TimeStaking(stakingContract).epoch();
+        uint256 supply = RebasingToken(stakedToken).circulatingSupply();
+        uint256 stakingRebasePercent = stakingReward.mul(100).div(supply);
+        uint256 balance = IERC20(stakedToken).balanceOf(address(this));
+        uint256 totalPendingRewards = balance.mul(stakingRebasePercent).div(100);
         if (_pid == UNSTAKED) {
             return totalPendingRewards.mul(20).div(100);
         } else {
