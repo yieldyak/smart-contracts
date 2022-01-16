@@ -315,8 +315,12 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
         // 2. remove liquidity WAVAX-TIME.
         uint256 liquidity = IPair(address(depositToken)).balanceOf(address(this));
         require(liquidity > 0, "RebasingTokenStrategyForLP: no liquidity");
-        // TODO: implement this
-        // (uint256 wavaxAmount, uint256 timeAmount) = DexLibrary.removeLiquidity(...);
+        DexLibrary.removeLiquidity(
+            address(depositToken),
+            liquidity,
+            address(WAVAX),
+            poolRewardToken
+        );
 
         // 3. stake TIME to MEMO.
         uint256 poolRewardTokenBalance = IERC20(poolRewardToken).balanceOf(
@@ -347,11 +351,20 @@ contract RebasingTokenStrategyForLP is YakStrategyV2 {
             WAVAX.balanceOf(address(this)),
             unstakedBalance
         );
-        // TODO: convert leftover TIME/WAVAX to LP.
         require(liquidity > 0, "RebasingTokenStrategyForLP: no liquidity");
 
+        // convert extra TIME to LP as well.
+        uint256 leftoverLiquidity = DexLibrary.convertRewardTokensToDepositTokens(
+            IERC20(poolRewardToken).balanceOf(address(this)),
+            address(poolRewardToken),
+            address(depositToken),
+            IPair(address(depositToken)),
+            IPair(address(depositToken))
+        );
+        require(leftoverLiquidity > 0, "RebasingTokenStrategyForLP: no liquidity");
+
         // 3. deposit liquidity to YY.
-        IYakStrategy(yrt).deposit(liquidity);
+        IYakStrategy(yrt).deposit(liquidity.add(leftoverLiquidity));
     }
 
     // case (_pid, currentState)

@@ -88,6 +88,21 @@ library DexLibrary {
     }
 
     /**
+     * @notice Remove liquidity directly through a Pair
+     */
+    function removeLiquidity(
+        address lpToken,
+        uint256 amount,
+        address tokenA,
+        address tokenB
+    ) internal returns (uint256 amountA, uint256 amountB) {
+        IPair pair = IPair(lpToken);
+        safeTransferFrom(lpToken, address(this), lpToken, amount);
+        (amountA, amountB) = pair.burn(address(this));
+        if (pair.token0() == tokenB) (amountA, amountB) = (amountB, amountA);
+    }
+
+    /**
      * @notice Quote liquidity amount out
      * @param amountIn input tokens
      * @param reserve0 size of input asset reserve
@@ -133,5 +148,17 @@ library DexLibrary {
      */
     function safeTransfer(address token, address to, uint256 value) internal {
         require(IERC20(token).transfer(to, value), "DexLibrary::TRANSFER_FROM_FAILED");
+    }
+
+    /**
+     * @notice Safely transfer using an anonymous ERC20 token
+     * @dev Requires token to return true on transfer
+     * @param token address
+     * @param from sender address
+     * @param to recipient address
+     * @param value amount
+     */
+    function safeTransferFrom(address token, address from, address to, uint256 value) internal {
+        require(IERC20(token).transferFrom(from, to, value), "DexLibrary::TRANSFER_FROM_FAILED");
     }
 }
