@@ -10,24 +10,8 @@ import "../interfaces/TimeStaking.sol";
 import "../lib/DexLibrary.sol";
 
 /**
- * Deposit token = WAVAX-TIME LP
- * Reward token = WAVAX
- * Native reward token = TIME
- * "MasterChef"
- *   PID 0 = unstaked (YRT)
- *   PID 1 = staked (MEMO+WAVAX)
- * Staking contract = YRT farm
- * Additional staking contract = TimeStaking.
- *
- * Deposit is a little more complicated as it needs to reconcile the PID and the upcoming state.
- * For example, if PID is currently 0 and current epoch is ending soon, then we stake the deposit and underlying asset.
- *
- * On deposit:
- * 1. if current epoch is closing soon, flip PID to 1 and handle accordingly;
- * 2. else, flip PID to 1 and do a simple deposit.
-Basically, deposit checks if current epoch closing soon, then flip to PID 0; else simple deposit.
-
-Reinvest only has balance when before epoch ends and after epoch starts. Proposal: 0.01% WAVAX for before. Then once we get 0.06% TIME, swap to WAVAX and minus the 0.01% to calculate remaining.
+ * This strategy is for LP that has a rebasing token. The strategy chases 
+ * rebases when approaching an epoch and otherwise reuses existing LP farm.
  */
 contract RebasingTokenStrategyForLP is YakStrategyV2 {
     using SafeMath for uint256;
