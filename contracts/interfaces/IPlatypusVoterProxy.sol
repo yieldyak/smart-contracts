@@ -40,4 +40,6 @@ interface IPlatypusVoterProxy {
     ) external;
 
     function approveStrategy(address _asset, address _strategy) external;
+
+    function ptpFee() external view returns (uint256);
 }
