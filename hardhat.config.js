@@ -81,9 +81,9 @@ module.exports = {
   networks: {
     hardhat: {
       chainId: 43114,
-      gasPrice: 225000000000,
-      throwOnTransactionFailures: false,
-      loggingEnabled: true,
+      gasPrice: 25000000000,
+      // throwOnTransactionFailures: false,
+      // loggingEnabled: true,
       forking: {
         url: AVALANCHE_MAINNET_URL,
         enabled: true,
@@ -91,7 +91,7 @@ module.exports = {
     },
     mainnet: {
       chainId: 43114,
-      gasPrice: 225000000000,
+      gasPrice: 25000000000,
       url: AVALANCHE_MAINNET_URL,
       accounts: [
         PK_USER,
@@ -100,7 +100,7 @@ module.exports = {
     },
     fuji: {
       chainId: 43113,
-      gasPrice: 225000000000,
+      gasPrice: 25000000000,
       url: AVALANCHE_FUJI_URL,
       accounts: [
         PK_TEST
