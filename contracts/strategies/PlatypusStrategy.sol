@@ -118,8 +118,8 @@ contract PlatypusStrategy is PlatypusMasterChefStrategy {
             _pid,
             proxy.platypusVoter()
         );
-        uint256 ptpFee = proxy.ptpFee();
-        uint256 boostFee = pendingPtp.mul(ptpFee).div(BIPS_DIVISOR);
+        uint256 reinvestFeeBips = proxy.reinvestFeeBips();
+        uint256 boostFee = pendingPtp.mul(reinvestFeeBips).div(BIPS_DIVISOR);
 
         return (pendingPtp.sub(boostFee), pendingBonusToken, bonusTokenAddress);
     }

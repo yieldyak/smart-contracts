@@ -10,7 +10,9 @@ interface IPlatypusVoter {
 
     function wrapAvaxBalance() external returns (uint256);
 
-    function increaseStake(uint256 _value) external;
+    function depositsEnabled() external returns (bool);
+
+    function deposit(uint256 _value) external;
 
     function setVoterProxy(address _voterProxy) external;
 }

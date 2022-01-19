@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.3;
+pragma experimental ABIEncoderV2;
 
 import "../interfaces/IPlatypusVoter.sol";
 import "../interfaces/IMasterPlatypus.sol";
@@ -24,10 +25,19 @@ contract PlatypusVoterProxy {
     using SafeProxy for IPlatypusVoter;
     using SafeERC20 for IERC20;
 
+    struct FeeSettings {
+        uint256 stakerFeeBips;
+        uint256 boosterFeeBips;
+        address stakerFeeReceiver;
+        address boosterFeeReceiver;
+    }
+
     uint256 internal constant BIPS_DIVISOR = 10000;
 
-    uint256 public ptpFee;
-    bool public staking;
+    uint256 public boosterFee;
+    uint256 public stakerFee;
+    address public stakerFeeReceiver;
+    address public boosterFeeReceiver;
     address public constant PTP = address(0x22d4002028f537599bE9f666d1c4Fa138522f9c8);
     IPlatypusVoter public immutable platypusVoter;
     address public immutable devAddr;
@@ -47,13 +57,14 @@ contract PlatypusVoterProxy {
 
     constructor(
         address _platypusVoter,
-        uint256 _ptpFeeBips,
-        bool _staking,
-        address _devAddr
+        address _devAddr,
+        FeeSettings memory _feeSettings
     ) {
         devAddr = _devAddr;
-        ptpFee = _ptpFeeBips;
-        staking = _staking;
+        boosterFee = _feeSettings.boosterFeeBips;
+        stakerFee = _feeSettings.stakerFeeBips;
+        stakerFeeReceiver = _feeSettings.stakerFeeReceiver;
+        boosterFeeReceiver = _feeSettings.boosterFeeReceiver;
         platypusVoter = IPlatypusVoter(_platypusVoter);
     }
 
@@ -61,12 +72,20 @@ contract PlatypusVoterProxy {
         strategies[_asset] = _strategy;
     }
 
-    function setPTPFee(uint256 _ptpFeeBips) external onlyDev {
-        ptpFee = _ptpFeeBips;
+    function setBoosterFee(uint256 _boosterFeeBips) external onlyDev {
+        boosterFee = _boosterFeeBips;
     }
 
-    function setStaking(bool _staking) external onlyDev {
-        staking = _staking;
+    function setStakerFee(uint256 _stakerFeeBips) external onlyDev {
+        stakerFee = _stakerFeeBips;
+    }
+
+    function setBoosterFeeReceiver(address _boosterFeeReceiver) external onlyDev {
+        boosterFeeReceiver = _boosterFeeReceiver;
+    }
+
+    function setStakerFeeReceiver(address _stakerFeeReceiver) external onlyDev {
+        stakerFeeReceiver = _stakerFeeReceiver;
     }
 
     function deposit(
@@ -96,15 +115,17 @@ contract PlatypusVoterProxy {
         );
     }
 
-    function toUint256(bytes memory _bytes, uint256 _start) internal pure returns (uint256) {
-        require(_bytes.length >= _start + 32, "toUint256_outOfBounds");
-        uint256 tempUint;
-
-        assembly {
-            tempUint := mload(add(add(_bytes, 0x20), _start))
+    function reinvestFeeBips() external returns (uint256) {
+        uint256 boostFee = 0;
+        if (boosterFee > 0 && boosterFeeReceiver > address(0) && platypusVoter.depositsEnabled()) {
+            boostFee = boosterFee;
         }
 
-        return tempUint;
+        uint256 stakingFee = 0;
+        if (stakerFee > 0 && stakerFeeReceiver > address(0)) {
+            stakingFee = stakerFee;
+        }
+        return boostFee.add(stakingFee);
     }
 
     function _calculateWithdrawFee(
@@ -190,14 +211,26 @@ contract PlatypusVoterProxy {
 
         platypusVoter.safeExecute(_stakingContract, 0, abi.encodeWithSignature("multiClaim(uint256[])", pids));
 
-        uint256 boostFee = pendingPtp.mul(ptpFee).div(BIPS_DIVISOR);
-        uint256 reward = pendingPtp.sub(boostFee);
+        uint256 boostFee = 0;
+        if (boosterFee > 0 && boosterFeeReceiver > address(0) && platypusVoter.depositsEnabled()) {
+            boostFee = pendingPtp.mul(boosterFee).div(BIPS_DIVISOR);
+            platypusVoter.deposit(boostFee);
+            IERC20(address(platypusVoter)).safeTransfer(boosterFeeReceiver, boostFee);
+        }
+
+        uint256 stakingFee = 0;
+        if (stakerFee > 0 && stakerFeeReceiver > address(0)) {
+            stakingFee = pendingPtp.mul(stakerFee).div(BIPS_DIVISOR);
+            platypusVoter.safeExecute(
+                PTP,
+                0,
+                abi.encodeWithSignature("transfer(address,uint256)", stakerFeeReceiver, stakingFee)
+            );
+        }
+
+        uint256 reward = pendingPtp.sub(boostFee).sub(stakingFee);
 
         platypusVoter.safeExecute(PTP, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, reward));
-
-        if (staking) {
-            platypusVoter.increaseStake(boostFee);
-        }
 
         if (bonusTokenAddress > address(0)) {
             platypusVoter.wrapAvaxBalance();
@@ -207,5 +240,16 @@ contract PlatypusVoterProxy {
                 abi.encodeWithSignature("transfer(address,uint256)", msg.sender, pendingBonusToken)
             );
         }
+    }
+
+    function toUint256(bytes memory _bytes, uint256 _start) internal pure returns (uint256) {
+        require(_bytes.length >= _start + 32, "toUint256_outOfBounds");
+        uint256 tempUint;
+
+        assembly {
+            tempUint := mload(add(add(_bytes, 0x20), _start))
+        }
+
+        return tempUint;
     }
 }
