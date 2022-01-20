@@ -19,6 +19,11 @@ contract PlatypusVoter is Ownable, ERC20 {
     address public voterProxy;
     bool public depositsEnabled;
 
+    modifier onlyDev() {
+        require(msg.sender == devAddr, "PlatypusVoter::onlyDev");
+        _;
+    }
+
     modifier onlyPlatypusVoterProxy() {
         require(msg.sender == voterProxy, "PlatypusVoter::onlyPlatypusVoterProxy");
         _;
@@ -43,6 +48,10 @@ contract PlatypusVoter is Ownable, ERC20 {
 
     function vePTPBalance() public view returns (uint256) {
         return vePTP.balanceOf(address(this));
+    }
+
+    function setDepositsEnabled(bool _depositsEnabled) external onlyDev {
+        depositsEnabled = _depositsEnabled;
     }
 
     function deposit(uint256 _amount) public {
@@ -77,15 +86,6 @@ contract PlatypusVoter is Ownable, ERC20 {
             WAVAX.deposit{value: balance}();
         }
         return balance;
-    }
-
-    function withdraw(uint256 _amount) external onlyPlatypusVoterProxy {
-        IERC20(PTP).safeTransfer(voterProxy, _amount);
-    }
-
-    function withdrawAll() external onlyPlatypusVoterProxy returns (uint256 balance) {
-        balance = IERC20(PTP).balanceOf(address(this));
-        IERC20(PTP).safeTransfer(voterProxy, balance);
     }
 
     function execute(
