@@ -13,7 +13,6 @@ abstract contract MasterChefVariableRewardsStrategyForLP is MasterChefVariableRe
 
     struct SwapPairs {
         address poolReward;
-        address extraReward;
         address token0;
         address token1;
     }
@@ -27,6 +26,7 @@ abstract contract MasterChefVariableRewardsStrategyForLP is MasterChefVariableRe
         address _ecosystemToken,
         address _poolRewardToken,
         SwapPairs memory _swapPairs,
+        ExtraReward[] memory _extraRewards,
         address _stakingContract,
         address _timelock,
         uint256 _pid,
@@ -38,6 +38,7 @@ abstract contract MasterChefVariableRewardsStrategyForLP is MasterChefVariableRe
             _ecosystemToken,
             _poolRewardToken,
             _swapPairs.poolReward,
+            _extraRewards,
             _stakingContract,
             _timelock,
             _pid,

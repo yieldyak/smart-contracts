@@ -26,7 +26,8 @@ contract PangolinV2VariableRewardsStrategyForLP is MasterChefVariableRewardsStra
         address _rewardToken,
         address _poolRewardToken,
         SwapPairs memory _swapPairs,
-        address _stakingRewards,
+        ExtraReward[] memory _extraRewards,
+        address _stakingContract,
         uint256 _pid,
         address _timelock,
         StrategySettings memory _strategySettings
@@ -37,14 +38,15 @@ contract PangolinV2VariableRewardsStrategyForLP is MasterChefVariableRewardsStra
             _rewardToken,
             _poolRewardToken,
             _swapPairs,
-            _stakingRewards,
+            _extraRewards,
+            _stakingContract,
             _timelock,
             _pid,
             _strategySettings
         )
     {
         poolRewardToken = _poolRewardToken;
-        miniChef = IMiniChefV2(_stakingRewards);
+        miniChef = IMiniChefV2(_stakingContract);
     }
 
     function _depositMasterchef(uint256 _pid, uint256 _amount) internal override {
@@ -68,7 +70,7 @@ contract PangolinV2VariableRewardsStrategyForLP is MasterChefVariableRewardsStra
         if (address(rewarder) > address(0)) {
             (address[] memory rewardTokens, uint256[] memory rewardAmounts) = rewarder.pendingTokens(
                 0,
-                address(0),
+                address(this),
                 poolRewardAmount
             );
             pendingRewards = new Reward[](rewardTokens.length.add(1));
