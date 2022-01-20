@@ -216,6 +216,8 @@ contract PlatypusVoterProxy {
             boostFee = pendingPtp.mul(boosterFee).div(BIPS_DIVISOR);
             platypusVoter.depositFromBalance(boostFee);
             IERC20(address(platypusVoter)).safeTransfer(boosterFeeReceiver, boostFee);
+        } else {
+            platypusVoter.claimVePTP();
         }
 
         uint256 stakingFee = 0;

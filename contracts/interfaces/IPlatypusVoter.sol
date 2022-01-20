@@ -15,4 +15,6 @@ interface IPlatypusVoter {
     function depositFromBalance(uint256 _value) external;
 
     function setVoterProxy(address _voterProxy) external;
+
+    function claimVePTP() external;
 }
