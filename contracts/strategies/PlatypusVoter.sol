@@ -45,12 +45,10 @@ contract PlatypusVoter is Ownable, ERC20 {
         return vePTP.balanceOf(address(this));
     }
 
-    function deposit(uint256 _value) public {
+    function deposit(uint256 _amount) public {
         require(depositsEnabled == true, "PlatypusVoter:deposits disabled");
-        IERC20(PTP).safeApprove(address(vePTP), _value);
-        vePTP.deposit(_value);
-        _mint(msg.sender, _value);
-        IERC20(PTP).safeApprove(address(vePTP), 0);
+        require(IERC20(PTP).transferFrom(msg.sender, address(this), _amount), "PlatypusVoter::transfer failed");
+        _deposit(_amount);
     }
 
     function setVoterProxy(address _voterProxy) external onlyOwner {
@@ -59,6 +57,18 @@ contract PlatypusVoter is Ownable, ERC20 {
 
     function claimVePTP() external onlyPlatypusVoterProxyOrDev {
         vePTP.claim();
+    }
+
+    function depositFromBalance(uint256 _amount) external onlyPlatypusVoterProxy {
+        require(depositsEnabled == true, "PlatypusVoter:deposits disabled");
+        _deposit(_amount);
+    }
+
+    function _deposit(uint256 _amount) internal {
+        IERC20(PTP).safeApprove(address(vePTP), _amount);
+        vePTP.deposit(_amount);
+        _mint(msg.sender, _amount);
+        IERC20(PTP).safeApprove(address(vePTP), 0);
     }
 
     function wrapAvaxBalance() external onlyPlatypusVoterProxy returns (uint256) {

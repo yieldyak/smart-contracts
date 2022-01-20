@@ -214,7 +214,7 @@ contract PlatypusVoterProxy {
         uint256 boostFee = 0;
         if (boosterFee > 0 && boosterFeeReceiver > address(0) && platypusVoter.depositsEnabled()) {
             boostFee = pendingPtp.mul(boosterFee).div(BIPS_DIVISOR);
-            platypusVoter.deposit(boostFee);
+            platypusVoter.depositFromBalance(boostFee);
             IERC20(address(platypusVoter)).safeTransfer(boosterFeeReceiver, boostFee);
         }
 

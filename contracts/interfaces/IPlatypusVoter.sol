@@ -12,7 +12,7 @@ interface IPlatypusVoter {
 
     function depositsEnabled() external returns (bool);
 
-    function deposit(uint256 _value) external;
+    function depositFromBalance(uint256 _value) external;
 
     function setVoterProxy(address _voterProxy) external;
 }
