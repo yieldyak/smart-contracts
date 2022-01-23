@@ -8,6 +8,8 @@ interface IPlatypusVoter {
         bytes calldata data
     ) external returns (bool, bytes memory);
 
+    function vePTPBalance() external view returns (uint256);
+
     function wrapAvaxBalance() external returns (uint256);
 
     function depositsEnabled() external returns (bool);
