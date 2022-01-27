@@ -95,14 +95,9 @@ contract PlatypusVoterProxy {
         address _token,
         address _asset,
         uint256 _amount
-    ) external onlyStrategy(_asset) {
+    ) external onlyStrategy(_asset) returns (uint256 liquidity) {
         IERC20(_token).safeApprove(_pool, _amount);
-        uint256 liquidity = IPlatypusPool(_pool).deposit(
-            address(_token),
-            _amount,
-            address(platypusVoter),
-            type(uint256).max
-        );
+        liquidity = IPlatypusPool(_pool).deposit(address(_token), _amount, address(platypusVoter), type(uint256).max);
         platypusVoter.safeExecute(
             _asset,
             0,

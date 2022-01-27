@@ -29,7 +29,7 @@ interface IPlatypusVoterProxy {
         address _token,
         address _asset,
         uint256 _amount
-    ) external;
+    ) external returns (uint256 liquidity);
 
     function platypusVoter() external view returns (address);
 

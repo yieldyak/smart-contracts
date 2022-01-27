@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.3;
 
-import "../YakStrategyV2.sol";
+import "../YakStrategy.sol";
 import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
 
 /**
  * @notice Adapter strategy for MasterChef.
  */
-abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
+abstract contract PlatypusMasterChefStrategy is YakStrategy {
     using SafeMath for uint256;
 
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
@@ -157,8 +157,9 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
             }
         }
         require(depositToken.transferFrom(msg.sender, address(this), amount), "MasterChefStrategyV1::transfer failed");
-        _mint(account, getSharesForDepositTokens(amount));
-        _stakeDepositTokens(amount);
+        uint256 liquidity = _stakeDepositTokens(amount);
+        _mint(account, getSharesForDepositTokens(liquidity));
+        totalDeposits = totalDeposits.add(liquidity);
         emit Deposit(account, amount);
     }
 
@@ -168,6 +169,7 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
         uint256 withdrawalAmount = _withdrawMasterchef(PID, depositTokenAmount);
         _safeTransfer(address(depositToken), msg.sender, withdrawalAmount);
         _burn(msg.sender, amount);
+        totalDeposits = totalDeposits.sub(depositTokenAmount);
         emit Withdraw(msg.sender, depositTokenAmount);
     }
 
@@ -232,13 +234,15 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
 
         uint256 depositTokenAmount = _convertRewardTokenToDepositToken(amount.sub(devFee).sub(reinvestFee));
 
-        _stakeDepositTokens(depositTokenAmount);
-        emit Reinvest(totalDeposits(), totalSupply);
+        uint256 liquidity = _stakeDepositTokens(depositTokenAmount);
+        totalDeposits = totalDeposits.add(liquidity);
+
+        emit Reinvest(depositTokenAmount, totalSupply);
     }
 
-    function _stakeDepositTokens(uint256 amount) private {
+    function _stakeDepositTokens(uint256 amount) private returns (uint256 liquidity) {
         require(amount > 0, "MasterChefStrategyV1::_stakeDepositTokens");
-        _depositMasterchef(PID, amount);
+        return _depositMasterchef(PID, amount);
     }
 
     /**
@@ -304,11 +308,6 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
         return estimatedTotalReward;
     }
 
-    function totalDeposits() public view override returns (uint256) {
-        uint256 depositBalance = _getDepositBalance(PID);
-        return depositBalance;
-    }
-
     function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         _emergencyWithdraw(PID);
@@ -317,7 +316,8 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
             balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
             "MasterChefStrategyV1::rescueDeployedFunds"
         );
-        emit Reinvest(totalDeposits(), totalSupply);
+        totalDeposits = balanceAfter;
+        emit Reinvest(totalDeposits, totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
             updateDepositsEnabled(false);
         }
@@ -326,7 +326,7 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
     /* VIRTUAL */
     function _convertRewardTokenToDepositToken(uint256 fromAmount) internal virtual returns (uint256 toAmount);
 
-    function _depositMasterchef(uint256 pid, uint256 amount) internal virtual;
+    function _depositMasterchef(uint256 pid, uint256 amount) internal virtual returns (uint256 liquidity);
 
     function _withdrawMasterchef(uint256 pid, uint256 amount) internal virtual returns (uint256 withdrawalAmount);
 
@@ -343,6 +343,4 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
             uint256 extraTokenAmount,
             address extraTokenAddress
         );
-
-    function _getDepositBalance(uint256 pid) internal view virtual returns (uint256 amount);
 }

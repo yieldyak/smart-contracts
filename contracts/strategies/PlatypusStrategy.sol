@@ -11,7 +11,6 @@ import "../interfaces/IWAVAX.sol";
 import "../lib/DexLibrary.sol";
 import "../lib/SafeERC20.sol";
 import "./PlatypusMasterChefStrategy.sol";
-import "hardhat/console.sol";
 
 // For OrcaStaking where reward is in AVAX. Has no deposit fee.
 contract PlatypusStrategy is PlatypusMasterChefStrategy {
@@ -86,9 +85,9 @@ contract PlatypusStrategy is PlatypusMasterChefStrategy {
         toAmount = DexLibrary.swap(fromAmount, address(rewardToken), address(depositToken), IPair(swapPairToken));
     }
 
-    function _depositMasterchef(uint256 _pid, uint256 _amount) internal override {
+    function _depositMasterchef(uint256 _pid, uint256 _amount) internal override returns (uint256 liquidity) {
         depositToken.safeTransfer(address(proxy), _amount);
-        proxy.deposit(_pid, address(masterchef), address(pool), address(depositToken), address(asset), _amount);
+        return proxy.deposit(_pid, address(masterchef), address(pool), address(depositToken), address(asset), _amount);
     }
 
     function _withdrawMasterchef(uint256 _pid, uint256 _amount) internal override returns (uint256 withdrawalAmount) {
@@ -128,17 +127,12 @@ contract PlatypusStrategy is PlatypusMasterChefStrategy {
         proxy.claimReward(address(masterchef), _pid, address(asset));
     }
 
-    function _getDepositBalance(uint256 _pid) internal view override returns (uint256 amount) {
-        (uint256 balance, , ) = masterchef.userInfo(_pid, proxy.platypusVoter());
-        return balance;
-    }
-
     /**
      * @notice Estimate recoverable balance after withdraw fee
      * @return deposit tokens after withdraw fee
      */
     function estimateDeployedBalance() external view override returns (uint256) {
-        uint256 balance = totalDeposits();
+        uint256 balance = totalDeposits;
         if (balance == 0) {
             return 0;
         }
