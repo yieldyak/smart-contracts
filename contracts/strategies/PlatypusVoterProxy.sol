@@ -6,6 +6,7 @@ import "../interfaces/IPlatypusVoter.sol";
 import "../interfaces/IMasterPlatypus.sol";
 import "../interfaces/IPlatypusPool.sol";
 import "../lib/SafeERC20.sol";
+import "../lib/EnumerableSet.sol";
 
 library SafeProxy {
     function safeExecute(
@@ -24,6 +25,7 @@ contract PlatypusVoterProxy {
     using SafeMath for uint256;
     using SafeProxy for IPlatypusVoter;
     using SafeERC20 for IERC20;
+    using EnumerableSet for EnumerableSet.AddressSet;
 
     struct FeeSettings {
         uint256 stakerFeeBips;
@@ -47,13 +49,12 @@ contract PlatypusVoterProxy {
         _;
     }
 
-    modifier onlyStrategy(address _asset) {
-        require(strategies[_asset] == msg.sender, "PlatypusVoterProxy:onlyStrategy");
+    modifier onlyStrategy() {
+        require(approvedStrategies.contains(msg.sender), "PlatypusVoterProxy:onlyStrategy");
         _;
     }
 
-    // asset => strategies
-    mapping(address => address) public strategies;
+    EnumerableSet.AddressSet private approvedStrategies;
 
     constructor(
         address _platypusVoter,
@@ -68,8 +69,12 @@ contract PlatypusVoterProxy {
         platypusVoter = IPlatypusVoter(_platypusVoter);
     }
 
-    function approveStrategy(address _asset, address _strategy) external onlyDev {
-        strategies[_asset] = _strategy;
+    function approveStrategy(address _strategy) external onlyDev {
+        approvedStrategies.add(_strategy);
+    }
+
+    function isApprovedStrategy(address _strategy) external view returns (bool) {
+        return approvedStrategies.contains(_strategy);
     }
 
     function setBoosterFee(uint256 _boosterFeeBips) external onlyDev {
@@ -95,7 +100,7 @@ contract PlatypusVoterProxy {
         address _token,
         address _asset,
         uint256 _amount
-    ) external onlyStrategy(_asset) returns (uint256 liquidity) {
+    ) external onlyStrategy returns (uint256 liquidity) {
         IERC20(_token).safeApprove(_pool, _amount);
         liquidity = IPlatypusPool(_pool).deposit(address(_token), _amount, address(platypusVoter), type(uint256).max);
         platypusVoter.safeExecute(
@@ -139,7 +144,7 @@ contract PlatypusVoterProxy {
         address _asset,
         uint256 _maxSlippage,
         uint256 _amount
-    ) external onlyStrategy(_asset) returns (uint256) {
+    ) external onlyStrategy returns (uint256) {
         platypusVoter.safeExecute(
             _stakingContract,
             0,
@@ -172,7 +177,7 @@ contract PlatypusVoterProxy {
         address _pool,
         address _token,
         address _asset
-    ) external onlyStrategy(_asset) {
+    ) external onlyStrategy {
         platypusVoter.safeExecute(_stakingContract, 0, abi.encodeWithSignature("emergencyWithdraw(uint256)", _pid));
         uint256 balance = IERC20(_asset).balanceOf(address(platypusVoter));
         (uint256 expectedAmount, , ) = IPlatypusPool(_pool).quotePotentialWithdraw(_token, balance);
@@ -197,7 +202,7 @@ contract PlatypusVoterProxy {
         address _stakingContract,
         uint256 _pid,
         address _asset
-    ) external onlyStrategy(_asset) {
+    ) external onlyStrategy {
         (uint256 pendingPtp, address bonusTokenAddress, , uint256 pendingBonusToken) = IMasterPlatypus(_stakingContract)
             .pendingTokens(_pid, address(platypusVoter));
 
