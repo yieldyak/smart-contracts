@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 import "../interfaces/IPlatypusVoter.sol";
 import "../interfaces/IMasterPlatypus.sol";
 import "../interfaces/IPlatypusPool.sol";
+import "../interfaces/IPlatypusAsset.sol";
 import "../lib/SafeERC20.sol";
 import "../lib/EnumerableSet.sol";
 
@@ -99,10 +100,12 @@ contract PlatypusVoterProxy {
         address _pool,
         address _token,
         address _asset,
-        uint256 _amount
-    ) external onlyStrategy returns (uint256 liquidity) {
+        uint256 _amount,
+        uint256 _depositFee
+    ) external onlyStrategy {
+        uint256 liquidity = _depositTokenToAsset(_asset, _amount, _depositFee);
         IERC20(_token).safeApprove(_pool, _amount);
-        liquidity = IPlatypusPool(_pool).deposit(address(_token), _amount, address(platypusVoter), type(uint256).max);
+        IPlatypusPool(_pool).deposit(address(_token), _amount, address(platypusVoter), type(uint256).max);
         platypusVoter.safeExecute(
             _asset,
             0,
@@ -113,6 +116,20 @@ contract PlatypusVoterProxy {
             0,
             abi.encodeWithSignature("deposit(uint256,uint256)", _pid, liquidity)
         );
+    }
+
+    function _depositTokenToAsset(
+        address _asset,
+        uint256 _amount,
+        uint256 _depositFee
+    ) private view returns (uint256 liquidity) {
+        if (IPlatypusAsset(_asset).liability() == 0) {
+            liquidity = _amount.sub(_depositFee);
+        } else {
+            liquidity = ((_amount.sub(_depositFee)).mul(IPlatypusAsset(_asset).totalSupply())).div(
+                IPlatypusAsset(_asset).liability()
+            );
+        }
     }
 
     function reinvestFeeBips() external returns (uint256) {
@@ -132,8 +149,18 @@ contract PlatypusVoterProxy {
         address _pool,
         address _token,
         uint256 _amount
-    ) internal view returns (uint256 fee) {
+    ) private view returns (uint256 fee) {
         (, fee, ) = IPlatypusPool(_pool).quotePotentialWithdraw(_token, _amount);
+    }
+
+    function _depositTokenToAssetForWithdrawal(
+        uint256 _pid,
+        address _stakingContract,
+        uint256 _amount,
+        uint256 _totalDeposits
+    ) private view returns (uint256) {
+        (uint256 balance, , ) = IMasterPlatypus(_stakingContract).userInfo(_pid, address(platypusVoter));
+        return _amount.mul(balance).div(_totalDeposits);
     }
 
     function withdraw(
@@ -143,25 +170,27 @@ contract PlatypusVoterProxy {
         address _token,
         address _asset,
         uint256 _maxSlippage,
-        uint256 _amount
+        uint256 _amount,
+        uint256 _totalDeposits
     ) external onlyStrategy returns (uint256) {
+        uint256 liquidity = _depositTokenToAssetForWithdrawal(_pid, _stakingContract, _amount, _totalDeposits);
         platypusVoter.safeExecute(
             _stakingContract,
             0,
-            abi.encodeWithSignature("withdraw(uint256,uint256)", _pid, _amount)
+            abi.encodeWithSignature("withdraw(uint256,uint256)", _pid, liquidity)
         );
-        platypusVoter.safeExecute(_asset, 0, abi.encodeWithSignature("approve(address,uint256)", _pool, _amount));
-        uint256 withdrawAmount = _amount.sub(_calculateWithdrawFee(_pool, _token, _amount));
-        uint256 slippage = withdrawAmount.mul(_maxSlippage).div(BIPS_DIVISOR);
-        withdrawAmount = withdrawAmount.sub(slippage);
+        platypusVoter.safeExecute(_asset, 0, abi.encodeWithSignature("approve(address,uint256)", _pool, liquidity));
+        uint256 minimumReceive = liquidity.sub(_calculateWithdrawFee(_pool, _token, liquidity));
+        uint256 slippage = minimumReceive.mul(_maxSlippage).div(BIPS_DIVISOR);
+        minimumReceive = minimumReceive.sub(slippage);
         bytes memory result = platypusVoter.safeExecute(
             _pool,
             0,
             abi.encodeWithSignature(
                 "withdraw(address,uint256,uint256,address,uint256)",
                 _token,
-                _amount,
-                withdrawAmount,
+                liquidity,
+                minimumReceive,
                 address(this),
                 type(uint256).max
             )
@@ -198,11 +227,7 @@ contract PlatypusVoterProxy {
         platypusVoter.safeExecute(_token, 0, abi.encodeWithSignature("approve(address,uint256)", _pool, 0));
     }
 
-    function claimReward(
-        address _stakingContract,
-        uint256 _pid,
-        address _asset
-    ) external onlyStrategy {
+    function claimReward(address _stakingContract, uint256 _pid) external onlyStrategy {
         (uint256 pendingPtp, address bonusTokenAddress, , uint256 pendingBonusToken) = IMasterPlatypus(_stakingContract)
             .pendingTokens(_pid, address(platypusVoter));
 

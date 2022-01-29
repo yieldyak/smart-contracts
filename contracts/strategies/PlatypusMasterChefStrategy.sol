@@ -157,10 +157,11 @@ abstract contract PlatypusMasterChefStrategy is YakStrategy {
             }
         }
         require(depositToken.transferFrom(msg.sender, address(this), amount), "MasterChefStrategyV1::transfer failed");
-        uint256 liquidity = _stakeDepositTokens(amount);
-        _mint(account, getSharesForDepositTokens(liquidity));
-        totalDeposits = totalDeposits.add(liquidity);
-        emit Deposit(account, amount);
+        uint256 depositFee = _calculateDepositFee(amount);
+        _mint(account, amount.sub(depositFee));
+        _stakeDepositTokens(amount, depositFee);
+        totalDeposits = totalDeposits.add(amount.sub(depositFee));
+        emit Deposit(account, amount.sub(depositFee));
     }
 
     function withdraw(uint256 amount) external override {
@@ -234,15 +235,16 @@ abstract contract PlatypusMasterChefStrategy is YakStrategy {
 
         uint256 depositTokenAmount = _convertRewardTokenToDepositToken(amount.sub(devFee).sub(reinvestFee));
 
-        uint256 liquidity = _stakeDepositTokens(depositTokenAmount);
-        totalDeposits = totalDeposits.add(liquidity);
+        uint256 depositFee = _calculateDepositFee(depositTokenAmount);
+        _stakeDepositTokens(depositTokenAmount, depositFee);
+        totalDeposits = totalDeposits.add(depositTokenAmount.sub(depositFee));
 
-        emit Reinvest(depositTokenAmount, totalSupply);
+        emit Reinvest(depositTokenAmount.sub(depositFee), totalSupply);
     }
 
-    function _stakeDepositTokens(uint256 amount) private returns (uint256 liquidity) {
-        require(amount > 0, "MasterChefStrategyV1::_stakeDepositTokens");
-        return _depositMasterchef(PID, amount);
+    function _stakeDepositTokens(uint256 amount, uint256 depositFee) private {
+        require(amount.sub(depositFee) > 0, "MasterChefStrategyV1::_stakeDepositTokens");
+        _depositMasterchef(PID, amount, depositFee);
     }
 
     /**
@@ -326,7 +328,13 @@ abstract contract PlatypusMasterChefStrategy is YakStrategy {
     /* VIRTUAL */
     function _convertRewardTokenToDepositToken(uint256 fromAmount) internal virtual returns (uint256 toAmount);
 
-    function _depositMasterchef(uint256 pid, uint256 amount) internal virtual returns (uint256 liquidity);
+    function _calculateDepositFee(uint256 amount) internal virtual returns (uint256 fee);
+
+    function _depositMasterchef(
+        uint256 pid,
+        uint256 amount,
+        uint256 depositFee
+    ) internal virtual;
 
     function _withdrawMasterchef(uint256 pid, uint256 amount) internal virtual returns (uint256 withdrawalAmount);
 

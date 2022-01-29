@@ -29,4 +29,12 @@ interface IPlatypusPool {
             uint256,
             bool
         );
+
+    function getC1() external view returns (uint256);
+
+    function getXThreshold() external view returns (uint256);
+
+    function getSlippageParamK() external view returns (uint256);
+
+    function getSlippageParamN() external view returns (uint256);
 }
