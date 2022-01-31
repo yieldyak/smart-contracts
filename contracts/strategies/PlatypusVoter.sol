@@ -5,8 +5,9 @@ import "../interfaces/IWAVAX.sol";
 import "../interfaces/IVePTP.sol";
 import "../lib/SafeERC20.sol";
 import "../lib/Ownable.sol";
+import "../lib/ERC20.sol";
 
-contract PlatypusVoter is Ownable {
+contract PlatypusVoter is Ownable, ERC20 {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
@@ -14,9 +15,14 @@ contract PlatypusVoter is Ownable {
     address public constant PTP = address(0x22d4002028f537599bE9f666d1c4Fa138522f9c8);
     IVePTP public constant vePTP = IVePTP(0x5857019c749147EEE22b1Fe63500F237F3c1B692);
 
-    string public constant name = "PlatypusVoter";
     address public immutable devAddr;
     address public voterProxy;
+    bool public depositsEnabled;
+
+    modifier onlyDev() {
+        require(msg.sender == devAddr, "PlatypusVoter::onlyDev");
+        _;
+    }
 
     modifier onlyPlatypusVoterProxy() {
         require(msg.sender == voterProxy, "PlatypusVoter::onlyPlatypusVoterProxy");
@@ -28,33 +34,50 @@ contract PlatypusVoter is Ownable {
         _;
     }
 
-    constructor(address _timelock, address _devAddr) {
+    constructor(
+        address _timelock,
+        address _devAddr,
+        bool _depositsEnabled
+    ) ERC20("Yield Yak PTP", "yyPTP") {
         devAddr = _devAddr;
         transferOwnership(_timelock);
+        depositsEnabled = _depositsEnabled;
     }
 
     receive() external payable {}
 
-    function balanceOf() public view returns (uint256) {
+    function vePTPBalance() public view returns (uint256) {
         return vePTP.balanceOf(address(this));
+    }
+
+    function setDepositsEnabled(bool _depositsEnabled) external onlyDev {
+        depositsEnabled = _depositsEnabled;
+    }
+
+    function deposit(uint256 _amount) public {
+        require(depositsEnabled == true, "PlatypusVoter:deposits disabled");
+        require(IERC20(PTP).transferFrom(msg.sender, address(this), _amount), "PlatypusVoter::transfer failed");
+        _deposit(_amount);
     }
 
     function setVoterProxy(address _voterProxy) external onlyOwner {
         voterProxy = _voterProxy;
     }
 
-    function increaseStake(uint256 _value) external onlyPlatypusVoterProxyOrDev {
-        IERC20(PTP).safeApprove(address(vePTP), _value);
-        vePTP.deposit(_value);
-        IERC20(PTP).safeApprove(address(vePTP), 0);
-    }
-
-    function unstake(uint256 _amount) external onlyOwner {
-        vePTP.withdraw(_amount);
-    }
-
     function claimVePTP() external onlyPlatypusVoterProxyOrDev {
         vePTP.claim();
+    }
+
+    function depositFromBalance(uint256 _amount) external onlyPlatypusVoterProxy {
+        require(depositsEnabled == true, "PlatypusVoter:deposits disabled");
+        _deposit(_amount);
+    }
+
+    function _deposit(uint256 _amount) internal {
+        IERC20(PTP).safeApprove(address(vePTP), _amount);
+        _mint(msg.sender, _amount);
+        vePTP.deposit(_amount);
+        IERC20(PTP).safeApprove(address(vePTP), 0);
     }
 
     function wrapAvaxBalance() external onlyPlatypusVoterProxy returns (uint256) {
@@ -63,15 +86,6 @@ contract PlatypusVoter is Ownable {
             WAVAX.deposit{value: balance}();
         }
         return balance;
-    }
-
-    function withdraw(uint256 _amount) external onlyPlatypusVoterProxy {
-        IERC20(PTP).safeTransfer(voterProxy, _amount);
-    }
-
-    function withdrawAll() external onlyPlatypusVoterProxy returns (uint256 balance) {
-        balance = IERC20(PTP).balanceOf(address(this));
-        IERC20(PTP).safeTransfer(voterProxy, balance);
     }
 
     function execute(

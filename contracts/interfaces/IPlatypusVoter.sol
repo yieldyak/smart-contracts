@@ -8,9 +8,15 @@ interface IPlatypusVoter {
         bytes calldata data
     ) external returns (bool, bytes memory);
 
+    function vePTPBalance() external view returns (uint256);
+
     function wrapAvaxBalance() external returns (uint256);
 
-    function increaseStake(uint256 _value) external;
+    function depositsEnabled() external returns (bool);
+
+    function depositFromBalance(uint256 _value) external;
 
     function setVoterProxy(address _voterProxy) external;
+
+    function claimVePTP() external;
 }

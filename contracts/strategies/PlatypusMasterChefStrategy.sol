@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.3;
 
-import "../YakStrategyV2.sol";
+import "../YakStrategy.sol";
 import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
 
 /**
  * @notice Adapter strategy for MasterChef.
  */
-abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
+abstract contract PlatypusMasterChefStrategy is YakStrategy {
     using SafeMath for uint256;
 
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
@@ -157,9 +157,11 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
             }
         }
         require(depositToken.transferFrom(msg.sender, address(this), amount), "MasterChefStrategyV1::transfer failed");
-        _mint(account, getSharesForDepositTokens(amount));
-        _stakeDepositTokens(amount);
-        emit Deposit(account, amount);
+        uint256 depositFee = _calculateDepositFee(amount);
+        _mint(account, amount.sub(depositFee));
+        _stakeDepositTokens(amount, depositFee);
+        totalDeposits = totalDeposits.add(amount.sub(depositFee));
+        emit Deposit(account, amount.sub(depositFee));
     }
 
     function withdraw(uint256 amount) external override {
@@ -168,6 +170,7 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
         uint256 withdrawalAmount = _withdrawMasterchef(PID, depositTokenAmount);
         _safeTransfer(address(depositToken), msg.sender, withdrawalAmount);
         _burn(msg.sender, amount);
+        totalDeposits = totalDeposits.sub(depositTokenAmount);
         emit Withdraw(msg.sender, depositTokenAmount);
     }
 
@@ -232,13 +235,16 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
 
         uint256 depositTokenAmount = _convertRewardTokenToDepositToken(amount.sub(devFee).sub(reinvestFee));
 
-        _stakeDepositTokens(depositTokenAmount);
-        emit Reinvest(totalDeposits(), totalSupply);
+        uint256 depositFee = _calculateDepositFee(depositTokenAmount);
+        _stakeDepositTokens(depositTokenAmount, depositFee);
+        totalDeposits = totalDeposits.add(depositTokenAmount.sub(depositFee));
+
+        emit Reinvest(depositTokenAmount.sub(depositFee), totalSupply);
     }
 
-    function _stakeDepositTokens(uint256 amount) private {
-        require(amount > 0, "MasterChefStrategyV1::_stakeDepositTokens");
-        _depositMasterchef(PID, amount);
+    function _stakeDepositTokens(uint256 amount, uint256 depositFee) private {
+        require(amount.sub(depositFee) > 0, "MasterChefStrategyV1::_stakeDepositTokens");
+        _depositMasterchef(PID, amount, depositFee);
     }
 
     /**
@@ -304,11 +310,6 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
         return estimatedTotalReward;
     }
 
-    function totalDeposits() public view override returns (uint256) {
-        uint256 depositBalance = _getDepositBalance(PID);
-        return depositBalance;
-    }
-
     function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         _emergencyWithdraw(PID);
@@ -317,7 +318,8 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
             balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
             "MasterChefStrategyV1::rescueDeployedFunds"
         );
-        emit Reinvest(totalDeposits(), totalSupply);
+        totalDeposits = balanceAfter;
+        emit Reinvest(totalDeposits, totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
             updateDepositsEnabled(false);
         }
@@ -326,7 +328,13 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
     /* VIRTUAL */
     function _convertRewardTokenToDepositToken(uint256 fromAmount) internal virtual returns (uint256 toAmount);
 
-    function _depositMasterchef(uint256 pid, uint256 amount) internal virtual;
+    function _calculateDepositFee(uint256 amount) internal virtual returns (uint256 fee);
+
+    function _depositMasterchef(
+        uint256 pid,
+        uint256 amount,
+        uint256 depositFee
+    ) internal virtual;
 
     function _withdrawMasterchef(uint256 pid, uint256 amount) internal virtual returns (uint256 withdrawalAmount);
 
@@ -343,6 +351,4 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
             uint256 extraTokenAmount,
             address extraTokenAddress
         );
-
-    function _getDepositBalance(uint256 pid) internal view virtual returns (uint256 amount);
 }

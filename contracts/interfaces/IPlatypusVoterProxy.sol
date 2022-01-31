@@ -9,7 +9,8 @@ interface IPlatypusVoterProxy {
         address _token,
         address _asset,
         uint256 _maxSlippage,
-        uint256 _amount
+        uint256 _amount,
+        uint256 _totalDeposits
     ) external returns (uint256);
 
     function emergencyWithdraw(
@@ -28,18 +29,15 @@ interface IPlatypusVoterProxy {
         address _pool,
         address _token,
         address _asset,
-        uint256 _amount
+        uint256 _amount,
+        uint256 _depositFee
     ) external;
 
     function platypusVoter() external view returns (address);
 
-    function claimReward(
-        address _stakingContract,
-        uint256 _pid,
-        address _asset
-    ) external;
+    function claimReward(address _stakingContract, uint256 _pid) external;
 
     function approveStrategy(address _asset, address _strategy) external;
 
-    function ptpFee() external view returns (uint256);
+    function reinvestFeeBips() external view returns (uint256);
 }

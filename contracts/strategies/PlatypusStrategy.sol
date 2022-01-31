@@ -5,26 +5,29 @@ pragma solidity 0.7.3;
 import "../interfaces/IMasterPlatypus.sol";
 import "../interfaces/IPlatypusPool.sol";
 import "../interfaces/IPlatypusVoterProxy.sol";
+import "../interfaces/IPlatypusAsset.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/IPair.sol";
 import "../interfaces/IWAVAX.sol";
 import "../lib/DexLibrary.sol";
 import "../lib/SafeERC20.sol";
+import "../lib/DSMath.sol";
 import "./PlatypusMasterChefStrategy.sol";
-import "hardhat/console.sol";
 
-// For OrcaStaking where reward is in AVAX. Has no deposit fee.
 contract PlatypusStrategy is PlatypusMasterChefStrategy {
     using SafeMath for uint256;
+    using DSMath for uint256;
     using SafeERC20 for IERC20;
 
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    uint256 internal constant WAD = 10**18;
+    uint256 internal constant RAY = 10**27;
 
-    IMasterPlatypus public masterchef;
+    IMasterPlatypus public immutable masterchef;
+    IPlatypusAsset public immutable asset;
     IPlatypusPool public pool;
     IPlatypusVoterProxy public proxy;
     uint256 public maxSlippage;
-    IERC20 public immutable asset;
     address private swapPairToken;
 
     struct SwapPairs {
@@ -60,7 +63,7 @@ contract PlatypusStrategy is PlatypusMasterChefStrategy {
     {
         masterchef = IMasterPlatypus(_stakingContract);
         pool = IPlatypusPool(_pool);
-        asset = IERC20(pool.assetOf(_depositToken));
+        asset = IPlatypusAsset(pool.assetOf(_depositToken));
         proxy = IPlatypusVoterProxy(_voterProxy);
         maxSlippage = 50;
         assignSwapPairSafely(swapPairs.swapPairToken);
@@ -86,9 +89,75 @@ contract PlatypusStrategy is PlatypusMasterChefStrategy {
         toAmount = DexLibrary.swap(fromAmount, address(rewardToken), address(depositToken), IPair(swapPairToken));
     }
 
-    function _depositMasterchef(uint256 _pid, uint256 _amount) internal override {
+    function _depositMasterchef(
+        uint256 _pid,
+        uint256 _amount,
+        uint256 _depositFee
+    ) internal override {
         depositToken.safeTransfer(address(proxy), _amount);
-        proxy.deposit(_pid, address(masterchef), address(pool), address(depositToken), address(asset), _amount);
+        proxy.deposit(
+            _pid,
+            address(masterchef),
+            address(pool),
+            address(depositToken),
+            address(asset),
+            _amount,
+            _depositFee
+        );
+    }
+
+    function _calculateDepositFee(uint256 amount) internal view override returns (uint256 fee) {
+        return
+            _depositFee(
+                pool.getSlippageParamK(),
+                pool.getSlippageParamN(),
+                pool.getC1(),
+                pool.getXThreshold(),
+                asset.cash(),
+                asset.liability(),
+                amount
+            );
+    }
+
+    function _depositFee(
+        uint256 k,
+        uint256 n,
+        uint256 c1,
+        uint256 xThreshold,
+        uint256 cash,
+        uint256 liability,
+        uint256 amount
+    ) internal pure returns (uint256) {
+        // cover case where the asset has no liquidity yet
+        if (liability == 0) {
+            return 0;
+        }
+
+        uint256 covBefore = cash.wdiv(liability);
+        if (covBefore <= 10**18) {
+            return 0;
+        }
+
+        uint256 covAfter = (cash + amount).wdiv(liability + amount);
+        uint256 slippageBefore = _slippageFunc(k, n, c1, xThreshold, covBefore);
+        uint256 slippageAfter = _slippageFunc(k, n, c1, xThreshold, covAfter);
+
+        // (Li + Di) * g(cov_after) - Li * g(cov_before)
+        return ((liability + amount).wmul(slippageAfter)) - (liability.wmul(slippageBefore));
+    }
+
+    function _slippageFunc(
+        uint256 k,
+        uint256 n,
+        uint256 c1,
+        uint256 xThreshold,
+        uint256 x
+    ) internal pure returns (uint256) {
+        if (x < xThreshold) {
+            return c1 - x;
+        } else {
+            return k.wdiv((((x * RAY) / WAD).rpow(n) * WAD) / RAY); // k / (x ** n)
+        }
     }
 
     function _withdrawMasterchef(uint256 _pid, uint256 _amount) internal override returns (uint256 withdrawalAmount) {
@@ -100,7 +169,8 @@ contract PlatypusStrategy is PlatypusMasterChefStrategy {
                 address(depositToken),
                 address(asset),
                 maxSlippage,
-                _amount
+                _amount,
+                totalDeposits
             );
     }
 
@@ -118,19 +188,14 @@ contract PlatypusStrategy is PlatypusMasterChefStrategy {
             _pid,
             proxy.platypusVoter()
         );
-        uint256 ptpFee = proxy.ptpFee();
-        uint256 boostFee = pendingPtp.mul(ptpFee).div(BIPS_DIVISOR);
+        uint256 reinvestFeeBips = proxy.reinvestFeeBips();
+        uint256 boostFee = pendingPtp.mul(reinvestFeeBips).div(BIPS_DIVISOR);
 
         return (pendingPtp.sub(boostFee), pendingBonusToken, bonusTokenAddress);
     }
 
     function _getRewards(uint256 _pid) internal override {
-        proxy.claimReward(address(masterchef), _pid, address(asset));
-    }
-
-    function _getDepositBalance(uint256 _pid) internal view override returns (uint256 amount) {
-        (uint256 balance, , ) = masterchef.userInfo(_pid, proxy.platypusVoter());
-        return balance;
+        proxy.claimReward(address(masterchef), _pid);
     }
 
     /**
@@ -138,7 +203,7 @@ contract PlatypusStrategy is PlatypusMasterChefStrategy {
      * @return deposit tokens after withdraw fee
      */
     function estimateDeployedBalance() external view override returns (uint256) {
-        uint256 balance = totalDeposits();
+        uint256 balance = totalDeposits;
         if (balance == 0) {
             return 0;
         }
