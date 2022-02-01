@@ -78,7 +78,7 @@ contract YakVaultForSA is YakERC20, Ownable {
 
     function _deposit(address account, uint256 amount) private {
         require(amount > 0, "YakVault::deposit, amount too low");
-        require(checkStrategies() == true, "YakVault::deposit, deposit temporarily paused");
+        require(checkStrategies(), "YakVault::deposit, deposit temporarily paused");
         _mint(account, getSharesForDepositTokens(amount));
         IERC20(depositToken).safeTransferFrom(msg.sender, address(this), amount);
         if (activeStrategy != address(0)) {
@@ -94,7 +94,7 @@ contract YakVaultForSA is YakERC20, Ownable {
      * @param amount receipt tokens
      */
     function withdraw(uint256 amount) external {
-        require(checkStrategies() == true, "YakVault::withdraw, withdraw temporarily paused");
+        require(checkStrategies(), "YakVault::withdraw, withdraw temporarily paused");
         uint256 depositTokenAmount = getDepositTokensForShares(amount);
         require(depositTokenAmount > 0, "YakVault::withdraw, amount too low");
         uint256 liquidDeposits = depositToken.balanceOf(address(this));
@@ -153,7 +153,7 @@ contract YakVaultForSA is YakERC20, Ownable {
      * @param strategy address for new strategy
      */
     function addStrategy(address strategy) public onlyOwner {
-        require(yakRegistry.isActiveStrategy(strategy) == true, "YakVault::addStrategy, not registered");
+        require(yakRegistry.isActiveStrategy(strategy), "YakVault::addStrategy, not registered");
         require(supportedStrategies.contains(strategy) == false, "YakVault::addStrategy, already supported");
         require(depositToken == YakStrategy(strategy).depositToken(), "YakVault::addStrategy, not compatible");
         supportedStrategies.add(strategy);
