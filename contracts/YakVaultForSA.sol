@@ -167,9 +167,9 @@ contract YakVaultForSA is YakERC20, Ownable {
             "YakVault::removeStrategy, cannot remove paused strategy"
         );
         require(strategy != activeStrategy, "YakVault::removeStrategy, cannot remove activeStrategy");
-        require(supportedStrategies.contains(strategy) == true, "YakVault::removeStrategy, not supported");
+        require(supportedStrategies.contains(strategy), "YakVault::removeStrategy, not supported");
         require(
-            getDeployedBalance(strategy) == 0 || yakRegistry.disabledStrategies(strategy) == true,
+            yakRegistry.disabledStrategies(strategy) || getDeployedBalance(strategy) == 0,
             "YakVault::cannot remove enabled strategy with funds"
         );
         depositToken.safeApprove(strategy, 0);
