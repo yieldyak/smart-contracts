@@ -44,7 +44,7 @@ contract YakRegistry is Ownable {
             !disabledStrategies[_strategy];
     }
 
-    function isEnabledStrategy(address _strategy) external view returns (bool) {
+    function isHaltedStrategy(address _strategy) external view returns (bool) {
         return !pausedStrategies[_strategy] && !disabledStrategies[_strategy];
     }
 
