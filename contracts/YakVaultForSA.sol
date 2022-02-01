@@ -280,7 +280,7 @@ contract YakVaultForSA is YakERC20, Ownable {
      * @return deposit tokens
      */
     function getDepositTokensForShares(uint256 amount) public view returns (uint256) {
-        if (totalSupply.mul(totalDeposits()) == 0) {
+        if (totalSupply == 0 || totalDeposits() == 0) {
             return 0;
         }
         return amount.mul(totalDeposits()).div(totalSupply);
@@ -294,7 +294,7 @@ contract YakVaultForSA is YakERC20, Ownable {
      * @return receipt tokens
      */
     function getSharesForDepositTokens(uint256 amount) public view returns (uint256) {
-        if (totalSupply.mul(totalDeposits()) == 0) {
+        if (totalSupply == 0 || totalDeposits() == 0) {
             return amount;
         }
         return amount.mul(totalSupply).div(totalDeposits());
