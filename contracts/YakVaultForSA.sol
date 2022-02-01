@@ -114,9 +114,12 @@ contract YakVaultForSA is YakERC20, Ownable {
                     }
                 }
             }
+            uint256 balance = depositToken.balanceOf(address(this));
+            if (balance < depositTokenAmount) {
+                depositTokenAmount = balance;
+            }
         }
-        uint256 withdrawAmount = depositToken.balanceOf(address(this)).sub(liquidDeposits);
-        depositToken.safeTransfer(msg.sender, withdrawAmount);
+        depositToken.safeTransfer(msg.sender, depositTokenAmount);
         _burn(msg.sender, amount);
         emit Withdraw(msg.sender, depositTokenAmount);
     }
