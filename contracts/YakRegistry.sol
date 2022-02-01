@@ -85,7 +85,7 @@ contract YakRegistry is Ownable {
      * @return StrategyInfo of added strategy
      */
     function addStrategy(address _strategy) external onlyOwner returns (StrategyInfo memory) {
-        require(strategies.add(_strategy), "YakRegistry::strategy already added");
+        require(strategies.add(_strategy), "YakRegistry::addStrategy, strategy already added");
         uint256 id = strategies.length() - 1;
         address depositToken = address(YakStrategy(_strategy).depositToken());
         strategyIdsForDepositToken[depositToken].push(id);
