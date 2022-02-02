@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.3;
+pragma solidity ^0.7.0;
 
 import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
-import "./MasterChefStrategy.sol";
+import "./MasterChefVariableRewardsStrategy.sol";
 
 /**
  * @notice Adapter strategy for MasterChef with LP deposit.
  */
-abstract contract MasterChefStrategyForLP is MasterChefStrategy {
+abstract contract MasterChefVariableRewardsStrategyForLP is MasterChefVariableRewardsStrategy {
     using SafeMath for uint256;
 
     struct SwapPairs {
         address poolReward;
-        address extraReward;
         address token0;
         address token1;
     }
@@ -27,18 +26,19 @@ abstract contract MasterChefStrategyForLP is MasterChefStrategy {
         address _ecosystemToken,
         address _poolRewardToken,
         SwapPairs memory _swapPairs,
+        ExtraReward[] memory _extraRewards,
         address _stakingContract,
         address _timelock,
         uint256 _pid,
         StrategySettings memory _strategySettings
     )
-        MasterChefStrategy(
+        MasterChefVariableRewardsStrategy(
             _name,
             _depositToken,
             _ecosystemToken,
             _poolRewardToken,
             _swapPairs.poolReward,
-            _swapPairs.extraReward,
+            _extraRewards,
             _stakingContract,
             _timelock,
             _pid,
@@ -63,33 +63,22 @@ abstract contract MasterChefStrategyForLP is MasterChefStrategy {
             _ecosystemToken != IPair(address(depositToken)).token1()
         ) {
             // deployment checks for non-pool2
-            require(
-                _swapPairs.token0 > address(0),
-                "Swap pair 0 is necessary but not supplied"
-            );
-            require(
-                _swapPairs.token1 > address(0),
-                "Swap pair 1 is necessary but not supplied"
-            );
+            require(_swapPairs.token0 > address(0), "Swap pair 0 is necessary but not supplied");
+            require(_swapPairs.token1 > address(0), "Swap pair 1 is necessary but not supplied");
             swapPairToken0 = _swapPairs.token0;
             swapPairToken1 = _swapPairs.token1;
             require(
-                IPair(swapPairToken0).token0() == _ecosystemToken ||
-                    IPair(swapPairToken0).token1() == _ecosystemToken,
+                IPair(swapPairToken0).token0() == _ecosystemToken || IPair(swapPairToken0).token1() == _ecosystemToken,
                 "Swap pair supplied does not have the reward token as one of it's pair"
             );
             require(
-                IPair(swapPairToken0).token0() ==
-                    IPair(address(depositToken)).token0() ||
-                    IPair(swapPairToken0).token1() ==
-                    IPair(address(depositToken)).token0(),
+                IPair(swapPairToken0).token0() == IPair(address(depositToken)).token0() ||
+                    IPair(swapPairToken0).token1() == IPair(address(depositToken)).token0(),
                 "Swap pair 0 supplied does not match the pair in question"
             );
             require(
-                IPair(swapPairToken1).token0() ==
-                    IPair(address(depositToken)).token1() ||
-                    IPair(swapPairToken1).token1() ==
-                    IPair(address(depositToken)).token1(),
+                IPair(swapPairToken1).token0() == IPair(address(depositToken)).token1() ||
+                    IPair(swapPairToken1).token1() == IPair(address(depositToken)).token1(),
                 "Swap pair 1 supplied does not match the pair in question"
             );
         } else if (_ecosystemToken == IPair(address(depositToken)).token0()) {
@@ -102,15 +91,17 @@ abstract contract MasterChefStrategyForLP is MasterChefStrategy {
                 IPair(_swapPairs.poolReward).token1() == _ecosystemToken,
                 "Swap pair swapPairPoolReward does not contain reward token"
             );
+        } else {
+            require(
+                IPair(_swapPairs.poolReward).token0() == _ecosystemToken &&
+                    IPair(_swapPairs.poolReward).token1() == _poolRewardToken,
+                "Swap pair swapPairPoolReward does not contain reward token"
+            );
         }
     }
 
     /* VIRTUAL */
-    function _convertRewardTokenToDepositToken(uint256 fromAmount)
-        internal
-        override
-        returns (uint256 toAmount)
-    {
+    function _convertRewardTokenToDepositToken(uint256 fromAmount) internal override returns (uint256 toAmount) {
         toAmount = DexLibrary.convertRewardTokensToDepositTokens(
             fromAmount,
             address(rewardToken),
