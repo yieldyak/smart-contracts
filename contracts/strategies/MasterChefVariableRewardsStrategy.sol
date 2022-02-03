@@ -75,16 +75,18 @@ abstract contract MasterChefVariableRewardsStrategy is YakStrategyV2 {
     }
 
     function _addReward(address _rewardToken, address _swapPair) internal {
-        if (_rewardToken == IPair(_swapPair).token0()) {
-            require(
-                IPair(_swapPair).token1() == address(rewardToken),
-                "Swap pair swapPairPoolReward does not contain reward token"
-            );
-        } else {
-            require(
-                IPair(_swapPair).token0() == address(rewardToken) && IPair(_swapPair).token1() == _rewardToken,
-                "Swap pair swapPairPoolReward does not contain reward token"
-            );
+        if (_rewardToken != address(rewardToken)) {
+            if (_rewardToken == IPair(_swapPair).token0()) {
+                require(
+                    IPair(_swapPair).token1() == address(rewardToken),
+                    "Swap pair swapPairPoolReward does not contain reward token"
+                );
+            } else {
+                require(
+                    IPair(_swapPair).token0() == address(rewardToken) && IPair(_swapPair).token1() == _rewardToken,
+                    "Swap pair swapPairPoolReward does not contain reward token"
+                );
+            }
         }
         rewardSwapPairs[_rewardToken] = _swapPair;
         rewardCount = rewardCount.add(1);
@@ -172,7 +174,7 @@ abstract contract MasterChefVariableRewardsStrategy is YakStrategyV2 {
     }
 
     function _convertRewardIntoWAVAX(Reward[] memory rewards) private returns (uint256) {
-        uint256 avaxAmount = 0;
+        uint256 avaxAmount = rewardToken.balanceOf(address(this));
         for (uint256 i = 0; i < rewards.length; i++) {
             address reward = rewards[i].reward;
             address swapPair = rewardSwapPairs[reward];
@@ -182,8 +184,8 @@ abstract contract MasterChefVariableRewardsStrategy is YakStrategyV2 {
                     uint256 balance = address(this).balance;
                     if (balance > 0) {
                         WAVAX.deposit{value: balance}();
+                        avaxAmount = avaxAmount.add(amount);
                     }
-                    avaxAmount = avaxAmount.add(amount);
                 } else {
                     if (swapPair > address(0)) {
                         avaxAmount = avaxAmount.add(
@@ -242,20 +244,20 @@ abstract contract MasterChefVariableRewardsStrategy is YakStrategyV2 {
 
     function _checkReward() internal view returns (Reward[] memory, uint256) {
         Reward[] memory rewards = _pendingRewards(PID);
-        uint256 estimatedTotalReward = 0;
+        uint256 estimatedTotalReward = rewardToken.balanceOf(address(this));
         for (uint256 i = 0; i < rewards.length; i++) {
             address reward = rewards[i].reward;
             address swapPair = rewardSwapPairs[rewards[i].reward];
             uint256 balance = IERC20(reward).balanceOf(address(this));
-            uint256 amount = balance.add(rewards[i].amount);
             if (reward != address(rewardToken)) {
+                uint256 amount = balance.add(rewards[i].amount);
                 if (amount > 0 && swapPair > address(0)) {
                     estimatedTotalReward = estimatedTotalReward.add(
                         DexLibrary.estimateConversionThroughPair(amount, reward, address(rewardToken), IPair(swapPair))
                     );
                 }
             } else {
-                estimatedTotalReward = estimatedTotalReward.add(amount);
+                estimatedTotalReward = estimatedTotalReward.add(rewards[i].amount);
             }
         }
         return (rewards, estimatedTotalReward);

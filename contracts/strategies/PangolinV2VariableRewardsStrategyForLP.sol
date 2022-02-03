@@ -17,7 +17,6 @@ contract PangolinV2VariableRewardsStrategyForLP is MasterChefVariableRewardsStra
     using SafeMath for uint256;
 
     IMiniChefV2 public miniChef;
-    address public swapPairRewardToken;
     address private poolRewardToken;
 
     constructor(
