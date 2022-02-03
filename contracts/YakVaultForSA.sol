@@ -7,6 +7,7 @@ import "./lib/SafeMath.sol";
 import "./lib/Ownable.sol";
 import "./lib/EnumerableSet.sol";
 import "./lib/SafeERC20.sol";
+import "./lib/ReentrancyGuard.sol";
 import "./interfaces/IERC20.sol";
 import "./YakRegistry.sol";
 import "./YakStrategy.sol";
@@ -14,7 +15,7 @@ import "./YakStrategy.sol";
 /**
  * @notice YakVault is a managed vault for `deposit tokens` that accepts deposits in the form of `deposit tokens` OR `strategy tokens`.
  */
-contract YakVaultForSA is YakERC20, Ownable {
+contract YakVaultForSA is YakERC20, Ownable, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -57,7 +58,7 @@ contract YakVaultForSA is YakERC20, Ownable {
      * @dev By default, Vaults send new deposits to the active strategy
      * @param amount amount
      */
-    function deposit(uint256 amount) external {
+    function deposit(uint256 amount) external nonReentrant {
         _deposit(msg.sender, amount);
     }
 
@@ -67,12 +68,12 @@ contract YakVaultForSA is YakERC20, Ownable {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external {
+    ) external nonReentrant {
         IERC20(depositToken).permit(msg.sender, address(this), amount, deadline, v, r, s);
         _deposit(msg.sender, amount);
     }
 
-    function depositFor(address account, uint256 amount) external {
+    function depositFor(address account, uint256 amount) external nonReentrant {
         _deposit(account, amount);
     }
 
@@ -93,7 +94,7 @@ contract YakVaultForSA is YakERC20, Ownable {
      * @notice Withdraw from the vault
      * @param amount receipt tokens
      */
-    function withdraw(uint256 amount) external {
+    function withdraw(uint256 amount) external nonReentrant {
         require(checkStrategies(), "YakVault::withdraw, withdraw temporarily paused");
         uint256 depositTokenAmount = getDepositTokensForShares(amount);
         require(depositTokenAmount > 0, "YakVault::withdraw, amount too low");
