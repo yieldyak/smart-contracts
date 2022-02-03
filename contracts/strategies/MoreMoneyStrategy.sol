@@ -8,7 +8,6 @@ import "../interfaces/IMoreMoneyStakingRewards.sol";
 import "../lib/DexLibrary.sol";
 import "../lib/CurveSwap.sol";
 import "./MasterChefStrategy.sol";
-import "hardhat/console.sol";
 
 contract MoreMoneyStrategy is MasterChefStrategy {
     using SafeMath for uint256;
