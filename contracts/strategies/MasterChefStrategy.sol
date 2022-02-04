@@ -21,7 +21,6 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
     }
 
     uint256 public immutable PID;
-    address private stakingContract;
     address private poolRewardToken;
     IPair private swapPairPoolReward;
     address public swapPairExtraReward;
@@ -34,7 +33,6 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
         address _poolRewardToken,
         address _swapPairPoolReward,
         address _swapPairExtraReward,
-        address _stakingContract,
         address _timelock,
         uint256 _pid,
         StrategySettings memory _strategySettings
@@ -44,7 +42,6 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
         rewardToken = IERC20(_ecosystemToken);
         PID = _pid;
         devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
-        stakingContract = _stakingContract;
 
         assignSwapPairSafely(_ecosystemToken, _poolRewardToken, _swapPairPoolReward);
         _setExtraRewardSwapPair(_swapPairExtraReward);

@@ -37,7 +37,6 @@ contract PangolinV2StrategyForLP is MasterChefStrategyForLP {
             _rewardToken,
             _nativeRewardToken,
             _swapPairs,
-            _stakingRewards,
             _timelock,
             _pid,
             _strategySettings
