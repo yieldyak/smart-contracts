@@ -67,6 +67,38 @@ contract MoreMoneyStrategy is MasterChefStrategy {
         stakingContract.withdraw(_amount);
     }
 
+    function _min(uint256 a, uint256 b) private pure returns (uint256) {
+        if (a >= b) {
+            return b;
+        } else {
+            return a;
+        }
+    }
+
+    function _earned(address account) private view returns (uint256) {
+        return
+            (
+                stakingContract.balanceOf(account).mul(
+                    (stakingContract.rewardPerToken() - stakingContract.userRewardPerTokenAccountedFor(account))
+                )
+            ).div(1e18);
+    }
+
+    function _calculateReward(address account) private view returns (uint256) {
+        uint256 vStart = stakingContract.vestingStart(account);
+        uint256 timeDelta = block.timestamp - vStart;
+        uint256 totalRewards = stakingContract.rewards(account).add(_earned(account));
+
+        if (stakingContract.vestingPeriod() == 0) {
+            return totalRewards;
+        } else {
+            uint256 rewardVested = vStart > 0 && timeDelta > 0
+                ? _min(totalRewards, (totalRewards * timeDelta) / stakingContract.vestingPeriod())
+                : 0;
+            return rewardVested;
+        }
+    }
+
     function _pendingRewards(
         uint256, /*pid*/
         address _user
@@ -80,7 +112,7 @@ contract MoreMoneyStrategy is MasterChefStrategy {
             address
         )
     {
-        uint256 pendingReward = stakingContract.vested(address(_user));
+        uint256 pendingReward = _calculateReward(_user);
         return (pendingReward, 0, address(0));
     }
 
