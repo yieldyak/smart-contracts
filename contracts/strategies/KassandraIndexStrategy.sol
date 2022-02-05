@@ -49,7 +49,7 @@ contract KassandraIndexStrategy is MasterChefStrategy {
 
     function _getWithdrawFeeBips(
         uint256 /* pid */
-    ) internal view override returns (uint256) {
+    ) internal pure override returns (uint256) {
         return 0;
     }
 
