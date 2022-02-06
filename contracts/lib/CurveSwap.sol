@@ -9,6 +9,7 @@ import "../interfaces/ICurveCryptoSwap.sol";
 import "../interfaces/ICurveStableSwap.sol";
 import "../interfaces/ICurveStableSwapAave.sol";
 import "../interfaces/ICurveBtcSwap.sol";
+import "../interfaces/ICurveFactory4AssetsZap.sol";
 
 library CurveSwap {
     using SafeMath for uint256;
@@ -18,7 +19,8 @@ library CurveSwap {
         AAVE,
         CRYPTO,
         BTC,
-        STABLE
+        STABLE,
+        FACTORY4
     }
 
     struct Settings {
@@ -108,6 +110,23 @@ library CurveSwap {
         uint256 slippage = expectedAmount.mul(zapSettings.maxSlippage).div(BIPS_DIVISOR);
         ICurveBtcSwap(zapSettings.zapContract).add_liquidity(amounts, expectedAmount.sub(slippage), true);
         return IERC20(depositToken).balanceOf(address(this));
+    }
+
+    function zapToFactory4AssetsPoolLP(
+        uint256 amount,
+        address from,
+        address to,
+        Settings memory zapSettings
+    ) internal returns (uint256) {
+        if (from != zapSettings.zapToken) {
+            amount = DexLibrary.swap(amount, from, zapSettings.zapToken, IPair(zapSettings.swapPairRewardZap));
+        }
+        uint256[4] memory amounts = [uint256(0), uint256(0), uint256(0), uint256(0)];
+        amounts[zapSettings.zapTokenIndex] = amount;
+        uint256 expectedAmount = ICurveFactory4AssetsZap(zapSettings.zapContract).calc_token_amount(to, amounts, true);
+        uint256 slippage = expectedAmount.mul(zapSettings.maxSlippage).div(BIPS_DIVISOR);
+        ICurveFactory4AssetsZap(zapSettings.zapContract).add_liquidity(to, amounts, expectedAmount.sub(slippage));
+        return IERC20(to).balanceOf(address(this));
     }
 
     function setZap(Settings memory zapSettings)
