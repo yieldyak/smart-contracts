@@ -99,8 +99,8 @@ contract YakVaultForSA is YakERC20, Ownable, ReentrancyGuard {
         uint256 depositTokenAmount = getDepositTokensForShares(amount);
         require(depositTokenAmount > 0, "YakVault::withdraw, amount too low");
         uint256 liquidDeposits = depositToken.balanceOf(address(this));
-        uint256 remainingDebt = depositTokenAmount.sub(liquidDeposits);
-        if (remainingDebt > 0) {
+        if (liquidDeposits < depositTokenAmount) {
+            uint256 remainingDebt = depositTokenAmount.sub(liquidDeposits);
             for (uint256 i = 0; i < supportedStrategies.length(); i++) {
                 address strategy = supportedStrategies.at(i);
                 uint256 deployedBalance = getDeployedBalance(strategy);
@@ -127,7 +127,7 @@ contract YakVaultForSA is YakERC20, Ownable, ReentrancyGuard {
 
     function checkStrategies() internal view returns (bool) {
         for (uint256 i = 0; i < supportedStrategies.length(); i++) {
-            if (!yakRegistry.isHaltedStrategy(supportedStrategies.at(i))) {
+            if (!yakRegistry.isNotHaltedStrategy(supportedStrategies.at(i))) {
                 return false;
             }
         }
