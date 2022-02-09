@@ -127,7 +127,7 @@ contract YakVaultForSA is YakERC20, Ownable, ReentrancyGuard {
 
     function checkStrategies() internal view returns (bool) {
         for (uint256 i = 0; i < supportedStrategies.length(); i++) {
-            if (!yakRegistry.isNotHaltedStrategy(supportedStrategies.at(i))) {
+            if (yakRegistry.isHaltedStrategy(supportedStrategies.at(i))) {
                 return false;
             }
         }
