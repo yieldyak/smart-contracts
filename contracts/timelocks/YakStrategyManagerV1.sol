@@ -114,7 +114,7 @@ contract YakStrategyManagerV1 is AccessControl {
      */
     function proposeOwner(address strategy, address newOwner) external {
         require(hasRole(STRATEGY_OWNER_SETTER_ROLE, msg.sender), "proposeOwner::auth");
-        pendingOwnersTimelock[strategy] = block.timestamp + timelockLengthForOwnershipTransfer;
+        pendingOwnersTimelock[strategy] = block.timestamp.add(timelockLengthForOwnershipTransfer);
         pendingOwners[strategy] = newOwner;
         emit ProposeOwner(strategy, newOwner);
     }
@@ -169,7 +169,7 @@ contract YakStrategyManagerV1 is AccessControl {
 
     /**
      * @notice Revoke token approvals
-     * @dev Restricted to `STRATEGY_DISABLER_ROLE` to avoid griefing
+     * @dev Restricted to `STRATEGY_DISABLER_ROLE` and `EMERGENCY_RESCUER_ROLE` to avoid griefing
      * @param strategy address
      * @param token address
      * @param spender address
