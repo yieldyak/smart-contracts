@@ -45,7 +45,7 @@ contract YakRegistry is Ownable {
     }
 
     function isHaltedStrategy(address _strategy) external view returns (bool) {
-        return !pausedStrategies[_strategy] && !disabledStrategies[_strategy];
+        return pausedStrategies[_strategy] || disabledStrategies[_strategy];
     }
 
     function strategiesForDepositTokenCount(address _depositToken) external view returns (uint256) {
