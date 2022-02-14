@@ -46,8 +46,8 @@ contract GmxStrategyForGMX is MasterChefStrategyForSA {
         proxy = IGmxProxy(_gmxProxy);
     }
 
-    function setProxy(address _voterProxy) external onlyOwner {
-        proxy = IGmxProxy(_voterProxy);
+    function setProxy(address _proxy) external onlyOwner {
+        proxy = IGmxProxy(_proxy);
     }
 
     function _depositMasterchef(

@@ -58,6 +58,10 @@ contract GmxStrategyForGLP is YakStrategyV2 {
         revert("setAllowances::deprecated");
     }
 
+    function setProxy(address _proxy) external onlyOwner {
+        proxy = IGmxProxy(_proxy);
+    }
+
     /**
      * @notice Deposit tokens to receive receipt tokens
      * @param amount Amount of tokens to deposit
