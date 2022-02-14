@@ -11,7 +11,6 @@ contract GmxDepositor is Ownable {
 
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
 
-    address public immutable devAddr;
     address public proxy;
 
     modifier onlyGmxProxy() {
@@ -19,8 +18,7 @@ contract GmxDepositor is Ownable {
         _;
     }
 
-    constructor(address _timelock, address _devAddr) {
-        devAddr = _devAddr;
+    constructor(address _timelock) {
         transferOwnership(_timelock);
     }
 
