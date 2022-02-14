@@ -33,9 +33,10 @@ contract GmxProxy {
     address internal constant fsGLP = 0x5643F4b25E36478eE1E90418d5343cb6591BcB9d;
     address internal constant WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
 
+    address public devAddr;
+
     IGmxDepositor public immutable gmxDepositor;
     address public immutable gmxRewardRouter;
-    address public immutable devAddr;
 
     address internal immutable gmxRewardTracker;
     address internal immutable glpManager;
@@ -62,6 +63,10 @@ contract GmxProxy {
         gmxRewardRouter = _gmxRewardRouter;
         gmxRewardTracker = IGmxRewardRouter(_gmxRewardRouter).stakedGmxTracker();
         glpManager = IGmxRewardRouter(_gmxRewardRouter).glpManager();
+    }
+
+    function updateDevAddr(address newValue) public onlyDev {
+        devAddr = newValue;
     }
 
     function approveStrategy(address _strategy) external onlyDev {
