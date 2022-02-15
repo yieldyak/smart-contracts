@@ -22,7 +22,7 @@ contract GmxDepositor is Ownable {
         transferOwnership(_timelock);
     }
 
-    function setProxy(address _proxy) external onlyOwner {
+    function setGmxProxy(address _proxy) external onlyOwner {
         proxy = _proxy;
     }
 
