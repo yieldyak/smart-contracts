@@ -5,8 +5,8 @@ pragma experimental ABIEncoderV2;
 import "../interfaces/IGmxDepositor.sol";
 import "../interfaces/IGmxRewardRouter.sol";
 import "../interfaces/IGmxRewardTracker.sol";
+import "../interfaces/IYakStrategy.sol";
 import "../lib/SafeERC20.sol";
-import "../lib/EnumerableSet.sol";
 
 library SafeProxy {
     function safeExecute(
@@ -25,7 +25,6 @@ contract GmxProxy {
     using SafeMath for uint256;
     using SafeProxy for IGmxDepositor;
     using SafeERC20 for IERC20;
-    using EnumerableSet for EnumerableSet.AddressSet;
 
     uint256 internal constant BIPS_DIVISOR = 10000;
 
@@ -34,6 +33,7 @@ contract GmxProxy {
     address internal constant WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
 
     address public devAddr;
+    mapping(address => address) public approvedStrategies;
 
     IGmxDepositor public immutable gmxDepositor;
     address public immutable gmxRewardRouter;
@@ -47,11 +47,22 @@ contract GmxProxy {
     }
 
     modifier onlyStrategy() {
-        require(approvedStrategies.contains(msg.sender), "GmxProxy:onlyStrategy");
+        require(
+            approvedStrategies[fsGLP] == msg.sender || approvedStrategies[GMX] == msg.sender,
+            "GmxProxy:onlyGLPStrategy"
+        );
         _;
     }
 
-    EnumerableSet.AddressSet private approvedStrategies;
+    modifier onlyGLPStrategy() {
+        require(approvedStrategies[fsGLP] == msg.sender, "GmxProxy:onlyGLPStrategy");
+        _;
+    }
+
+    modifier onlyGMXStrategy() {
+        require(approvedStrategies[GMX] == msg.sender, "PlatypusVoterProxy::onlyGMXStrategy");
+        _;
+    }
 
     constructor(
         address _gmxDepositor,
@@ -70,14 +81,12 @@ contract GmxProxy {
     }
 
     function approveStrategy(address _strategy) external onlyDev {
-        approvedStrategies.add(_strategy);
+        address depositToken = IYakStrategy(_strategy).depositToken();
+        require(approvedStrategies[depositToken] == address(0), "PlatypusVoterProxy::Strategy for PID already added");
+        approvedStrategies[depositToken] = _strategy;
     }
 
-    function isApprovedStrategy(address _strategy) external view returns (bool) {
-        return approvedStrategies.contains(_strategy);
-    }
-
-    function buyAndStakeGlp(uint256 _amount) external onlyStrategy returns (uint256) {
+    function buyAndStakeGlp(uint256 _amount) external onlyGLPStrategy returns (uint256) {
         IERC20(WAVAX).safeTransfer(address(gmxDepositor), _amount);
         gmxDepositor.safeExecute(WAVAX, 0, abi.encodeWithSignature("approve(address,uint256)", glpManager, _amount));
         bytes memory result = gmxDepositor.safeExecute(
@@ -88,7 +97,7 @@ contract GmxProxy {
         return toUint256(result, 0);
     }
 
-    function withdrawGlp(uint256 _amount) external onlyStrategy {
+    function withdrawGlp(uint256 _amount) external onlyGLPStrategy {
         _withdrawGlp(_amount);
     }
 
@@ -96,7 +105,7 @@ contract GmxProxy {
         gmxDepositor.safeExecute(fsGLP, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, _amount));
     }
 
-    function stakeGmx(uint256 _amount) external onlyStrategy {
+    function stakeGmx(uint256 _amount) external onlyGMXStrategy {
         IERC20(GMX).safeTransfer(address(gmxDepositor), _amount);
         gmxDepositor.safeExecute(
             GMX,
@@ -106,7 +115,7 @@ contract GmxProxy {
         gmxDepositor.safeExecute(gmxRewardRouter, 0, abi.encodeWithSignature("stakeGmx(uint256)", _amount));
     }
 
-    function withdrawGmx(uint256 _amount) external onlyStrategy {
+    function withdrawGmx(uint256 _amount) external onlyGMXStrategy {
         _withdrawGmx(_amount);
     }
 
@@ -115,12 +124,12 @@ contract GmxProxy {
         gmxDepositor.safeExecute(GMX, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, _amount));
     }
 
-    function emergencyWithdraw(address _token, uint256 _balance) external onlyStrategy {
-        if (_token == GMX) {
-            _withdrawGmx(_balance);
-        } else {
-            _withdrawGlp(_balance);
-        }
+    function emergencyWithdrawGLP(uint256 _balance) external onlyGLPStrategy {
+        _withdrawGlp(_balance);
+    }
+
+    function emergencyWithdrawGMX(uint256 _balance) external onlyGMXStrategy {
+        _withdrawGmx(_balance);
     }
 
     function _compoundEsGmx() private {

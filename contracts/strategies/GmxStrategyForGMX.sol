@@ -99,7 +99,7 @@ contract GmxStrategyForGMX is MasterChefStrategyForSA {
         uint256 /*_pid*/
     ) internal override {
         uint256 balance = _gmxDepositBalance();
-        proxy.emergencyWithdraw(address(depositToken), balance);
+        proxy.emergencyWithdrawGMX(balance);
     }
 
     function _gmxDepositBalance() private view returns (uint256) {

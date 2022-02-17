@@ -18,5 +18,7 @@ interface IGmxProxy {
 
     function depositorBalance(address _token) external view returns (uint256);
 
-    function emergencyWithdraw(address _token, uint256 _balance) external;
+    function emergencyWithdrawGLP(uint256 _balance) external;
+
+    function emergencyWithdrawGMX(uint256 _balance) external;
 }

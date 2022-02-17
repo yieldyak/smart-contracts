@@ -178,7 +178,7 @@ contract GmxStrategyForGLP is YakStrategyV2 {
         bool disableDeposits
     ) external override onlyOwner {
         uint256 balance = totalDeposits();
-        proxy.emergencyWithdraw(address(depositToken), balance);
+        proxy.emergencyWithdrawGLP(balance);
         emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
             updateDepositsEnabled(false);
