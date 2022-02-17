@@ -6,7 +6,7 @@ import "../interfaces/IPlatypusVoter.sol";
 import "../interfaces/IMasterPlatypus.sol";
 import "../interfaces/IPlatypusPool.sol";
 import "../interfaces/IPlatypusAsset.sol";
-import "../interfaces/IYakStrategy.sol";
+import "../interfaces/IPlatypusStrategy.sol";
 import "../lib/SafeERC20.sol";
 import "../lib/EnumerableSet.sol";
 
@@ -46,7 +46,7 @@ contract PlatypusVoterProxy {
     IPlatypusVoter public immutable platypusVoter;
     address public immutable devAddr;
 
-    mapping(address => address) private depositTokenToStrategy;
+    mapping(uint256 => address) private pidToStrategy;
     EnumerableSet.AddressSet private approvedStrategies;
 
     modifier onlyDev() {
@@ -73,12 +73,9 @@ contract PlatypusVoterProxy {
     }
 
     function approveStrategy(address _strategy) external onlyDev {
-        address depositToken = IYakStrategy(_strategy).depositToken();
-        require(
-            depositTokenToStrategy[depositToken] == address(0),
-            "PlatypusVoterProxy::Approved strategy for deposit token already exists"
-        );
-        depositTokenToStrategy[depositToken] = _strategy;
+        uint256 pid = IPlatypusStrategy(_strategy).PID();
+        require(pidToStrategy[pid] == address(0), "PlatypusVoterProxy::Strategy for PID already added");
+        pidToStrategy[pid] = _strategy;
         approvedStrategies.add(_strategy);
     }
 
