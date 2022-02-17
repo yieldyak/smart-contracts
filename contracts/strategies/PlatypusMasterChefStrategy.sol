@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.3;
 
-import "../YakStrategy.sol";
+import "../YakStrategyV2.sol";
 import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
 
 /**
  * @notice Adapter strategy for MasterChef.
  */
-abstract contract PlatypusMasterChefStrategy is YakStrategy {
+abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
     using SafeMath for uint256;
 
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
@@ -160,7 +160,6 @@ abstract contract PlatypusMasterChefStrategy is YakStrategy {
         uint256 depositFee = _calculateDepositFee(amount);
         _mint(account, amount.sub(depositFee));
         _stakeDepositTokens(amount, depositFee);
-        totalDeposits = totalDeposits.add(amount.sub(depositFee));
         emit Deposit(account, amount.sub(depositFee));
     }
 
@@ -170,7 +169,6 @@ abstract contract PlatypusMasterChefStrategy is YakStrategy {
         uint256 withdrawalAmount = _withdrawMasterchef(PID, depositTokenAmount);
         _safeTransfer(address(depositToken), msg.sender, withdrawalAmount);
         _burn(msg.sender, amount);
-        totalDeposits = totalDeposits.sub(depositTokenAmount);
         emit Withdraw(msg.sender, depositTokenAmount);
     }
 
@@ -237,9 +235,8 @@ abstract contract PlatypusMasterChefStrategy is YakStrategy {
 
         uint256 depositFee = _calculateDepositFee(depositTokenAmount);
         _stakeDepositTokens(depositTokenAmount, depositFee);
-        totalDeposits = totalDeposits.add(depositTokenAmount.sub(depositFee));
 
-        emit Reinvest(depositTokenAmount.sub(depositFee), totalSupply);
+        emit Reinvest(totalDeposits(), totalSupply);
     }
 
     function _stakeDepositTokens(uint256 amount, uint256 depositFee) private {
@@ -310,6 +307,11 @@ abstract contract PlatypusMasterChefStrategy is YakStrategy {
         return estimatedTotalReward;
     }
 
+    function totalDeposits() public view override returns (uint256) {
+        uint256 depositBalance = _getDepositBalance(PID);
+        return depositBalance;
+    }
+
     function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         _emergencyWithdraw(PID);
@@ -318,8 +320,7 @@ abstract contract PlatypusMasterChefStrategy is YakStrategy {
             balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
             "MasterChefStrategyV1::rescueDeployedFunds"
         );
-        totalDeposits = balanceAfter;
-        emit Reinvest(totalDeposits, totalSupply);
+        emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
             updateDepositsEnabled(false);
         }
@@ -351,4 +352,6 @@ abstract contract PlatypusMasterChefStrategy is YakStrategy {
             uint256 extraTokenAmount,
             address extraTokenAddress
         );
+
+    function _getDepositBalance(uint256 pid) internal view virtual returns (uint256 amount);
 }

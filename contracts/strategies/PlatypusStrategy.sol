@@ -170,7 +170,7 @@ contract PlatypusStrategy is PlatypusMasterChefStrategy {
                 address(asset),
                 maxSlippage,
                 _amount,
-                totalDeposits
+                totalDeposits()
             );
     }
 
@@ -198,12 +198,17 @@ contract PlatypusStrategy is PlatypusMasterChefStrategy {
         proxy.claimReward(address(masterchef), _pid);
     }
 
+    function _getDepositBalance(uint256 _pid) internal view override returns (uint256 amount) {
+        (uint256 balance, , ) = masterchef.userInfo(_pid, proxy.platypusVoter());
+        return balance;
+    }
+
     /**
      * @notice Estimate recoverable balance after withdraw fee
      * @return deposit tokens after withdraw fee
      */
     function estimateDeployedBalance() external view override returns (uint256) {
-        uint256 balance = totalDeposits;
+        uint256 balance = totalDeposits();
         if (balance == 0) {
             return 0;
         }
