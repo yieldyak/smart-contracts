@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.3;
 
+import "./IPlatypusVoter.sol";
+
 interface IPlatypusVoterProxy {
     function withdraw(
         uint256 _pid,
@@ -21,8 +23,6 @@ interface IPlatypusVoterProxy {
         address _asset
     ) external;
 
-    function balanceOf(address _stakingContract, address _pool) external view returns (uint256);
-
     function deposit(
         uint256 _pid,
         address _stakingContract,
@@ -33,11 +33,11 @@ interface IPlatypusVoterProxy {
         uint256 _depositFee
     ) external;
 
-    function platypusVoter() external view returns (address);
+    function platypusVoter() external view returns (IPlatypusVoter);
 
     function claimReward(address _stakingContract, uint256 _pid) external;
 
-    function approveStrategy(address _asset, address _strategy) external;
+    function approveStrategy(address _strategy) external;
 
     function reinvestFeeBips() external view returns (uint256);
 }

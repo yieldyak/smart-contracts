@@ -68,19 +68,7 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
         address _swapPairPoolReward
     ) private {
         if (_poolRewardToken != _ecosystemToken) {
-            if (_poolRewardToken == IPair(_swapPairPoolReward).token0()) {
-                require(
-                    IPair(_swapPairPoolReward).token1() == _ecosystemToken,
-                    "Swap pair 'swapPairPoolReward' does not contain ecosystem token"
-                );
-            } else if (_poolRewardToken == IPair(_swapPairPoolReward).token1()) {
-                require(
-                    IPair(_swapPairPoolReward).token0() == _ecosystemToken,
-                    "Swap pair 'swapPairPoolReward' does not contain ecosystem token"
-                );
-            } else {
-                revert("Swap pair 'swapPairPoolReward' does not contain pool reward token");
-            }
+            DexLibrary.checkSwapPairCompatibility(IPair(_swapPairPoolReward), _ecosystemToken, _poolRewardToken);
         }
         poolRewardToken = _poolRewardToken;
         swapPairPoolReward = IPair(_swapPairPoolReward);
@@ -105,7 +93,7 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
             } else if (IPair(_extraTokenSwapPair).token1() == address(rewardToken)) {
                 extraToken = IPair(_extraTokenSwapPair).token0();
             } else {
-                revert("_setExtraRewardSwapPair::Swap pair does not contain reward token");
+                revert("PlatypusMasterChefStrategy::_setExtraRewardSwapPair Swap pair does not contain reward token");
             }
             swapPairExtraReward = _extraTokenSwapPair;
         } else {
@@ -146,7 +134,7 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
     }
 
     function _deposit(address account, uint256 amount) internal {
-        require(DEPOSITS_ENABLED == true, "MasterChefStrategyV1::_deposit");
+        require(DEPOSITS_ENABLED == true, "PlatypusMasterChefStrategy::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
             (
                 uint256 poolTokenAmount,
@@ -158,7 +146,10 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
                 _reinvest(rewardTokenBalance, poolTokenAmount, extraTokenAmount);
             }
         }
-        require(depositToken.transferFrom(msg.sender, address(this), amount), "MasterChefStrategyV1::transfer failed");
+        require(
+            depositToken.transferFrom(msg.sender, address(this), amount),
+            "PlatypusMasterChefStrategy::transfer from failed"
+        );
         uint256 depositFee = _calculateDepositFee(amount);
         _mint(account, amount.sub(depositFee));
         _stakeDepositTokens(amount, depositFee);
@@ -167,7 +158,7 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
 
     function withdraw(uint256 amount) external override {
         uint256 depositTokenAmount = getDepositTokensForShares(amount);
-        require(depositTokenAmount > 0, "MasterChefStrategyV1::withdraw");
+        require(depositTokenAmount > 0, "PlatypusMasterChefStrategy::withdraw");
         uint256 withdrawalAmount = _withdrawMasterchef(PID, depositTokenAmount);
         _safeTransfer(address(depositToken), msg.sender, withdrawalAmount);
         _burn(msg.sender, amount);
@@ -181,7 +172,7 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
             uint256 rewardTokenBalance,
             uint256 estimatedTotalReward
         ) = _checkReward();
-        require(estimatedTotalReward >= MIN_TOKENS_TO_REINVEST, "MasterChefStrategyV1::reinvest");
+        require(estimatedTotalReward >= MIN_TOKENS_TO_REINVEST, "PlatypusMasterChefStrategy::reinvest");
         _reinvest(rewardTokenBalance, poolTokenAmount, extraTokenAmount);
     }
 
@@ -242,7 +233,7 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
     }
 
     function _stakeDepositTokens(uint256 amount, uint256 depositFee) private {
-        require(amount.sub(depositFee) > 0, "MasterChefStrategyV1::_stakeDepositTokens");
+        require(amount.sub(depositFee) > 0, "PlatypusMasterChefStrategy::_stakeDepositTokens");
         _depositMasterchef(PID, amount, depositFee);
     }
 
@@ -258,7 +249,7 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
         address to,
         uint256 value
     ) private {
-        require(IERC20(token).transfer(to, value), "MasterChefStrategyV1::TRANSFER_FROM_FAILED");
+        require(IERC20(token).transfer(to, value), "PlatypusMasterChefStrategy::transfer failed");
     }
 
     function _checkReward()
@@ -320,7 +311,7 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
         uint256 balanceAfter = depositToken.balanceOf(address(this));
         require(
             balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
-            "MasterChefStrategyV1::rescueDeployedFunds"
+            "PlatypusMasterChefStrategy::rescueDeployedFunds"
         );
         emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {

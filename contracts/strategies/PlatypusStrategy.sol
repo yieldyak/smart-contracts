@@ -186,7 +186,7 @@ contract PlatypusStrategy is PlatypusMasterChefStrategy {
     {
         (uint256 pendingPtp, address bonusTokenAddress, , uint256 pendingBonusToken) = masterchef.pendingTokens(
             _pid,
-            proxy.platypusVoter()
+            address(proxy.platypusVoter())
         );
         uint256 reinvestFeeBips = proxy.reinvestFeeBips();
         uint256 boostFee = pendingPtp.mul(reinvestFeeBips).div(BIPS_DIVISOR);
@@ -199,7 +199,7 @@ contract PlatypusStrategy is PlatypusMasterChefStrategy {
     }
 
     function _getDepositBalance(uint256 _pid) internal view override returns (uint256 amount) {
-        (uint256 balance, , ) = masterchef.userInfo(_pid, proxy.platypusVoter());
+        (uint256 balance, , ) = masterchef.userInfo(_pid, address(proxy.platypusVoter()));
         return balance;
     }
 
