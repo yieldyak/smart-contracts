@@ -238,10 +238,6 @@ contract PlatypusVoterProxy {
             boostFee = pendingPtp.mul(boosterFee).div(BIPS_DIVISOR);
             platypusVoter.depositFromBalance(boostFee);
             IERC20(address(platypusVoter)).safeTransfer(boosterFeeReceiver, boostFee);
-        } else {
-            if (platypusVoter.vePTPBalance() > 0) {
-                platypusVoter.claimVePTP();
-            }
         }
 
         uint256 stakingFee = 0;
@@ -255,7 +251,6 @@ contract PlatypusVoterProxy {
         }
 
         uint256 reward = pendingPtp.sub(boostFee).sub(stakingFee);
-
         platypusVoter.safeExecute(PTP, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, reward));
 
         if (bonusTokenAddress > address(0)) {
@@ -265,6 +260,10 @@ contract PlatypusVoterProxy {
                 0,
                 abi.encodeWithSignature("transfer(address,uint256)", msg.sender, pendingBonusToken)
             );
+        }
+
+        if (platypusVoter.vePTPBalance() > 0) {
+            platypusVoter.claimVePTP();
         }
     }
 
