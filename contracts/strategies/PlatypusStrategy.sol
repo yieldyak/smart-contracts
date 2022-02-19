@@ -138,12 +138,12 @@ contract PlatypusStrategy is PlatypusMasterChefStrategy {
             return 0;
         }
 
-        uint256 covAfter = (cash + amount).wdiv(liability + amount);
+        uint256 covAfter = (cash.add(amount)).wdiv(liability.add(amount));
         uint256 slippageBefore = _slippageFunc(k, n, c1, xThreshold, covBefore);
         uint256 slippageAfter = _slippageFunc(k, n, c1, xThreshold, covAfter);
 
         // (Li + Di) * g(cov_after) - Li * g(cov_before)
-        return ((liability + amount).wmul(slippageAfter)) - (liability.wmul(slippageBefore));
+        return ((liability.add(amount)).wmul(slippageAfter)) - (liability.wmul(slippageBefore));
     }
 
     function _slippageFunc(
@@ -154,9 +154,9 @@ contract PlatypusStrategy is PlatypusMasterChefStrategy {
         uint256 x
     ) internal pure returns (uint256) {
         if (x < xThreshold) {
-            return c1 - x;
+            return c1.sub(x);
         } else {
-            return k.wdiv((((x * RAY) / WAD).rpow(n) * WAD) / RAY); // k / (x ** n)
+            return k.wdiv((((x.mul(RAY)).div(WAD)).rpow(n).mul(WAD)).div(RAY)); // k / (x ** n)
         }
     }
 
