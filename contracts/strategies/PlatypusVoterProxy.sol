@@ -17,7 +17,7 @@ library SafeProxy {
         bytes memory data
     ) internal returns (bytes memory) {
         (bool success, bytes memory returnValue) = platypusVoter.execute(target, value, data);
-        if (!success) assert(false);
+        if (!success) revert("PlatypusVoterProxy::safeExecute failed");
         return returnValue;
     }
 }
