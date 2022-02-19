@@ -114,6 +114,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
             0,
             abi.encodeWithSignature("deposit(uint256,uint256)", _pid, liquidity)
         );
+        platypusVoter.safeExecute(_asset, 0, abi.encodeWithSignature("approve(address,uint256)", _stakingContract, 0));
     }
 
     function _depositTokenToAsset(
@@ -193,6 +194,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
                 type(uint256).max
             )
         );
+        platypusVoter.safeExecute(_asset, 0, abi.encodeWithSignature("approve(address,uint256)", _pool, 0));
         uint256 amount = toUint256(result, 0);
         IERC20(_token).safeTransfer(msg.sender, amount);
         return amount;
