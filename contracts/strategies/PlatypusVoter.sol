@@ -30,11 +30,6 @@ contract PlatypusVoter is IPlatypusVoter, Ownable, ERC20 {
         _;
     }
 
-    modifier onlyPlatypusVoterProxyOrDev() {
-        require(msg.sender == voterProxy || msg.sender == devAddr, "PlatypusVoter:onlyPlatypusVoterProxyOrDev");
-        _;
-    }
-
     constructor(
         address _timelock,
         address _devAddr,
@@ -65,7 +60,7 @@ contract PlatypusVoter is IPlatypusVoter, Ownable, ERC20 {
         voterProxy = _voterProxy;
     }
 
-    function claimVePTP() external override onlyPlatypusVoterProxyOrDev {
+    function claimVePTP() external override onlyPlatypusVoterProxy {
         vePTP.claim();
     }
 
