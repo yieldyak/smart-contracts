@@ -102,8 +102,10 @@ abstract contract PlatypusMasterChefStrategy is YakStrategyV2 {
         if (_extraTokenSwapPair > address(0)) {
             if (IPair(_extraTokenSwapPair).token0() == address(rewardToken)) {
                 extraToken = IPair(_extraTokenSwapPair).token1();
-            } else {
+            } else if (IPair(_extraTokenSwapPair).token1() == address(rewardToken)) {
                 extraToken = IPair(_extraTokenSwapPair).token0();
+            } else {
+                revert("_setExtraRewardSwapPair::Swap pair does not contain reward token");
             }
             swapPairExtraReward = _extraTokenSwapPair;
         } else {
