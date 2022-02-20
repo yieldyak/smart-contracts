@@ -227,6 +227,26 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         platypusVoter.safeExecute(_token, 0, abi.encodeWithSignature("approve(address,uint256)", _pool, 0));
     }
 
+    function pendingRewards(address _stakingContract, uint256 _pid)
+        external
+        view
+        override
+        returns (
+            uint256,
+            uint256,
+            address
+        )
+    {
+        (uint256 pendingPtp, address bonusTokenAddress, , uint256 pendingBonusToken) = IMasterPlatypus(_stakingContract)
+            .pendingTokens(_pid, address(platypusVoter));
+
+        return (pendingPtp, pendingBonusToken, bonusTokenAddress);
+    }
+
+    function poolBalance(address _stakingContract, uint256 _pid) external view override returns (uint256 balance) {
+        (balance, , ) = IMasterPlatypus(_stakingContract).userInfo(_pid, address(platypusVoter));
+    }
+
     function claimReward(address _stakingContract, uint256 _pid) external override onlyStrategy(_pid) {
         (uint256 pendingPtp, address bonusTokenAddress, , uint256 pendingBonusToken) = IMasterPlatypus(_stakingContract)
             .pendingTokens(_pid, address(platypusVoter));
