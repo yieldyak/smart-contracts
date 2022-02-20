@@ -169,10 +169,10 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         address _token,
         address _asset,
         uint256 _maxSlippage,
-        uint256 _amount,
-        uint256 _totalDeposits
+        uint256 _amount
     ) external override onlyStrategy(_pid) returns (uint256) {
-        uint256 liquidity = _depositTokenToAssetForWithdrawal(_pid, _stakingContract, _amount, _totalDeposits);
+        uint256 totalDeposits = _poolBalance(_stakingContract, _pid);
+        uint256 liquidity = _depositTokenToAssetForWithdrawal(_pid, _stakingContract, _amount, totalDeposits);
         platypusVoter.safeExecute(
             _stakingContract,
             0,
@@ -244,6 +244,10 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
     }
 
     function poolBalance(address _stakingContract, uint256 _pid) external view override returns (uint256 balance) {
+        return _poolBalance(_stakingContract, _pid);
+    }
+
+    function _poolBalance(address _stakingContract, uint256 _pid) internal view returns (uint256 balance) {
         (balance, , ) = IMasterPlatypus(_stakingContract).userInfo(_pid, address(platypusVoter));
     }
 

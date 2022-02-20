@@ -11,8 +11,7 @@ interface IPlatypusVoterProxy {
         address _token,
         address _asset,
         uint256 _maxSlippage,
-        uint256 _amount,
-        uint256 _totalDeposits
+        uint256 _amount
     ) external returns (uint256);
 
     function emergencyWithdraw(
