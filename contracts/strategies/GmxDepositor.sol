@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.3;
 
-import "../interfaces/IWAVAX.sol";
+import "../interfaces/IGmxDepositor.sol";
 import "../lib/SafeERC20.sol";
 import "../lib/Ownable.sol";
 
-contract GmxDepositor is Ownable {
+contract GmxDepositor is IGmxDepositor, Ownable {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
-
-    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
 
     address public proxy;
 
@@ -18,11 +16,11 @@ contract GmxDepositor is Ownable {
         _;
     }
 
-    constructor(address _timelock) {
-        transferOwnership(_timelock);
+    constructor(address _owner) {
+        transferOwnership(_owner);
     }
 
-    function setGmxProxy(address _proxy) external onlyOwner {
+    function setGmxProxy(address _proxy) external override onlyOwner {
         proxy = _proxy;
     }
 
@@ -30,7 +28,7 @@ contract GmxDepositor is Ownable {
         address target,
         uint256 value,
         bytes calldata data
-    ) external onlyGmxProxy returns (bool, bytes memory) {
+    ) external override onlyGmxProxy returns (bool, bytes memory) {
         (bool success, bytes memory result) = target.call{value: value}(data);
 
         return (success, result);

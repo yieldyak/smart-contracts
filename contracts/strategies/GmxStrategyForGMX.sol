@@ -4,13 +4,9 @@ pragma solidity 0.7.3;
 
 import "../interfaces/IGmxProxy.sol";
 import "../interfaces/IGmxRewardRouter.sol";
-import "../interfaces/IGmxRewardTracker.sol";
 import "../interfaces/IERC20.sol";
-import "../interfaces/IPair.sol";
 import "../interfaces/IWAVAX.sol";
-import "../lib/DexLibrary.sol";
 import "../lib/SafeERC20.sol";
-import "../lib/DSMath.sol";
 import "./MasterChefStrategyForSA.sol";
 
 contract GmxStrategyForGMX is MasterChefStrategyForSA {
@@ -18,7 +14,6 @@ contract GmxStrategyForGMX is MasterChefStrategyForSA {
     using SafeERC20 for IERC20;
 
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
-    address internal constant GMX = 0x62edc0692BD897D2295872a9FFCac5425011c661;
 
     IGmxProxy public proxy;
 
@@ -78,7 +73,7 @@ contract GmxStrategyForGMX is MasterChefStrategyForSA {
             address
         )
     {
-        uint256 pendingReward = IGmxRewardTracker(_rewardTracker()).claimable(_depositor());
+        uint256 pendingReward = proxy.pendingRewards(_rewardTracker());
         return (pendingReward, 0, address(0));
     }
 
@@ -103,11 +98,7 @@ contract GmxStrategyForGMX is MasterChefStrategyForSA {
     }
 
     function _gmxDepositBalance() private view returns (uint256) {
-        return IGmxRewardTracker(_rewardTracker()).stakedAmounts(_depositor());
-    }
-
-    function _depositor() private view returns (address) {
-        return proxy.gmxDepositor();
+        return proxy.totalDeposits(_rewardTracker());
     }
 
     function _rewardTracker() private view returns (address) {

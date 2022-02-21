@@ -3,12 +3,10 @@ pragma experimental ABIEncoderV2;
 pragma solidity 0.7.3;
 
 import "../YakStrategyV2.sol";
-import "../interfaces/IPair.sol";
-import "../lib/DexLibrary.sol";
 import "../lib/SafeERC20.sol";
+import "../interfaces/IWAVAX.sol";
 import "../interfaces/IGmxProxy.sol";
 import "../interfaces/IGmxRewardRouter.sol";
-import "../interfaces/IGmxRewardTracker.sol";
 
 /**
  * @notice Adapter strategy for MasterChef.
@@ -155,7 +153,7 @@ contract GmxStrategyForGLP is YakStrategyV2 {
     }
 
     function checkReward() public view override returns (uint256) {
-        uint256 pendingReward = IGmxRewardTracker(_rewardTracker()).claimable(_depositor());
+        uint256 pendingReward = proxy.pendingRewards(_rewardTracker());
         uint256 rewardTokenBalance = rewardToken.balanceOf(address(this));
         return rewardTokenBalance.add(pendingReward);
     }
@@ -170,7 +168,7 @@ contract GmxStrategyForGLP is YakStrategyV2 {
     }
 
     function totalDeposits() public view override returns (uint256) {
-        return IGmxRewardTracker(_rewardTracker()).stakedAmounts(_depositor());
+        return proxy.totalDeposits(_rewardTracker());
     }
 
     function rescueDeployedFunds(
@@ -186,7 +184,7 @@ contract GmxStrategyForGLP is YakStrategyV2 {
     }
 
     function _depositor() private view returns (address) {
-        return proxy.gmxDepositor();
+        return address(proxy.gmxDepositor());
     }
 
     function _rewardTracker() private view returns (address) {
