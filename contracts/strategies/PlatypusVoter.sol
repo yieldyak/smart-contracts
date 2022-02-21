@@ -3,11 +3,12 @@ pragma solidity 0.7.3;
 
 import "../interfaces/IWAVAX.sol";
 import "../interfaces/IVePTP.sol";
+import "../interfaces/IPlatypusVoter.sol";
 import "../lib/SafeERC20.sol";
 import "../lib/Ownable.sol";
 import "../lib/ERC20.sol";
 
-contract PlatypusVoter is Ownable, ERC20 {
+contract PlatypusVoter is IPlatypusVoter, Ownable, ERC20 {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
@@ -17,7 +18,7 @@ contract PlatypusVoter is Ownable, ERC20 {
 
     address public immutable devAddr;
     address public voterProxy;
-    bool public depositsEnabled;
+    bool public override depositsEnabled;
 
     modifier onlyDev() {
         require(msg.sender == devAddr, "PlatypusVoter::onlyDev");
@@ -26,11 +27,6 @@ contract PlatypusVoter is Ownable, ERC20 {
 
     modifier onlyPlatypusVoterProxy() {
         require(msg.sender == voterProxy, "PlatypusVoter::onlyPlatypusVoterProxy");
-        _;
-    }
-
-    modifier onlyPlatypusVoterProxyOrDev() {
-        require(msg.sender == voterProxy || msg.sender == devAddr, "PlatypusVoter:onlyPlatypusVoterProxyOrDev");
         _;
     }
 
@@ -46,7 +42,7 @@ contract PlatypusVoter is Ownable, ERC20 {
 
     receive() external payable {}
 
-    function vePTPBalance() public view returns (uint256) {
+    function vePTPBalance() public view override returns (uint256) {
         return vePTP.balanceOf(address(this));
     }
 
@@ -60,15 +56,15 @@ contract PlatypusVoter is Ownable, ERC20 {
         _deposit(_amount);
     }
 
-    function setVoterProxy(address _voterProxy) external onlyOwner {
+    function setVoterProxy(address _voterProxy) external override onlyOwner {
         voterProxy = _voterProxy;
     }
 
-    function claimVePTP() external onlyPlatypusVoterProxyOrDev {
+    function claimVePTP() external override onlyPlatypusVoterProxy {
         vePTP.claim();
     }
 
-    function depositFromBalance(uint256 _amount) external onlyPlatypusVoterProxy {
+    function depositFromBalance(uint256 _amount) external override onlyPlatypusVoterProxy {
         require(depositsEnabled == true, "PlatypusVoter:deposits disabled");
         _deposit(_amount);
     }
@@ -80,7 +76,7 @@ contract PlatypusVoter is Ownable, ERC20 {
         IERC20(PTP).safeApprove(address(vePTP), 0);
     }
 
-    function wrapAvaxBalance() external onlyPlatypusVoterProxy returns (uint256) {
+    function wrapAvaxBalance() external override onlyPlatypusVoterProxy returns (uint256) {
         uint256 balance = address(this).balance;
         if (balance > 0) {
             WAVAX.deposit{value: balance}();
@@ -92,7 +88,7 @@ contract PlatypusVoter is Ownable, ERC20 {
         address target,
         uint256 value,
         bytes calldata data
-    ) external onlyPlatypusVoterProxy returns (bool, bytes memory) {
+    ) external override onlyPlatypusVoterProxy returns (bool, bytes memory) {
         (bool success, bytes memory result) = target.call{value: value}(data);
 
         return (success, result);

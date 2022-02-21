@@ -6,8 +6,9 @@ import "../interfaces/IPlatypusVoter.sol";
 import "../interfaces/IMasterPlatypus.sol";
 import "../interfaces/IPlatypusPool.sol";
 import "../interfaces/IPlatypusAsset.sol";
+import "../interfaces/IPlatypusStrategy.sol";
+import "../interfaces/IPlatypusVoterProxy.sol";
 import "../lib/SafeERC20.sol";
-import "../lib/EnumerableSet.sol";
 
 library SafeProxy {
     function safeExecute(
@@ -17,16 +18,15 @@ library SafeProxy {
         bytes memory data
     ) internal returns (bytes memory) {
         (bool success, bytes memory returnValue) = platypusVoter.execute(target, value, data);
-        if (!success) assert(false);
+        if (!success) revert("PlatypusVoterProxy::safeExecute failed");
         return returnValue;
     }
 }
 
-contract PlatypusVoterProxy {
+contract PlatypusVoterProxy is IPlatypusVoterProxy {
     using SafeMath for uint256;
     using SafeProxy for IPlatypusVoter;
     using SafeERC20 for IERC20;
-    using EnumerableSet for EnumerableSet.AddressSet;
 
     struct FeeSettings {
         uint256 stakerFeeBips;
@@ -42,20 +42,20 @@ contract PlatypusVoterProxy {
     address public stakerFeeReceiver;
     address public boosterFeeReceiver;
     address public constant PTP = address(0x22d4002028f537599bE9f666d1c4Fa138522f9c8);
-    IPlatypusVoter public immutable platypusVoter;
+    IPlatypusVoter public immutable override platypusVoter;
     address public immutable devAddr;
+
+    mapping(uint256 => address) private approvedStrategies;
 
     modifier onlyDev() {
         require(msg.sender == devAddr, "PlatypusVoterProxy::onlyDev");
         _;
     }
 
-    modifier onlyStrategy() {
-        require(approvedStrategies.contains(msg.sender), "PlatypusVoterProxy:onlyStrategy");
+    modifier onlyStrategy(uint256 pid) {
+        require(approvedStrategies[pid] == msg.sender, "PlatypusVoterProxy::onlyStrategy");
         _;
     }
-
-    EnumerableSet.AddressSet private approvedStrategies;
 
     constructor(
         address _platypusVoter,
@@ -70,12 +70,10 @@ contract PlatypusVoterProxy {
         platypusVoter = IPlatypusVoter(_platypusVoter);
     }
 
-    function approveStrategy(address _strategy) external onlyDev {
-        approvedStrategies.add(_strategy);
-    }
-
-    function isApprovedStrategy(address _strategy) external view returns (bool) {
-        return approvedStrategies.contains(_strategy);
+    function approveStrategy(address _strategy) external override onlyDev {
+        uint256 pid = IPlatypusStrategy(_strategy).PID();
+        require(approvedStrategies[pid] == address(0), "PlatypusVoterProxy::Strategy for PID already added");
+        approvedStrategies[pid] = _strategy;
     }
 
     function setBoosterFee(uint256 _boosterFeeBips) external onlyDev {
@@ -102,7 +100,7 @@ contract PlatypusVoterProxy {
         address _asset,
         uint256 _amount,
         uint256 _depositFee
-    ) external onlyStrategy {
+    ) external override onlyStrategy(_pid) {
         uint256 liquidity = _depositTokenToAsset(_asset, _amount, _depositFee);
         IERC20(_token).safeApprove(_pool, _amount);
         IPlatypusPool(_pool).deposit(address(_token), _amount, address(platypusVoter), type(uint256).max);
@@ -116,6 +114,7 @@ contract PlatypusVoterProxy {
             0,
             abi.encodeWithSignature("deposit(uint256,uint256)", _pid, liquidity)
         );
+        platypusVoter.safeExecute(_asset, 0, abi.encodeWithSignature("approve(address,uint256)", _stakingContract, 0));
     }
 
     function _depositTokenToAsset(
@@ -132,7 +131,7 @@ contract PlatypusVoterProxy {
         }
     }
 
-    function reinvestFeeBips() external returns (uint256) {
+    function reinvestFeeBips() external view override returns (uint256) {
         uint256 boostFee = 0;
         if (boosterFee > 0 && boosterFeeReceiver > address(0) && platypusVoter.depositsEnabled()) {
             boostFee = boosterFee;
@@ -170,10 +169,10 @@ contract PlatypusVoterProxy {
         address _token,
         address _asset,
         uint256 _maxSlippage,
-        uint256 _amount,
-        uint256 _totalDeposits
-    ) external onlyStrategy returns (uint256) {
-        uint256 liquidity = _depositTokenToAssetForWithdrawal(_pid, _stakingContract, _amount, _totalDeposits);
+        uint256 _amount
+    ) external override onlyStrategy(_pid) returns (uint256) {
+        uint256 totalDeposits = _poolBalance(_stakingContract, _pid);
+        uint256 liquidity = _depositTokenToAssetForWithdrawal(_pid, _stakingContract, _amount, totalDeposits);
         platypusVoter.safeExecute(
             _stakingContract,
             0,
@@ -195,6 +194,7 @@ contract PlatypusVoterProxy {
                 type(uint256).max
             )
         );
+        platypusVoter.safeExecute(_asset, 0, abi.encodeWithSignature("approve(address,uint256)", _pool, 0));
         uint256 amount = toUint256(result, 0);
         IERC20(_token).safeTransfer(msg.sender, amount);
         return amount;
@@ -206,7 +206,7 @@ contract PlatypusVoterProxy {
         address _pool,
         address _token,
         address _asset
-    ) external onlyStrategy {
+    ) external override onlyStrategy(_pid) {
         platypusVoter.safeExecute(_stakingContract, 0, abi.encodeWithSignature("emergencyWithdraw(uint256)", _pid));
         uint256 balance = IERC20(_asset).balanceOf(address(platypusVoter));
         (uint256 expectedAmount, , ) = IPlatypusPool(_pool).quotePotentialWithdraw(_token, balance);
@@ -227,7 +227,31 @@ contract PlatypusVoterProxy {
         platypusVoter.safeExecute(_token, 0, abi.encodeWithSignature("approve(address,uint256)", _pool, 0));
     }
 
-    function claimReward(address _stakingContract, uint256 _pid) external onlyStrategy {
+    function pendingRewards(address _stakingContract, uint256 _pid)
+        external
+        view
+        override
+        returns (
+            uint256,
+            uint256,
+            address
+        )
+    {
+        (uint256 pendingPtp, address bonusTokenAddress, , uint256 pendingBonusToken) = IMasterPlatypus(_stakingContract)
+            .pendingTokens(_pid, address(platypusVoter));
+
+        return (pendingPtp, pendingBonusToken, bonusTokenAddress);
+    }
+
+    function poolBalance(address _stakingContract, uint256 _pid) external view override returns (uint256 balance) {
+        return _poolBalance(_stakingContract, _pid);
+    }
+
+    function _poolBalance(address _stakingContract, uint256 _pid) internal view returns (uint256 balance) {
+        (balance, , ) = IMasterPlatypus(_stakingContract).userInfo(_pid, address(platypusVoter));
+    }
+
+    function claimReward(address _stakingContract, uint256 _pid) external override onlyStrategy(_pid) {
         (uint256 pendingPtp, address bonusTokenAddress, , uint256 pendingBonusToken) = IMasterPlatypus(_stakingContract)
             .pendingTokens(_pid, address(platypusVoter));
 
@@ -241,10 +265,6 @@ contract PlatypusVoterProxy {
             boostFee = pendingPtp.mul(boosterFee).div(BIPS_DIVISOR);
             platypusVoter.depositFromBalance(boostFee);
             IERC20(address(platypusVoter)).safeTransfer(boosterFeeReceiver, boostFee);
-        } else {
-            if (platypusVoter.vePTPBalance() > 0) {
-                platypusVoter.claimVePTP();
-            }
         }
 
         uint256 stakingFee = 0;
@@ -258,7 +278,6 @@ contract PlatypusVoterProxy {
         }
 
         uint256 reward = pendingPtp.sub(boostFee).sub(stakingFee);
-
         platypusVoter.safeExecute(PTP, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, reward));
 
         if (bonusTokenAddress > address(0)) {
@@ -269,10 +288,14 @@ contract PlatypusVoterProxy {
                 abi.encodeWithSignature("transfer(address,uint256)", msg.sender, pendingBonusToken)
             );
         }
+
+        if (platypusVoter.vePTPBalance() > 0) {
+            platypusVoter.claimVePTP();
+        }
     }
 
     function toUint256(bytes memory _bytes, uint256 _start) internal pure returns (uint256) {
-        require(_bytes.length >= _start + 32, "toUint256_outOfBounds");
+        require(_bytes.length >= _start.add(32), "toUint256_outOfBounds");
         uint256 tempUint;
 
         assembly {
