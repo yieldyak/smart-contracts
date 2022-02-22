@@ -1,12 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma experimental ABIEncoderV2;
-pragma solidity ^0.7.0;
+pragma solidity 0.7.3;
 
 import "../interfaces/IStableJoeStaking.sol";
 import "../interfaces/IPangolinRewarder.sol";
-import "../interfaces/IERC20.sol";
-import "../interfaces/IPair.sol";
-import "../lib/DexLibrary.sol";
 import "./MasterChefVariableRewardsStrategyForSA.sol";
 
 contract CompoundingJoeV3 is MasterChefVariableRewardsStrategyForSA {
@@ -49,6 +46,7 @@ contract CompoundingJoeV3 is MasterChefVariableRewardsStrategyForSA {
     ) internal override {
         depositToken.approve(address(stakingContract), _amount);
         stakingContract.deposit(_amount);
+        depositToken.approve(address(stakingContract), 0);
     }
 
     function _withdrawMasterchef(
