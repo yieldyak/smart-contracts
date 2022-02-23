@@ -18,5 +18,5 @@ interface IStableJoeStaking {
 
     function depositFeePercent() external view returns (uint256);
 
-    function PRECISION() external view returns (uint256);
+    function DEPOSIT_FEE_PERCENT_PRECISION() external view returns (uint256);
 }

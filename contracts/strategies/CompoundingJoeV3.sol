@@ -101,6 +101,6 @@ contract CompoundingJoeV3 is MasterChefVariableRewardsStrategyForSA {
     }
 
     function _bip() internal view override returns (uint256) {
-        return stakingContract.PRECISION();
+        return stakingContract.DEPOSIT_FEE_PERCENT_PRECISION();
     }
 }
