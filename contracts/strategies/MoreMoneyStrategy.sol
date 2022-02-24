@@ -35,7 +35,6 @@ contract MoreMoneyStrategy is MasterChefStrategy {
             _poolRewardToken,
             _swapPairPoolReward,
             address(0),
-            address(0),
             _timelock,
             0,
             _strategySettings
