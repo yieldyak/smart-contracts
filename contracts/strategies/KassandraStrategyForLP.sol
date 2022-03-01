@@ -2,9 +2,7 @@
 pragma experimental ABIEncoderV2;
 pragma solidity 0.7.3;
 
-import "../interfaces/IKassandraPool.sol";
 import "../interfaces/IKassandraStaking.sol";
-import "../lib/DexLibrary.sol";
 import "./MasterChefStrategyForLP.sol";
 
 contract KassandraStrategyForLP is MasterChefStrategyForLP {

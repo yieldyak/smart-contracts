@@ -3,7 +3,6 @@ pragma experimental ABIEncoderV2;
 pragma solidity 0.7.3;
 
 import "../interfaces/IStableJoeStaking.sol";
-import "../interfaces/IPangolinRewarder.sol";
 import "./MasterChefVariableRewardsStrategyForSA.sol";
 
 contract CompoundingJoeV3 is MasterChefVariableRewardsStrategyForSA {

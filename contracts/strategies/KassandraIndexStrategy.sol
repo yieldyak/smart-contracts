@@ -4,7 +4,6 @@ pragma solidity 0.7.3;
 
 import "../interfaces/IKassandraPool.sol";
 import "../interfaces/IKassandraStaking.sol";
-import "../lib/DexLibrary.sol";
 import "./MasterChefStrategy.sol";
 
 contract KassandraIndexStrategy is MasterChefStrategy {

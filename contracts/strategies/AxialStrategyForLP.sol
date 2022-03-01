@@ -96,7 +96,7 @@ contract AxialStrategyForLP is MasterChefStrategy {
         (amount, ) = axialChef.userInfo(pid, user);
     }
 
-    function setMaxSlippageBips(uint256 _maxSlippageBips) external onlyDev {
+    function updateMaxSwapSlippage(uint256 _maxSlippageBips) external onlyDev {
         zapSettings.maxSlippage = _maxSlippageBips;
     }
 

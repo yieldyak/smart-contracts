@@ -17,7 +17,7 @@ library SafeProxy {
         bytes memory data
     ) internal returns (bytes memory) {
         (bool success, bytes memory returnValue) = gmxDepositor.execute(target, value, data);
-        if (!success) assert(false);
+        if (!success) revert("GmxProxy::safeExecute failed");
         return returnValue;
     }
 }

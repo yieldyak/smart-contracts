@@ -36,7 +36,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
         address _timelock,
         uint256 _pid,
         StrategySettings memory _strategySettings
-    ) Ownable() {
+    ) {
         name = _name;
         depositToken = IERC20(_depositToken);
         rewardToken = IERC20(_ecosystemToken);

@@ -46,7 +46,7 @@ contract JoeStrategyV3 is YakStrategy {
         rewardToken = IERC20(_rewardToken);
         poolRewardToken = IERC20(_poolRewardToken);
         stakingContract = IJoeChef(_stakingContract);
-        devAddr = msg.sender;
+        devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
         PID = pid;
 
         assignSwapPairSafely(_swapPairWAVAXJoe, _extraTokenSwapPair, _swapPairToken0, _swapPairToken1);
@@ -79,7 +79,7 @@ contract JoeStrategyV3 is YakStrategy {
         require(
             _swapPairToken1 == address(0)
             || DexLibrary.checkSwapPairCompatibility(IPair(_swapPairToken1), address(WAVAX), IPair(address(depositToken)).token1()),
-            "_swapPairToken0 is not a WAVAX+deposit token1"
+            "_swapPairToken1 is not a WAVAX+deposit token1"
         );
         ( ,address extraRewardToken, , ) = stakingContract.pendingTokens(PID, address(this));
         require(

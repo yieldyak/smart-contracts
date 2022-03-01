@@ -32,7 +32,7 @@ contract GmxStrategyForGLP is YakStrategyV2 {
         address _gmxProxy,
         address _timelock,
         StrategySettings memory _strategySettings
-    ) Ownable() {
+    ) {
         name = _name;
         depositToken = IERC20(_depositToken);
         rewardToken = IERC20(address(WAVAX));

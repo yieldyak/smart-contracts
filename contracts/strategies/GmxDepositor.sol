@@ -2,12 +2,9 @@
 pragma solidity 0.7.3;
 
 import "../interfaces/IGmxDepositor.sol";
-import "../lib/SafeERC20.sol";
 import "../lib/Ownable.sol";
 
 contract GmxDepositor is IGmxDepositor, Ownable {
-    using SafeERC20 for IERC20;
-    using SafeMath for uint256;
 
     address public proxy;
 
