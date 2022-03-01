@@ -60,7 +60,7 @@ contract PlatypusStrategy is YakStrategyV2 {
         uint256 _pid,
         address _timelock,
         StrategySettings memory _strategySettings
-    ) Ownable() {
+    ) {
         name = _name;
         depositToken = IERC20(_depositToken);
         rewardToken = IERC20(address(WAVAX));
@@ -88,7 +88,11 @@ contract PlatypusStrategy is YakStrategyV2 {
         proxy = IPlatypusVoterProxy(_voterProxy);
     }
 
-    function updateMaxWithdrawSlippage(uint256 slippageBips) public onlyDev {
+    /**
+     * @notice Update max slippage for withdrawal
+     * @dev Function name matches interface for FeeCollector
+     */
+    function updateMaxSwapSlippage(uint256 slippageBips) public onlyDev {
         maxSlippage = slippageBips;
     }
 
@@ -100,6 +104,10 @@ contract PlatypusStrategy is YakStrategyV2 {
         revert("setAllowances::deprecated");
     }
 
+    /**
+     * @notice Update extra reward swap pair (if applicable)
+     * @dev Function name matches interface for FeeCollector
+     */
     function setExtraRewardSwapPair(address _extraTokenSwapPair) external onlyDev {
         _setExtraRewardSwapPair(_extraTokenSwapPair);
     }
