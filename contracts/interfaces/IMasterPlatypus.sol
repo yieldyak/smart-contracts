@@ -47,12 +47,25 @@ interface IMasterPlatypus {
 
     function updateFactor(address _user, uint256 _newVePtpBalance) external;
 
-    function userInfo(uint256 pid, address user)
+    function userInfo(uint256 _pid, address _user)
         external
         view
         returns (
-            uint256 amount,
-            uint256 rewardDebt,
-            uint256 factor
+            uint256 _amount,
+            uint256 _rewardDebt,
+            uint256 _factor
+        );
+
+    function poolInfo(uint256 _pid)
+        external
+        view
+        returns (
+            address _lpToken,
+            uint256 _allocPoint,
+            uint256 _lastRewardTimestamp,
+            uint256 _accPtpPerShare,
+            address _rewarder,
+            uint256 _sumOfFactors,
+            uint256 _accPtpPerFactorShare
         );
 }

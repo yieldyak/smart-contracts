@@ -27,7 +27,7 @@ library SafeProxy {
  * @notice PlatypusVoterProxy is an upgradable contract.
  * Strategies interact with PlatypusVoterProxy and
  * PlatypusVoterProxy interacts with PlatypusVoter.
- * @dev For accounting reasons, there is one approved 
+ * @dev For accounting reasons, there is one approved
  * strategy per Masterchef PID. In case of upgrade,
  * use a new proxy.
  */
@@ -348,18 +348,26 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         return (pendingPtp, pendingBonusToken, bonusTokenAddress);
     }
 
-    function poolBalance(address _stakingContract, uint256 _pid) external view override returns (uint256 balance) {
-        return _poolBalance(_stakingContract, _pid);
-    }
-
     /**
      * @notice Pool balance
      * @param _stakingContract Platypus Masterchef
      * @param _pid PID
      * @return balance in depositToken
      */
+    function poolBalance(address _stakingContract, uint256 _pid) external view override returns (uint256 balance) {
+        return _poolBalance(_stakingContract, _pid);
+    }
+
     function _poolBalance(address _stakingContract, uint256 _pid) internal view returns (uint256 balance) {
-        (balance, , ) = IMasterPlatypus(_stakingContract).userInfo(_pid, address(platypusVoter));
+        (uint256 assetBalance, , ) = IMasterPlatypus(_stakingContract).userInfo(_pid, address(platypusVoter));
+        if (assetBalance == 0) return 0;
+        (address asset, , , , , , ) = IMasterPlatypus(_stakingContract).poolInfo(_pid);
+        IPlatypusPool pool = IPlatypusPool(IPlatypusAsset(asset).pool());
+        (uint256 expectedAmount, uint256 fee, ) = pool.quotePotentialWithdraw(
+            IPlatypusAsset(asset).underlyingToken(),
+            assetBalance
+        );
+        return expectedAmount.add(fee);
     }
 
     /**
@@ -372,9 +380,16 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         (uint256 pendingPtp, address bonusTokenAddress, , uint256 pendingBonusToken) = IMasterPlatypus(_stakingContract)
             .pendingTokens(_pid, address(platypusVoter));
 
+        uint256 ptpDust = IERC20(PTP).balanceOf(address(platypusVoter));
+        pendingPtp = pendingPtp.add(ptpDust);
+
+        if (bonusTokenAddress > address(0)) {
+            uint256 bonusTokenDust = IERC20(bonusTokenAddress).balanceOf(address(platypusVoter));
+            pendingBonusToken = pendingBonusToken.add(bonusTokenDust);
+        }
+
         uint256[] memory pids = new uint256[](1);
         pids[0] = _pid;
-
         platypusVoter.safeExecute(_stakingContract, 0, abi.encodeWithSignature("multiClaim(uint256[])", pids));
 
         uint256 boostFee = 0;
