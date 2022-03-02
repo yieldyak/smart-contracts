@@ -29,9 +29,7 @@ contract PlatypusVoter is IPlatypusVoter, Ownable, ERC20 {
         _;
     }
 
-    constructor(
-        address _owner
-    ) ERC20("Yield Yak PTP", "yyPTP") {
+    constructor(address _owner) ERC20("Yield Yak PTP", "yyPTP") {
         transferOwnership(_owner);
     }
 
@@ -59,7 +57,7 @@ contract PlatypusVoter is IPlatypusVoter, Ownable, ERC20 {
      * @notice External deposit function for PTP
      * @param _amount to deposit
      */
-    function deposit(uint256 _amount) external {
+    function deposit(uint256 _amount) external override {
         require(depositsEnabled == true, "PlatypusVoter:deposits disabled");
         require(IERC20(PTP).transferFrom(msg.sender, address(this), _amount), "PlatypusVoter::transfer failed");
         _deposit(_amount);

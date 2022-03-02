@@ -12,6 +12,8 @@ interface IPlatypusVoter {
 
     function wrapAvaxBalance() external returns (uint256);
 
+    function deposit(uint256 _amount) external;
+
     function depositsEnabled() external view returns (bool);
 
     function depositFromBalance(uint256 _value) external;

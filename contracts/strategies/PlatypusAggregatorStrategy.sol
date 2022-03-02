@@ -5,15 +5,16 @@ import "../YakStrategyV2.sol";
 import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
 import "../lib/SafeERC20.sol";
+import "../lib/PlatypusLibrary.sol";
+import "../interfaces/IPlatypusPool.sol";
+import "../interfaces/IBoosterFeeCollector.sol";
 
 /**
  * @notice Adapter strategy for MasterChef.
  */
-abstract contract MasterChefVariableRewardsStrategyV2 is YakStrategyV2 {
+abstract contract PlatypusAggregatorStrategy is YakStrategyV2 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
-
-    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
 
     struct Reward {
         address reward;
@@ -32,18 +33,26 @@ abstract contract MasterChefVariableRewardsStrategyV2 is YakStrategyV2 {
         uint256 reinvestRewardBips;
     }
 
-    uint256 public immutable PID;
+    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    IERC20 private constant PTP = IERC20(0x22d4002028f537599bE9f666d1c4Fa138522f9c8);
+    address private immutable swapPairDepositToken;
 
-    // reward -> swapPair
+    IPlatypusPool public immutable platypusPool;
+    IPlatypusAsset public immutable platypusAsset;
+    IBoosterFeeCollector public immutable boosterFeeCollector;
+    uint256 public immutable PID;
     mapping(address => address) public rewardSwapPairs;
     uint256 public rewardCount = 1;
 
     constructor(
         string memory _name,
         address _depositToken,
+        address _swapPairDepositToken,
         RewardSwapPairs[] memory _rewardSwapPairs,
-        address _timelock,
+        address _platypusPool,
         uint256 _pid,
+        address _boosterFeeCollector,
+        address _timelock,
         StrategySettings memory _strategySettings
     ) Ownable() {
         name = _name;
@@ -51,10 +60,15 @@ abstract contract MasterChefVariableRewardsStrategyV2 is YakStrategyV2 {
         rewardToken = IERC20(address(WAVAX));
         PID = _pid;
         devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
+        swapPairDepositToken = _swapPairDepositToken;
 
         for (uint256 i = 0; i < _rewardSwapPairs.length; i++) {
             _addReward(_rewardSwapPairs[i].reward, _rewardSwapPairs[i].swapPair);
         }
+
+        platypusPool = IPlatypusPool(_platypusPool);
+        platypusAsset = IPlatypusAsset(IPlatypusPool(_platypusPool).assetOf(_depositToken));
+        boosterFeeCollector = IBoosterFeeCollector(_boosterFeeCollector);
 
         updateMinTokensToReinvest(_strategySettings.minTokensToReinvest);
         updateAdminFee(_strategySettings.adminFeeBips);
@@ -73,7 +87,7 @@ abstract contract MasterChefVariableRewardsStrategyV2 is YakStrategyV2 {
         if (_rewardToken != address(rewardToken)) {
             require(
                 DexLibrary.checkSwapPairCompatibility(IPair(_swapPair), _rewardToken, address(rewardToken)),
-                "MasterChefVariableRewardsStrategyV2::Swap pair does not contain reward token"
+                "PlatypusAggregatorStrategy::Swap pair does not contain reward token"
             );
         }
         rewardSwapPairs[_rewardToken] = _swapPair;
@@ -125,7 +139,7 @@ abstract contract MasterChefVariableRewardsStrategyV2 is YakStrategyV2 {
     }
 
     function _deposit(address account, uint256 amount) internal {
-        require(DEPOSITS_ENABLED == true, "MasterChefVariableRewardsStrategyV2::Deposits disabled");
+        require(DEPOSITS_ENABLED == true, "PlatypusAggregatorStrategy::Deposits disabled");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
             (Reward[] memory rewards, uint256 estimatedTotalReward) = _checkReward();
             if (estimatedTotalReward > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
@@ -134,7 +148,7 @@ abstract contract MasterChefVariableRewardsStrategyV2 is YakStrategyV2 {
         }
         require(
             depositToken.transferFrom(msg.sender, address(this), amount),
-            "MasterChefVariableRewardsStrategyV2::Deposit token transfer failed"
+            "PlatypusAggregatorStrategy::Deposit token transfer failed"
         );
         uint256 depositFee = _calculateDepositFee(amount);
         _mint(account, getSharesForDepositTokens(amount.sub(depositFee)));
@@ -142,44 +156,40 @@ abstract contract MasterChefVariableRewardsStrategyV2 is YakStrategyV2 {
         emit Deposit(account, amount);
     }
 
-    function _getDepositFeeBips() internal view virtual returns (uint256) {
-        return 0;
-    }
-
     function _calculateDepositFee(uint256 amount) internal view virtual returns (uint256) {
-        uint256 depositFeeBips = _getDepositFeeBips();
-        return amount.mul(depositFeeBips).div(_bip());
+        return PlatypusLibrary.calculateDepositFee(address(platypusPool), address(platypusAsset), amount);
     }
 
     function withdraw(uint256 amount) external override {
         uint256 depositTokenAmount = getDepositTokensForShares(amount);
-        require(depositTokenAmount > 0, "MasterChefVariableRewardsStrategyV2::Withdraw amount too low");
-        _withdrawDepositTokens(depositTokenAmount);
-        uint256 withdrawFee = _calculateWithdrawFee(depositTokenAmount);
-        depositToken.safeTransfer(msg.sender, depositTokenAmount.sub(withdrawFee));
+        require(depositTokenAmount > 0, "PlatypusAggregatorStrategy::Withdraw amount too low");
+        uint256 liquidity = _withdrawMasterchef(depositTokenAmount);
+        uint256 withdrawAmount = _withdrawFromPool(liquidity);
+        depositToken.safeTransfer(msg.sender, withdrawAmount);
         _burn(msg.sender, amount);
         emit Withdraw(msg.sender, depositTokenAmount);
     }
 
-    function _getWithdrawFeeBips() internal view virtual returns (uint256) {
-        return 0;
+    function _withdrawFromPool(uint256 liquidity) internal returns (uint256 _withdrawAmount) {
+        (uint256 minimumAmount, , ) = platypusPool.quotePotentialWithdraw(address(depositToken), liquidity);
+        IERC20(address(platypusAsset)).approve(address(platypusPool), liquidity);
+        _withdrawAmount = platypusPool.withdraw(
+            address(depositToken),
+            liquidity,
+            minimumAmount,
+            address(this),
+            type(uint256).max
+        );
+        IERC20(address(platypusAsset)).approve(address(platypusPool), 0);
     }
 
-    function _calculateWithdrawFee(uint256 amount) internal view virtual returns (uint256) {
-        uint256 withdrawFeeBips = _getWithdrawFeeBips();
-        return amount.mul(withdrawFeeBips).div(_bip());
-    }
-
-    function _withdrawDepositTokens(uint256 amount) private {
-        _withdrawMasterchef(amount);
+    function _calculateWithdrawFee(uint256 amount) internal view virtual returns (uint256 _fee) {
+        (, _fee, ) = platypusPool.quotePotentialWithdraw(address(depositToken), amount);
     }
 
     function reinvest() external override onlyEOA {
         (Reward[] memory rewards, uint256 estimatedTotalReward) = _checkReward();
-        require(
-            estimatedTotalReward >= MIN_TOKENS_TO_REINVEST,
-            "MasterChefVariableRewardsStrategyV2::Reinvest amount too low"
-        );
+        require(estimatedTotalReward >= MIN_TOKENS_TO_REINVEST, "PlatypusAggregatorStrategy::Reinvest amount too low");
         _reinvest(rewards);
     }
 
@@ -213,7 +223,10 @@ abstract contract MasterChefVariableRewardsStrategyV2 is YakStrategyV2 {
      * @dev Reverts if the expected amount of tokens are not returned from `MasterChef`
      */
     function _reinvest(Reward[] memory rewards) private {
+        (, uint256 boostFee) = _pendingPTP();
         _getRewards();
+        PTP.safeTransfer(address(boosterFeeCollector), boostFee);
+
         uint256 amount = _convertRewardIntoWAVAX(rewards);
 
         uint256 devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
@@ -232,9 +245,23 @@ abstract contract MasterChefVariableRewardsStrategyV2 is YakStrategyV2 {
         emit Reinvest(totalDeposits(), totalSupply);
     }
 
-    function _stakeDepositTokens(uint256 amount) private {
-        require(amount > 0, "MasterChefVariableRewardsStrategyV2::Stake amount too low");
-        _depositMasterchef(amount);
+    function _convertRewardTokenToDepositToken(uint256 fromAmount) internal returns (uint256 toAmount) {
+        toAmount = DexLibrary.swap(
+            fromAmount,
+            address(rewardToken),
+            address(depositToken),
+            IPair(swapPairDepositToken)
+        );
+    }
+
+    function _stakeDepositTokens(uint256 _amount) private {
+        require(_amount > 0, "PlatypusAggregatorStrategy::Stake amount too low");
+        uint256 depositFee = _calculateDepositFee(_amount);
+        uint256 liquidity = PlatypusLibrary.depositTokenToAsset(address(platypusAsset), _amount, depositFee);
+        depositToken.approve(address(platypusPool), _amount);
+        platypusPool.deposit(address(depositToken), _amount, address(this), type(uint256).max);
+        depositToken.approve(address(platypusPool), 0);
+        _depositMasterchef(liquidity);
     }
 
     function _checkReward() internal view returns (Reward[] memory, uint256) {
@@ -274,8 +301,13 @@ abstract contract MasterChefVariableRewardsStrategyV2 is YakStrategyV2 {
     }
 
     function totalDeposits() public view override returns (uint256) {
-        uint256 depositBalance = _getDepositBalance();
-        return depositBalance;
+        uint256 assetBalance = _getDepositBalance();
+        if (assetBalance == 0) return 0;
+        (uint256 depositTokenBalance, uint256 fee, ) = platypusPool.quotePotentialWithdraw(
+            address(depositToken),
+            assetBalance
+        );
+        return depositTokenBalance.add(fee);
     }
 
     function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
@@ -284,7 +316,7 @@ abstract contract MasterChefVariableRewardsStrategyV2 is YakStrategyV2 {
         uint256 balanceAfter = depositToken.balanceOf(address(this));
         require(
             balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
-            "MasterChefVariableRewardsStrategyV2::Emergency withdraw minimum return amount not reached"
+            "PlatypusAggregatorStrategy::Emergency withdraw minimum return amount not reached"
         );
         emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
@@ -297,17 +329,17 @@ abstract contract MasterChefVariableRewardsStrategyV2 is YakStrategyV2 {
     }
 
     /* VIRTUAL */
-    function _convertRewardTokenToDepositToken(uint256 fromAmount) internal virtual returns (uint256 toAmount);
+    function _depositMasterchef(uint256 _amount) internal virtual;
 
-    function _depositMasterchef(uint256 amount) internal virtual;
-
-    function _withdrawMasterchef(uint256 amount) internal virtual;
+    function _withdrawMasterchef(uint256 _amount) internal virtual returns (uint256 _withdrawAmount);
 
     function _emergencyWithdraw() internal virtual;
 
     function _getRewards() internal virtual;
 
+    function _pendingPTP() internal view virtual returns (uint256 _ptpAmount, uint256 _boostFee);
+
     function _pendingRewards() internal view virtual returns (Reward[] memory);
 
-    function _getDepositBalance() internal view virtual returns (uint256 amount);
+    function _getDepositBalance() internal view virtual returns (uint256 _amount);
 }
