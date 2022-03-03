@@ -225,17 +225,16 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
      * @param _pid PID
      * @param _stakingContract Platypus Masterchef
      * @param _amount withdraw amount in deposit asset
-     * @param _totalDeposits total deposits in deposit asset
      * @return liquidity LP tokens
      */
     function _depositTokenToAssetForWithdrawal(
         uint256 _pid,
         address _stakingContract,
-        uint256 _amount,
-        uint256 _totalDeposits
+        uint256 _amount
     ) private view returns (uint256) {
+        uint256 totalDeposits = _poolBalance(_stakingContract, _pid);
         (uint256 balance, , ) = IMasterPlatypus(_stakingContract).userInfo(_pid, address(platypusVoter));
-        return _amount.mul(balance).div(_totalDeposits);
+        return _amount.mul(balance).div(totalDeposits);
     }
 
     /**
@@ -259,8 +258,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         uint256 _maxSlippage,
         uint256 _amount
     ) external override onlyStrategy(_pid) returns (uint256) {
-        uint256 totalDeposits = _poolBalance(_stakingContract, _pid);
-        uint256 liquidity = _depositTokenToAssetForWithdrawal(_pid, _stakingContract, _amount, totalDeposits);
+        uint256 liquidity = _depositTokenToAssetForWithdrawal(_pid, _stakingContract, _amount);
         platypusVoter.safeExecute(
             _stakingContract,
             0,
