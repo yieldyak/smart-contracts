@@ -35,12 +35,14 @@ abstract contract PlatypusAggregatorStrategy is YakStrategyV2 {
 
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
     IERC20 private constant PTP = IERC20(0x22d4002028f537599bE9f666d1c4Fa138522f9c8);
+
     address private immutable swapPairDepositToken;
 
     IPlatypusPool public immutable platypusPool;
     IPlatypusAsset public immutable platypusAsset;
-    IBoosterFeeCollector public immutable boosterFeeCollector;
     uint256 public immutable PID;
+
+    IBoosterFeeCollector public boosterFeeCollector;
     mapping(address => address) public rewardSwapPairs;
     uint256 public rewardCount = 1;
 
@@ -97,6 +99,10 @@ abstract contract PlatypusAggregatorStrategy is YakStrategyV2 {
     function removeReward(address rewardToken) public onlyDev {
         delete rewardSwapPairs[rewardToken];
         rewardCount = rewardCount.sub(1);
+    }
+
+    function updateBoosterFeeCollector(address _collector) public onlyDev {
+        boosterFeeCollector = IBoosterFeeCollector(_collector);
     }
 
     /**
