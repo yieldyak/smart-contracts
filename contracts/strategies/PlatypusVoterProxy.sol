@@ -361,10 +361,11 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         if (assetBalance == 0) return 0;
         (address asset, , , , , , ) = IMasterPlatypus(_stakingContract).poolInfo(_pid);
         IPlatypusPool pool = IPlatypusPool(IPlatypusAsset(asset).pool());
-        (uint256 expectedAmount, uint256 fee, ) = pool.quotePotentialWithdraw(
+        (uint256 expectedAmount, uint256 fee, bool enoughCash) = pool.quotePotentialWithdraw(
             IPlatypusAsset(asset).underlyingToken(),
             assetBalance
         );
+        require(enoughCash, "PlatypusVoterProxy::This shouldn't happen");
         return expectedAmount.add(fee);
     }
 
