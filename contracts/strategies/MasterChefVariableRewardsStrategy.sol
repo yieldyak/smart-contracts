@@ -255,6 +255,7 @@ abstract contract MasterChefVariableRewardsStrategy is YakStrategyV2 {
                     estimatedTotalReward = estimatedTotalReward.add(
                         DexLibrary.estimateConversionThroughPair(amount, reward, address(rewardToken), IPair(swapPair))
                     );
+                    rewards[i].amount = amount;
                 }
             } else {
                 estimatedTotalReward = estimatedTotalReward.add(rewards[i].amount);
