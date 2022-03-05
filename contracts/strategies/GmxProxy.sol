@@ -141,6 +141,11 @@ contract GmxProxy is IGmxProxy {
     }
 
     function totalDeposits(address _rewardTracker) external view override returns (uint256) {
+        address depositToken = IYakStrategy(msg.sender).depositToken();
+        if (depositToken == GMX) {
+            address rewardTracker = IGmxRewardRouter(gmxRewardRouter).stakedGmxTracker();
+            return IGmxRewardTracker(rewardTracker).depositBalances(address(gmxDepositor), depositToken);
+        }
         return IGmxRewardTracker(_rewardTracker).stakedAmounts(address(gmxDepositor));
     }
 
