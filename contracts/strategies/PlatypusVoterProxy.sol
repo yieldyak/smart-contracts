@@ -154,6 +154,8 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         uint256 _amount,
         uint256 _depositFee
     ) external override onlyStrategy(_pid) {
+        uint256 voterPTPBalanceBefore = IERC20(PTP).balanceOf(address(platypusVoter));
+
         uint256 liquidity = _depositTokenToAsset(_asset, _amount, _depositFee);
         IERC20(_token).safeApprove(_pool, _amount);
         IPlatypusPool(_pool).deposit(address(_token), _amount, address(platypusVoter), type(uint256).max);
@@ -168,6 +170,17 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
             abi.encodeWithSignature("deposit(uint256,uint256)", _pid, liquidity)
         );
         platypusVoter.safeExecute(_asset, 0, abi.encodeWithSignature("approve(address,uint256)", _stakingContract, 0));
+
+        uint256 voterPTPBalanceAfter = IERC20(PTP).balanceOf(address(platypusVoter));
+        platypusVoter.safeExecute(
+            PTP,
+            0,
+            abi.encodeWithSignature(
+                "transfer(address,uint256)",
+                msg.sender,
+                voterPTPBalanceAfter.sub(voterPTPBalanceBefore)
+            )
+        );
     }
 
     /**
@@ -258,6 +271,8 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         uint256 _maxSlippage,
         uint256 _amount
     ) external override onlyStrategy(_pid) returns (uint256) {
+        uint256 voterPTPBalanceBefore = IERC20(PTP).balanceOf(address(platypusVoter));
+
         uint256 liquidity = _depositTokenToAssetForWithdrawal(_pid, _stakingContract, _amount);
         platypusVoter.safeExecute(
             _stakingContract,
@@ -283,6 +298,18 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         platypusVoter.safeExecute(_asset, 0, abi.encodeWithSignature("approve(address,uint256)", _pool, 0));
         uint256 amount = toUint256(result, 0);
         IERC20(_token).safeTransfer(msg.sender, amount);
+
+        uint256 voterPTPBalanceAfter = IERC20(PTP).balanceOf(address(platypusVoter));
+        platypusVoter.safeExecute(
+            PTP,
+            0,
+            abi.encodeWithSignature(
+                "transfer(address,uint256)",
+                msg.sender,
+                voterPTPBalanceAfter.sub(voterPTPBalanceBefore)
+            )
+        );
+
         return amount;
     }
 
