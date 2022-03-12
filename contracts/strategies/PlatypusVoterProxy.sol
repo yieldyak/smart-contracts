@@ -4,6 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import "../interfaces/IPlatypusVoter.sol";
 import "../interfaces/IMasterPlatypus.sol";
+import "../interfaces/IMasterPlatypusV2.sol";
 import "../interfaces/IPlatypusPool.sol";
 import "../interfaces/IPlatypusAsset.sol";
 import "../interfaces/IPlatypusStrategy.sol";
@@ -50,6 +51,8 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
     address public stakerFeeReceiver;
     address public boosterFeeReceiver;
     address public constant PTP = address(0x22d4002028f537599bE9f666d1c4Fa138522f9c8);
+    address public stakingContract;
+    uint256 public stakingContractVersion;
     IPlatypusVoter public immutable override platypusVoter;
     address public devAddr;
 
@@ -68,6 +71,8 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
     constructor(
         address _platypusVoter,
         address _devAddr,
+        address _stakingContract,
+        uint256 _stakingContractVersion,
         FeeSettings memory _feeSettings
     ) {
         devAddr = _devAddr;
@@ -76,6 +81,18 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         stakerFeeReceiver = _feeSettings.stakerFeeReceiver;
         boosterFeeReceiver = _feeSettings.boosterFeeReceiver;
         platypusVoter = IPlatypusVoter(_platypusVoter);
+        stakingContract = _stakingContract;
+        stakingContractVersion = _stakingContractVersion;
+    }
+
+    function migrateMasterPlatypus(
+        address _masterPlatypus,
+        uint256 _masterPlatypusVersion,
+        uint256[] memory _pids
+    ) external override onlyDev {
+        platypusVoter.safeExecute(stakingContract, 0, abi.encodeWithSignature("migrate(uint256[])", _pids));
+        stakingContract = _masterPlatypus;
+        stakingContractVersion = _masterPlatypusVersion;
     }
 
     /**
@@ -138,7 +155,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
      * @notice Deposit function
      * @dev Restricted to strategy with _pid
      * @param _pid PID
-     * @param _stakingContract Platypus Masterchef
+     * @param /*_stakingContract Platypus Masterchef (unused)
      * @param _pool Platypus pool
      * @param _token Deposit asset
      * @param _asset Platypus asset
@@ -147,7 +164,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
      */
     function deposit(
         uint256 _pid,
-        address _stakingContract,
+        address, /*_stakingContract*/
         address _pool,
         address _token,
         address _asset,
@@ -162,14 +179,14 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         platypusVoter.safeExecute(
             _asset,
             0,
-            abi.encodeWithSignature("approve(address,uint256)", _stakingContract, liquidity)
+            abi.encodeWithSignature("approve(address,uint256)", stakingContract, liquidity)
         );
         platypusVoter.safeExecute(
-            _stakingContract,
+            stakingContract,
             0,
             abi.encodeWithSignature("deposit(uint256,uint256)", _pid, liquidity)
         );
-        platypusVoter.safeExecute(_asset, 0, abi.encodeWithSignature("approve(address,uint256)", _stakingContract, 0));
+        platypusVoter.safeExecute(_asset, 0, abi.encodeWithSignature("approve(address,uint256)", stakingContract, 0));
 
         uint256 voterPTPBalanceAfter = IERC20(PTP).balanceOf(address(platypusVoter));
         platypusVoter.safeExecute(
@@ -236,17 +253,17 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
     /**
      * @notice Conversion for handling withdraw
      * @param _pid PID
-     * @param _stakingContract Platypus Masterchef
+     * @param /*_stakingContract Platypus Masterchef (unused)
      * @param _amount withdraw amount in deposit asset
      * @return liquidity LP tokens
      */
     function _depositTokenToAssetForWithdrawal(
         uint256 _pid,
-        address _stakingContract,
+        address, /*_stakingContract*/
         uint256 _amount
     ) private view returns (uint256) {
-        uint256 totalDeposits = _poolBalance(_stakingContract, _pid);
-        (uint256 balance, , ) = IMasterPlatypus(_stakingContract).userInfo(_pid, address(platypusVoter));
+        uint256 totalDeposits = _poolBalance(stakingContract, _pid);
+        (uint256 balance, , ) = IMasterPlatypus(stakingContract).userInfo(_pid, address(platypusVoter));
         return _amount.mul(balance).div(totalDeposits);
     }
 
@@ -254,7 +271,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
      * @notice Withdraw function
      * @dev Restricted to strategy with _pid
      * @param _pid PID
-     * @param _stakingContract Platypus Masterchef
+     * @param /*_stakingContract Platypus Masterchef (unused)
      * @param _pool Platypus pool
      * @param _token Deposit asset
      * @param _asset Platypus asset
@@ -264,7 +281,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
      */
     function withdraw(
         uint256 _pid,
-        address _stakingContract,
+        address, /*_stakingContract*/
         address _pool,
         address _token,
         address _asset,
@@ -273,9 +290,9 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
     ) external override onlyStrategy(_pid) returns (uint256) {
         uint256 voterPTPBalanceBefore = IERC20(PTP).balanceOf(address(platypusVoter));
 
-        uint256 liquidity = _depositTokenToAssetForWithdrawal(_pid, _stakingContract, _amount);
+        uint256 liquidity = _depositTokenToAssetForWithdrawal(_pid, stakingContract, _amount);
         platypusVoter.safeExecute(
-            _stakingContract,
+            stakingContract,
             0,
             abi.encodeWithSignature("withdraw(uint256,uint256)", _pid, liquidity)
         );
@@ -317,19 +334,19 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
      * @notice Emergency withdraw function
      * @dev Restricted to strategy with _pid
      * @param _pid PID
-     * @param _stakingContract Platypus Masterchef
+     * @param /*_stakingContract Platypus Masterchef (unused)
      * @param _pool Platypus pool
      * @param _token Deposit asset
      * @param _asset Platypus asset
      */
     function emergencyWithdraw(
         uint256 _pid,
-        address _stakingContract,
+        address, /*_stakingContract*/
         address _pool,
         address _token,
         address _asset
     ) external override onlyStrategy(_pid) {
-        platypusVoter.safeExecute(_stakingContract, 0, abi.encodeWithSignature("emergencyWithdraw(uint256)", _pid));
+        platypusVoter.safeExecute(stakingContract, 0, abi.encodeWithSignature("emergencyWithdraw(uint256)", _pid));
         uint256 balance = IERC20(_asset).balanceOf(address(platypusVoter));
         (uint256 expectedAmount, , ) = IPlatypusPool(_pool).quotePotentialWithdraw(_token, balance);
         platypusVoter.safeExecute(_asset, 0, abi.encodeWithSignature("approve(address,uint256)", _pool, balance));
@@ -345,19 +362,22 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
                 type(uint256).max
             )
         );
-        platypusVoter.safeExecute(_asset, 0, abi.encodeWithSignature("approve(address,uint256)", _stakingContract, 0));
+        platypusVoter.safeExecute(_asset, 0, abi.encodeWithSignature("approve(address,uint256)", stakingContract, 0));
         platypusVoter.safeExecute(_token, 0, abi.encodeWithSignature("approve(address,uint256)", _pool, 0));
     }
 
     /**
      * @notice Pending rewards matching interface for PlatypusStrategy
-     * @param _stakingContract Platypus Masterchef
+     * @param /*_stakingContract Platypus Masterchef (unused)
      * @param _pid PID
      * @return pendingPtp
      * @return pendingBonusToken
      * @return bonusTokenAddress
      */
-    function pendingRewards(address _stakingContract, uint256 _pid)
+    function pendingRewards(
+        address, /*_stakingContract*/
+        uint256 _pid
+    )
         external
         view
         override
@@ -367,7 +387,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
             address
         )
     {
-        (uint256 pendingPtp, address bonusTokenAddress, , uint256 pendingBonusToken) = IMasterPlatypus(_stakingContract)
+        (uint256 pendingPtp, address bonusTokenAddress, , uint256 pendingBonusToken) = IMasterPlatypus(stakingContract)
             .pendingTokens(_pid, address(platypusVoter));
 
         return (pendingPtp, pendingBonusToken, bonusTokenAddress);
@@ -375,18 +395,29 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
 
     /**
      * @notice Pool balance
-     * @param _stakingContract Platypus Masterchef
+     * @param /*_stakingContract Platypus Masterchef (unused)
      * @param _pid PID
      * @return balance in depositToken
      */
-    function poolBalance(address _stakingContract, uint256 _pid) external view override returns (uint256 balance) {
-        return _poolBalance(_stakingContract, _pid);
+    function poolBalance(
+        address, /*_stakingContract*/
+        uint256 _pid
+    ) external view override returns (uint256 balance) {
+        return _poolBalance(stakingContract, _pid);
     }
 
-    function _poolBalance(address _stakingContract, uint256 _pid) internal view returns (uint256 balance) {
-        (uint256 assetBalance, , ) = IMasterPlatypus(_stakingContract).userInfo(_pid, address(platypusVoter));
+    function _poolBalance(
+        address, /*_stakingContract*/
+        uint256 _pid
+    ) internal view returns (uint256 balance) {
+        (uint256 assetBalance, , ) = IMasterPlatypus(stakingContract).userInfo(_pid, address(platypusVoter));
         if (assetBalance == 0) return 0;
-        (address asset, , , , , , ) = IMasterPlatypus(_stakingContract).poolInfo(_pid);
+        address asset;
+        if (stakingContractVersion > 1) {
+            (asset, , , , , , , ) = IMasterPlatypusV2(stakingContract).poolInfo(_pid);
+        } else {
+            (asset, , , , , , ) = IMasterPlatypus(stakingContract).poolInfo(_pid);
+        }
         IPlatypusPool pool = IPlatypusPool(IPlatypusAsset(asset).pool());
         (uint256 expectedAmount, uint256 fee, bool enoughCash) = pool.quotePotentialWithdraw(
             IPlatypusAsset(asset).underlyingToken(),
@@ -399,11 +430,14 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
     /**
      * @notice Claim and distribute PTP rewards
      * @dev Restricted to strategy with _pid
-     * @param _stakingContract Platypus Masterchef
+     * @param /*_stakingContract Platypus Masterchef (unused)
      * @param _pid PID
      */
-    function claimReward(address _stakingContract, uint256 _pid) external override onlyStrategy(_pid) {
-        (uint256 pendingPtp, address bonusTokenAddress, , uint256 pendingBonusToken) = IMasterPlatypus(_stakingContract)
+    function claimReward(
+        address, /*_stakingContract*/
+        uint256 _pid
+    ) external override onlyStrategy(_pid) {
+        (uint256 pendingPtp, address bonusTokenAddress, , uint256 pendingBonusToken) = IMasterPlatypus(stakingContract)
             .pendingTokens(_pid, address(platypusVoter));
 
         uint256 ptpDust = IERC20(PTP).balanceOf(address(platypusVoter));
@@ -416,7 +450,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
 
         uint256[] memory pids = new uint256[](1);
         pids[0] = _pid;
-        platypusVoter.safeExecute(_stakingContract, 0, abi.encodeWithSignature("multiClaim(uint256[])", pids));
+        platypusVoter.safeExecute(stakingContract, 0, abi.encodeWithSignature("multiClaim(uint256[])", pids));
 
         uint256 boostFee = 0;
         if (boosterFee > 0 && boosterFeeReceiver > address(0) && platypusVoter.depositsEnabled()) {

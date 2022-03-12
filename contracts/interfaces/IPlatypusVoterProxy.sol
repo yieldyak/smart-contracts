@@ -50,4 +50,10 @@ interface IPlatypusVoterProxy {
     function approveStrategy(address _strategy) external;
 
     function reinvestFeeBips() external view returns (uint256);
+
+    function migrateMasterPlatypus(
+        address _masterPlatypus,
+        uint256 _masterPlatypusVersion,
+        uint256[] memory _pids
+    ) external;
 }
