@@ -4,6 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import "../interfaces/IPlatypusVoter.sol";
 import "../interfaces/IMasterPlatypus.sol";
+import "../interfaces/IMasterPlatypusV2.sol";
 import "../interfaces/IPlatypusPool.sol";
 import "../interfaces/IPlatypusAsset.sol";
 import "../interfaces/IPlatypusStrategy.sol";
@@ -49,19 +50,21 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
     uint256 public stakerFee;
     address public stakerFeeReceiver;
     address public boosterFeeReceiver;
-    address public constant PTP = address(0x22d4002028f537599bE9f666d1c4Fa138522f9c8);
+    address public constant PTP = 0x22d4002028f537599bE9f666d1c4Fa138522f9c8;
     IPlatypusVoter public immutable override platypusVoter;
     address public devAddr;
 
-    mapping(uint256 => address) private approvedStrategies;
+    // staking contract => pid => strategy
+    mapping(address => mapping(uint256 => address)) private approvedStrategies;
+    address private constant MASTERCHEF_V1 = 0xB0523f9F473812FB195Ee49BC7d2ab9873a98044;
 
     modifier onlyDev() {
         require(msg.sender == devAddr, "PlatypusVoterProxy::onlyDev");
         _;
     }
 
-    modifier onlyStrategy(uint256 pid) {
-        require(approvedStrategies[pid] == msg.sender, "PlatypusVoterProxy::onlyStrategy");
+    modifier onlyStrategy(address _stakingContract, uint256 _pid) {
+        require(approvedStrategies[_stakingContract][_pid] == msg.sender, "PlatypusVoterProxy::onlyStrategy");
         _;
     }
 
@@ -89,13 +92,17 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
     /**
      * @notice Add an approved strategy
      * @dev Very sensitive, restricted to devAddr
-     * @dev Can only be set once per PID (reported by the strategy)
+     * @dev Can only be set once per PID and staking contract (reported by the strategy)
+     * @param _stakingContract address
      * @param _strategy address
      */
-    function approveStrategy(address _strategy) external override onlyDev {
+    function approveStrategy(address _stakingContract, address _strategy) external override onlyDev {
         uint256 pid = IPlatypusStrategy(_strategy).PID();
-        require(approvedStrategies[pid] == address(0), "PlatypusVoterProxy::Strategy for PID already added");
-        approvedStrategies[pid] = _strategy;
+        require(
+            approvedStrategies[_stakingContract][pid] == address(0),
+            "PlatypusVoterProxy::Strategy for PID already added"
+        );
+        approvedStrategies[_stakingContract][pid] = _strategy;
     }
 
     /**
@@ -153,7 +160,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         address _asset,
         uint256 _amount,
         uint256 _depositFee
-    ) external override onlyStrategy(_pid) {
+    ) external override onlyStrategy(_stakingContract, _pid) {
         uint256 voterPTPBalanceBefore = IERC20(PTP).balanceOf(address(platypusVoter));
 
         uint256 liquidity = _depositTokenToAsset(_asset, _amount, _depositFee);
@@ -270,7 +277,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         address _asset,
         uint256 _maxSlippage,
         uint256 _amount
-    ) external override onlyStrategy(_pid) returns (uint256) {
+    ) external override onlyStrategy(_stakingContract, _pid) returns (uint256) {
         uint256 voterPTPBalanceBefore = IERC20(PTP).balanceOf(address(platypusVoter));
 
         uint256 liquidity = _depositTokenToAssetForWithdrawal(_pid, _stakingContract, _amount);
@@ -328,7 +335,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         address _pool,
         address _token,
         address _asset
-    ) external override onlyStrategy(_pid) {
+    ) external override onlyStrategy(_stakingContract, _pid) {
         platypusVoter.safeExecute(_stakingContract, 0, abi.encodeWithSignature("emergencyWithdraw(uint256)", _pid));
         uint256 balance = IERC20(_asset).balanceOf(address(platypusVoter));
         (uint256 expectedAmount, , ) = IPlatypusPool(_pool).quotePotentialWithdraw(_token, balance);
@@ -386,7 +393,12 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
     function _poolBalance(address _stakingContract, uint256 _pid) internal view returns (uint256 balance) {
         (uint256 assetBalance, , ) = IMasterPlatypus(_stakingContract).userInfo(_pid, address(platypusVoter));
         if (assetBalance == 0) return 0;
-        (address asset, , , , , , ) = IMasterPlatypus(_stakingContract).poolInfo(_pid);
+        address asset;
+        if (_stakingContract == MASTERCHEF_V1) {
+            (asset, , , , , , ) = IMasterPlatypus(_stakingContract).poolInfo(_pid);
+        } else {
+            (asset, , , , , , , ) = IMasterPlatypusV2(_stakingContract).poolInfo(_pid);
+        }
         IPlatypusPool pool = IPlatypusPool(IPlatypusAsset(asset).pool());
         (uint256 expectedAmount, uint256 fee, bool enoughCash) = pool.quotePotentialWithdraw(
             IPlatypusAsset(asset).underlyingToken(),
@@ -402,7 +414,11 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
      * @param _stakingContract Platypus Masterchef
      * @param _pid PID
      */
-    function claimReward(address _stakingContract, uint256 _pid) external override onlyStrategy(_pid) {
+    function claimReward(address _stakingContract, uint256 _pid)
+        external
+        override
+        onlyStrategy(_stakingContract, _pid)
+    {
         (uint256 pendingPtp, address bonusTokenAddress, , uint256 pendingBonusToken) = IMasterPlatypus(_stakingContract)
             .pendingTokens(_pid, address(platypusVoter));
 

@@ -192,7 +192,7 @@ contract PlatypusStrategy is YakStrategyV2 {
         }
         depositToken.safeTransferFrom(msg.sender, address(this), amount);
         uint256 depositFee = _calculateDepositFee(amount);
-        _mint(account, amount.sub(depositFee));
+        _mint(account, getSharesForDepositTokens(amount.sub(depositFee)));
         _stakeDepositTokens(amount, depositFee);
         emit Deposit(account, amount.sub(depositFee));
     }
