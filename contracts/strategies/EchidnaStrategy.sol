@@ -49,7 +49,7 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
         PID = _pid;
         platypusPool = IPlatypusPool(_platypusPool);
         echidnaBooster = IEchidnaBooster(_stakingContract);
-        (, address rewardPool, ) = IEchidnaBooster(_stakingContract).pools(_pid);
+        (, , , address rewardPool, ) = IEchidnaBooster(_stakingContract).pools(_pid);
         echidnaRewardPool = IEchidnaRewardPool(rewardPool);
         platypusAsset = IPlatypusAsset(IPlatypusPool(_platypusPool).assetOf(_depositToken));
         boosterFeeCollector = IBoosterFeeCollector(_boosterFeeCollector);
@@ -66,7 +66,7 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
         platypusPool.deposit(address(depositToken), _amount, address(this), type(uint256).max);
         depositToken.approve(address(platypusPool), 0);
         IERC20(address(platypusAsset)).approve(address(echidnaBooster), liquidity);
-        echidnaBooster.deposit(PID, liquidity);
+        echidnaBooster.deposit(PID, liquidity, false, type(uint256).max);
         IERC20(address(platypusAsset)).approve(address(echidnaBooster), 0);
     }
 
@@ -78,7 +78,7 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
         uint256 lpBalance = echidnaRewardPool.balanceOf(address(this));
         uint256 liquidity = _amount.mul(lpBalance).div(_getDepositBalance());
         liquidity = liquidity > lpBalance ? lpBalance : liquidity;
-        echidnaBooster.withdraw(PID, liquidity, false);
+        echidnaBooster.withdraw(PID, liquidity, false, false, 0, type(uint256).max);
 
         (uint256 expectedAmount, , ) = platypusPool.quotePotentialWithdraw(address(depositToken), liquidity);
         IERC20(address(platypusAsset)).approve(address(platypusPool), liquidity);
