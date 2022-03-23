@@ -45,6 +45,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
     }
 
     uint256 internal constant BIPS_DIVISOR = 10000;
+    address internal constant WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
 
     uint256 public boosterFee;
     uint256 public stakerFee;
@@ -161,8 +162,6 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         uint256 _amount,
         uint256 _depositFee
     ) external override onlyStrategy(_stakingContract, _pid) {
-        uint256 voterPTPBalanceBefore = IERC20(PTP).balanceOf(address(platypusVoter));
-
         uint256 liquidity = _depositTokenToAsset(_asset, _amount, _depositFee);
         IERC20(_token).safeApprove(_pool, _amount);
         IPlatypusPool(_pool).deposit(address(_token), _amount, address(platypusVoter), type(uint256).max);
@@ -177,17 +176,6 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
             abi.encodeWithSignature("deposit(uint256,uint256)", _pid, liquidity)
         );
         platypusVoter.safeExecute(_asset, 0, abi.encodeWithSignature("approve(address,uint256)", _stakingContract, 0));
-
-        uint256 voterPTPBalanceAfter = IERC20(PTP).balanceOf(address(platypusVoter));
-        platypusVoter.safeExecute(
-            PTP,
-            0,
-            abi.encodeWithSignature(
-                "transfer(address,uint256)",
-                msg.sender,
-                voterPTPBalanceAfter.sub(voterPTPBalanceBefore)
-            )
-        );
     }
 
     /**
@@ -278,8 +266,6 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         uint256 _maxSlippage,
         uint256 _amount
     ) external override onlyStrategy(_stakingContract, _pid) returns (uint256) {
-        uint256 voterPTPBalanceBefore = IERC20(PTP).balanceOf(address(platypusVoter));
-
         uint256 liquidity = _depositTokenToAssetForWithdrawal(_pid, _stakingContract, _amount);
         platypusVoter.safeExecute(
             _stakingContract,
@@ -305,17 +291,6 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         platypusVoter.safeExecute(_asset, 0, abi.encodeWithSignature("approve(address,uint256)", _pool, 0));
         uint256 amount = toUint256(result, 0);
         IERC20(_token).safeTransfer(msg.sender, amount);
-
-        uint256 voterPTPBalanceAfter = IERC20(PTP).balanceOf(address(platypusVoter));
-        platypusVoter.safeExecute(
-            PTP,
-            0,
-            abi.encodeWithSignature(
-                "transfer(address,uint256)",
-                msg.sender,
-                voterPTPBalanceAfter.sub(voterPTPBalanceBefore)
-            )
-        );
 
         return amount;
     }
@@ -419,43 +394,41 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         override
         onlyStrategy(_stakingContract, _pid)
     {
-        (uint256 pendingPtp, address bonusTokenAddress, , uint256 pendingBonusToken) = IMasterPlatypus(_stakingContract)
-            .pendingTokens(_pid, address(platypusVoter));
+        (address bonusTokenAddress, ) = IMasterPlatypus(_stakingContract).rewarderBonusTokenInfo(_pid);
 
-        uint256 ptpDust = IERC20(PTP).balanceOf(address(platypusVoter));
-        pendingPtp = pendingPtp.add(ptpDust);
-
-        if (bonusTokenAddress > address(0)) {
-            uint256 bonusTokenDust = IERC20(bonusTokenAddress).balanceOf(address(platypusVoter));
-            pendingBonusToken = pendingBonusToken.add(bonusTokenDust);
-        }
-
-        uint256[] memory pids = new uint256[](1);
-        pids[0] = _pid;
-        platypusVoter.safeExecute(_stakingContract, 0, abi.encodeWithSignature("multiClaim(uint256[])", pids));
-
-        uint256 boostFee = 0;
-        if (boosterFee > 0 && boosterFeeReceiver > address(0) && platypusVoter.depositsEnabled()) {
-            boostFee = pendingPtp.mul(boosterFee).div(BIPS_DIVISOR);
-            platypusVoter.depositFromBalance(boostFee);
-            IERC20(address(platypusVoter)).safeTransfer(boosterFeeReceiver, boostFee);
-        }
-
-        uint256 stakingFee = 0;
-        if (stakerFee > 0 && stakerFeeReceiver > address(0)) {
-            stakingFee = pendingPtp.mul(stakerFee).div(BIPS_DIVISOR);
-            platypusVoter.safeExecute(
-                PTP,
-                0,
-                abi.encodeWithSignature("transfer(address,uint256)", stakerFeeReceiver, stakingFee)
-            );
-        }
-
-        uint256 reward = pendingPtp.sub(boostFee).sub(stakingFee);
-        platypusVoter.safeExecute(PTP, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, reward));
-
-        if (bonusTokenAddress > address(0)) {
+        platypusVoter.safeExecute(_stakingContract, 0, abi.encodeWithSignature("deposit(uint256,uint256)", _pid, 0));
+        if (bonusTokenAddress == WAVAX) {
             platypusVoter.wrapAvaxBalance();
+        }
+
+        uint256 pendingPtp = IERC20(PTP).balanceOf(address(platypusVoter));
+        uint256 pendingBonusToken = bonusTokenAddress > address(0)
+            ? IERC20(bonusTokenAddress).balanceOf(address(platypusVoter))
+            : 0;
+
+        if (pendingPtp > 0) {
+            uint256 boostFee = 0;
+            if (boosterFee > 0 && boosterFeeReceiver > address(0) && platypusVoter.depositsEnabled()) {
+                boostFee = pendingPtp.mul(boosterFee).div(BIPS_DIVISOR);
+                platypusVoter.depositFromBalance(boostFee);
+                IERC20(address(platypusVoter)).safeTransfer(boosterFeeReceiver, boostFee);
+            }
+
+            uint256 stakingFee = 0;
+            if (stakerFee > 0 && stakerFeeReceiver > address(0)) {
+                stakingFee = pendingPtp.mul(stakerFee).div(BIPS_DIVISOR);
+                platypusVoter.safeExecute(
+                    PTP,
+                    0,
+                    abi.encodeWithSignature("transfer(address,uint256)", stakerFeeReceiver, stakingFee)
+                );
+            }
+
+            uint256 reward = pendingPtp.sub(boostFee).sub(stakingFee);
+            platypusVoter.safeExecute(PTP, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, reward));
+        }
+
+        if (pendingBonusToken > 0) {
             platypusVoter.safeExecute(
                 bonusTokenAddress,
                 0,

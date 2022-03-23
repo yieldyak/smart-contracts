@@ -189,6 +189,8 @@ contract PlatypusStrategy is YakStrategyV2 {
             if (estimatedTotalReward > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
                 _reinvest(rewardTokenBalance, poolTokenAmount, extraTokenAmount);
             }
+        } else {
+            proxy.claimReward(address(masterchef), PID);
         }
         depositToken.safeTransferFrom(msg.sender, address(this), amount);
         uint256 depositFee = _calculateDepositFee(amount);
@@ -217,6 +219,7 @@ contract PlatypusStrategy is YakStrategyV2 {
     function withdraw(uint256 amount) external override {
         uint256 depositTokenAmount = getDepositTokensForShares(amount);
         require(depositTokenAmount > 0, "PlatypusStrategy::withdraw");
+        proxy.claimReward(address(masterchef), PID);
         uint256 withdrawalAmount = proxy.withdraw(
             PID,
             address(masterchef),
