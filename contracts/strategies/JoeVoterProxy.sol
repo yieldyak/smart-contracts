@@ -144,7 +144,7 @@ contract JoeVoterProxy is IJoeVoterProxy {
      * @notice Deposit function
      * @dev Restricted to strategy with _pid
      * @param _pid PID
-     * @param _stakingContract Platypus Masterchef
+     * @param _stakingContract Masterchef
      * @param _token Deposit asset
      * @param _amount deposit amount
      */
@@ -181,7 +181,7 @@ contract JoeVoterProxy is IJoeVoterProxy {
      * @notice Withdraw function
      * @dev Restricted to strategy with _pid
      * @param _pid PID
-     * @param _stakingContract Platypus Masterchef
+     * @param _stakingContract Masterchef
      * @param _token Deposit asset
      * @param _amount withdraw amount
      */
@@ -199,7 +199,7 @@ contract JoeVoterProxy is IJoeVoterProxy {
      * @notice Emergency withdraw function
      * @dev Restricted to strategy with _pid
      * @param _pid PID
-     * @param _stakingContract Platypus Masterchef
+     * @param _stakingContract Masterchef
      * @param _token Deposit asset
      */
     function emergencyWithdraw(
@@ -213,8 +213,8 @@ contract JoeVoterProxy is IJoeVoterProxy {
     }
 
     /**
-     * @notice Pending rewards matching interface for PlatypusStrategy
-     * @param _stakingContract Platypus Masterchef
+     * @notice Pending rewards matching interface for strategy
+     * @param _stakingContract Masterchef
      * @param _pid PID
      * @return pendingJoe
      * @return bonusTokenAddress
@@ -245,7 +245,7 @@ contract JoeVoterProxy is IJoeVoterProxy {
 
     /**
      * @notice Pool balance
-     * @param _stakingContract Platypus Masterchef
+     * @param _stakingContract Masterchef
      * @param _pid PID
      * @return balance in depositToken
      */
@@ -254,9 +254,9 @@ contract JoeVoterProxy is IJoeVoterProxy {
     }
 
     /**
-     * @notice Claim and distribute PTP rewards
+     * @notice Claim and distribute rewards
      * @dev Restricted to strategy with _pid
-     * @param _stakingContract Platypus Masterchef
+     * @param _stakingContract Masterchef
      * @param _pid PID
      */
     function claimReward(
@@ -269,9 +269,9 @@ contract JoeVoterProxy is IJoeVoterProxy {
     }
 
     /**
-     * @notice Distribute PTP and bonus rewards
+     * @notice Distribute rewards
      * @dev Restricted to strategy with _pid
-     * @param _stakingContract Platypus Masterchef
+     * @param _stakingContract Masterchef
      * @param _pid PID
      */
     function distributeReward(

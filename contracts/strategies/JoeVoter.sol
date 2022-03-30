@@ -57,7 +57,7 @@ contract JoeVoter is IJoeVoter, Ownable, ERC20 {
      * @param _amount to deposit
      */
     function deposit(uint256 _amount) external {
-        require(depositsEnabled == true, "JoeVoter:deposits disabled");
+        require(depositsEnabled == true, "JoeVoter::deposits disabled");
         require(IERC20(JOE).transferFrom(msg.sender, address(this), _amount), "JoeVoter::transfer failed");
         _deposit(_amount);
     }
