@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.3;
 
-interface IMasterPlatypus {
+interface IMasterPlatypusV2 {
     function poolLength() external view returns (uint256);
 
     function pendingTokens(uint256 _pid, address _user)
@@ -66,6 +66,7 @@ interface IMasterPlatypus {
             uint256 _accPtpPerShare,
             address _rewarder,
             uint256 _sumOfFactors,
-            uint256 _accPtpPerFactorShare
+            uint256 _accPtpPerFactorShare,
+            uint256 _adjustedAllocPoint
         );
 }
