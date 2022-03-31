@@ -47,7 +47,7 @@ interface IPlatypusVoterProxy {
 
     function claimReward(address _stakingContract, uint256 _pid) external;
 
-    function approveStrategy(address _strategy) external;
+    function approveStrategy(address _stakingContract, address _strategy) external;
 
     function reinvestFeeBips() external view returns (uint256);
 }
