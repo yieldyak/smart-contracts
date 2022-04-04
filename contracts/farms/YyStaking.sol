@@ -70,6 +70,9 @@ contract YyStaking is Ownable {
     /// @notice Emitted when a user deposits
     event Deposit(address indexed user, uint256 amount, uint256 fee);
 
+    /// @notice Emitted when feeCollector changes the fee collector
+    event FeeCollectorChanged(address newFeeCollector, address oldFeeCollector);
+
     /// @notice Emitted when owner changes the deposit fee percentage
     event DepositFeeChanged(uint256 newFee, uint256 oldFee);
 
@@ -249,7 +252,10 @@ contract YyStaking is Ownable {
      * @return `_user`'s pending reward token
      */
     function pendingReward(address _user, IERC20 _token) external view returns (uint256) {
-        require(isRewardToken[_token], "YyStaking::wrong reward token");
+        if (!isRewardToken[_token]) {
+            return 0;
+        }
+
         UserInfo storage user = userInfo[_user];
         uint256 _totalDepositTokens = internalBalance;
         uint256 _accRewardTokenPerShare = accRewardPerShare[_token];
@@ -344,6 +350,17 @@ contract YyStaking is Ownable {
             _accruedReward.mul(ACC_REWARD_PER_SHARE_PRECISION).div(_totalDepositTokens)
         );
         lastRewardBalance[_token] = _rewardBalance;
+    }
+
+    /**
+     * @notice Update fee collector
+     * @dev Restricted to existing fee collector
+     * @param _newFeeCollector The address of the new fee collector
+     */
+    function updateFeeCollector(address _newFeeCollector) external {
+        require(msg.sender == feeCollector, "YyStaking::only feeCollector");
+        emit FeeCollectorChanged(_newFeeCollector, feeCollector);
+        feeCollector = _newFeeCollector;
     }
 
     /**
