@@ -76,7 +76,7 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
 
     function _withdrawFromStakingContract(uint256 _amount) internal override returns (uint256 _withdrawAmount) {
         uint256 lpBalance = echidnaRewardPool.balanceOf(address(this));
-        uint256 liquidity = _amount.mul(lpBalance).div(_getDepositBalance());
+        uint256 liquidity = _amount.mul(lpBalance).div(totalDeposits());
         liquidity = liquidity > lpBalance ? lpBalance : liquidity;
         echidnaBooster.withdraw(PID, liquidity, false, false, 0, type(uint256).max);
 
@@ -94,7 +94,8 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
 
     function _emergencyWithdraw() internal override {
         depositToken.approve(address(echidnaBooster), 0);
-        echidnaBooster.withdrawAll(PID, false);
+        uint256 lpBalance = echidnaRewardPool.balanceOf(address(this));
+        echidnaBooster.withdraw(PID, lpBalance, false, false, 0, type(uint256).max);
     }
 
     function _pendingRewards() internal view override returns (Reward[] memory) {
@@ -123,7 +124,7 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
         _boostFee = boosterFeeCollector.calculateBoostFee(address(this), _ptpAmount);
     }
 
-    function _getDepositBalance() internal view override returns (uint256 amount) {
+    function totalDeposits() public view override returns (uint256) {
         uint256 assetBalance = echidnaRewardPool.balanceOf(address(this));
         if (assetBalance == 0) return 0;
         (uint256 depositTokenBalance, uint256 fee, bool enoughCash) = platypusPool.quotePotentialWithdraw(

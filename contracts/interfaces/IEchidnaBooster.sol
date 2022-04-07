@@ -18,7 +18,12 @@ interface IEchidnaBooster {
         uint256 deadline
     ) external;
 
-    function withdrawAll(uint256 _pid, bool _claim) external;
+    function withdrawAll(
+        uint256 _pid,
+        bool _claim,
+        bool _unwrap,
+        uint256 _slippage
+    ) external;
 
     function pools(uint256 _pid)
         external
