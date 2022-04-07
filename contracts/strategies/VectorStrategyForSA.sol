@@ -58,27 +58,38 @@ contract VectorStrategyForSA is VariableRewardsStrategyForSA {
 
     function _emergencyWithdraw() internal override {
         depositToken.approve(address(vectorPoolHelper), 0);
-        vectorPoolHelper.withdraw(_getDepositBalance(), 0);
+        vectorPoolHelper.withdraw(totalDeposits(), 0);
     }
 
     function _pendingRewards() internal view override returns (Reward[] memory) {
-        Reward[] memory pendingRewards = new Reward[](2);
+        uint256 count = rewardCount;
+        Reward[] memory pendingRewards = new Reward[](count);
         (uint256 pendingVTX, uint256 pendingPTP) = vectorPoolHelper.earned(address(PTP));
         uint256 boostFee = boosterFeeCollector.calculateBoostFee(address(this), pendingPTP);
         pendingRewards[0] = Reward({reward: address(PTP), amount: pendingPTP.sub(boostFee)});
         pendingRewards[1] = Reward({reward: address(VTX), amount: pendingVTX});
+        uint256 offset = 2;
+        for (uint256 i = 0; i < count; i++) {
+            address rewardToken = supportedRewards[i];
+            if (rewardToken == address(PTP) || rewardToken == address(VTX)) {
+                continue;
+            }
+            (, uint256 pendingAdditionalReward) = vectorPoolHelper.earned(address(rewardToken));
+            pendingRewards[offset] = Reward({reward: rewardToken, amount: pendingAdditionalReward});
+            offset++;
+        }
         return pendingRewards;
     }
 
     function _getRewards() internal override {
         uint256 ptpBalanceBefore = PTP.balanceOf(address(this));
         vectorPoolHelper.getReward();
-        uint256 boostFee = PTP.balanceOf(address(this)).sub(ptpBalanceBefore);
-        boosterFeeCollector.calculateBoostFee(address(this), boostFee);
+        uint256 amount = PTP.balanceOf(address(this)).sub(ptpBalanceBefore);
+        uint256 boostFee = boosterFeeCollector.calculateBoostFee(address(this), amount);
         PTP.safeTransfer(address(boosterFeeCollector), boostFee);
     }
 
-    function _getDepositBalance() internal view override returns (uint256 amount) {
+    function totalDeposits() public view override returns (uint256) {
         return vectorPoolHelper.depositTokenBalance();
     }
 }
