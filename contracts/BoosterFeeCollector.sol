@@ -21,20 +21,28 @@ contract BoosterFeeCollector is Ownable, IBoosterFeeCollector {
     address public boosterFeeReceiver;
     bool paused = false;
 
+    event Paused(bool paused);
+    event BoostFeeReceiverUpdated(address oldValue, address newValue);
+    event BoostFeeUpdated(address strategy, uint256 oldValue, uint256 newValue);
+
     constructor(address _boosterFeeReceiver) {
         boosterFeeReceiver = _boosterFeeReceiver;
     }
 
     function setBoostFee(address _strategy, uint256 _boostFeeBips) external override onlyOwner {
+        require(_boostFeeBips <= BIPS_DIVISOR, "BoosterFeeCollector::Chosen boost fee too high");
+        emit BoostFeeUpdated(_strategy, boostFeeBips[_strategy], _boostFeeBips);
         boostFeeBips[_strategy] = _boostFeeBips;
     }
 
     function setBoosterFeeReceiver(address _boosterFeeReceiver) external override onlyOwner {
+        emit BoostFeeReceiverUpdated(boosterFeeReceiver, _boosterFeeReceiver);
         boosterFeeReceiver = _boosterFeeReceiver;
     }
 
     function setPaused(bool _paused) external override onlyOwner {
         paused = _paused;
+        emit Paused(_paused);
     }
 
     function calculateBoostFee(address _strategy, uint256 _amount) external view override returns (uint256) {
