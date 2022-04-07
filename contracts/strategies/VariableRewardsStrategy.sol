@@ -310,7 +310,9 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
             "VariableRewardsStrategy::Emergency withdraw minimum return amount not reached"
         );
         emit Reinvest(totalDeposits(), totalSupply);
-        updateDepositsEnabled(false);
+        if (DEPOSITS_ENABLED == true) {
+            updateDepositsEnabled(false);
+        }
     }
 
     function _bip() internal view virtual returns (uint256) {
