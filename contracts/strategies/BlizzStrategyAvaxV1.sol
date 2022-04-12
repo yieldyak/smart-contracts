@@ -72,7 +72,6 @@ contract BlizzStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         avToken = _avToken;
         avDebtToken = _avDebtToken;
 
-        setAllowances();
         updateMinTokensToReinvest(_strategySettings.minTokensToReinvest);
         updateAdminFee(_strategySettings.adminFeeBips);
         updateDevFee(_strategySettings.devFeeBips);
@@ -135,11 +134,30 @@ contract BlizzStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         (uint256 balance, uint256 borrowed, ) = _getAccountData();
         _unrollDebt(balance.sub(borrowed));
         _rollupDebt();
+        emit Reinvest(totalDeposits(), totalSupply);
     }
 
     function setAllowances() public override onlyOwner {
-        WAVAX.approve(address(tokenDelegator), type(uint256).max);
-        IERC20(avToken).approve(address(tokenDelegator), type(uint256).max);
+        revert("Deprecated");
+    }
+
+    function _redeemUnderlying(uint256 amount) private returns (uint256) {
+        IERC20(avToken).approve(address(tokenDelegator), amount);
+        uint256 withdrawn = tokenDelegator.withdraw(address(WAVAX), amount, address(this));
+        IERC20(avToken).approve(address(tokenDelegator), 0);
+        return withdrawn;
+    }
+
+    function _repayBorrow(uint256 amount) private {
+        WAVAX.approve(address(tokenDelegator), amount);
+        tokenDelegator.repay(address(WAVAX), amount, 2, address(this));
+        WAVAX.approve(address(tokenDelegator), 0);
+    }
+
+    function _depositCollateral(uint256 amount) private {
+        WAVAX.approve(address(tokenDelegator), 0);
+        tokenDelegator.deposit(address(WAVAX), amount, address(this), 0);
+        WAVAX.approve(address(tokenDelegator), amount);
     }
 
     function deposit() external payable override nonReentrant {
@@ -196,8 +214,11 @@ contract BlizzStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
     function _withdrawDepositTokens(uint256 amount) private returns (uint256) {
         _unrollDebt(amount);
         (uint256 balance, , ) = _getAccountData();
-        amount = amount > balance ? type(uint256).max : amount;
-        uint256 withdrawn = tokenDelegator.withdraw(address(WAVAX), amount, address(this));
+        if (amount > balance) {
+            // withdraws all
+            amount = type(uint256).max;
+        }
+        uint256 withdrawn = _redeemUnderlying(amount);
         WAVAX.withdraw(withdrawn);
         _rollupDebt();
         return withdrawn;
@@ -235,12 +256,17 @@ contract BlizzStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
             _safeTransfer(address(rewardToken), devAddr, devFee);
         }
 
+        uint256 adminFee = estimatedTotalReward.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
+        if (adminFee > 0) {
+            _safeTransfer(address(rewardToken), owner(), adminFee);
+        }
+
         uint256 reinvestFee = estimatedTotalReward.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
             _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
         }
 
-        _stakeDepositTokens(estimatedTotalReward.sub(devFee).sub(reinvestFee));
+        _stakeDepositTokens(estimatedTotalReward.sub(devFee).sub(adminFee).sub(reinvestFee));
 
         emit Reinvest(totalDeposits(), totalSupply);
     }
@@ -262,7 +288,7 @@ contract BlizzStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
                 0,
                 address(this)
             );
-            tokenDelegator.deposit(address(WAVAX), borrowable, address(this), 0);
+            _depositCollateral(borrowable);
             (balance, borrowed, borrowable) = _getAccountData();
         }
     }
@@ -282,8 +308,8 @@ contract BlizzStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
             if (unrollAmount > borrowed) {
                 unrollAmount = borrowed;
             }
-            tokenDelegator.withdraw(address(WAVAX), unrollAmount, address(this));
-            tokenDelegator.repay(address(WAVAX), unrollAmount, 2, address(this));
+            _redeemUnderlying(unrollAmount);
+            _repayBorrow(unrollAmount);
             (balance, borrowed, borrowable) = _getAccountData();
             if (targetBorrow >= borrowed) {
                 break;
@@ -294,7 +320,7 @@ contract BlizzStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
 
     function _stakeDepositTokens(uint256 amount) private {
         require(amount > 0, "BlizzStrategyAvaxV1::_stakeDepositTokens");
-        tokenDelegator.deposit(address(WAVAX), amount, address(this), 0);
+        _depositCollateral(amount);
         _rollupDebt();
     }
 
@@ -388,9 +414,11 @@ contract BlizzStrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         uint256 balanceBefore = WAVAX.balanceOf(address(this));
         (uint256 balance, uint256 borrowed, ) = _getAccountData();
         _unrollDebt(balance.sub(borrowed));
-        tokenDelegator.withdraw(address(WAVAX), type(uint256).max, address(this));
+        _redeemUnderlying(type(uint256).max);
         uint256 balanceAfter = WAVAX.balanceOf(address(this));
         require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "BlizzStrategyAvaxV1::rescueDeployedFunds");
+        IERC20(avToken).approve(address(tokenDelegator), 0);
+        WAVAX.approve(address(tokenDelegator), 0);
         emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
             updateDepositsEnabled(false);

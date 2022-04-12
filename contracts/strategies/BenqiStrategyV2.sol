@@ -60,7 +60,6 @@ contract BenqiStrategyV2 is YakStrategyV2 {
         _enterMarket();
 
         assignSwapPairSafely(_swapPairToken0, _swapPairToken1);
-        setAllowances();
         updateMinTokensToReinvest(_minTokensToReinvest);
         updateAdminFee(_adminFeeBips);
         updateDevFee(_devFeeBips);
@@ -163,8 +162,38 @@ contract BenqiStrategyV2 is YakStrategyV2 {
     }
 
     function setAllowances() public override onlyOwner {
-        depositToken.approve(address(tokenDelegator), type(uint256).max);
-        tokenDelegator.approve(address(tokenDelegator), type(uint256).max);
+        revert();
+    }
+
+    function _setAllowancesDepositToken(uint256 amount) private {
+        depositToken.approve(address(tokenDelegator), 0);
+        depositToken.approve(address(tokenDelegator), amount);
+    }
+
+    function _setAllowancesTokenDelegator(uint256 amount) private {
+        tokenDelegator.approve(address(tokenDelegator), 0);
+        tokenDelegator.approve(address(tokenDelegator), amount);
+    }
+
+    function _redeemUnderlying(uint256 amount) private {
+        _setAllowancesTokenDelegator(amount);
+        require(
+            tokenDelegator.redeemUnderlying(amount) == 0,
+            "BenqiStrategyV2::failed to redeem"
+        );
+    }
+
+    function _repayBorrow(uint256 amount) private {
+        _setAllowancesDepositToken(amount);
+        require(
+            tokenDelegator.repayBorrow(amount) == 0,
+            "BenqiStrategyV2::failed to repay borrow"
+        );
+    }
+
+    function _depositCollateral(uint256 amount) private {
+        _setAllowancesDepositToken(amount);
+        require(tokenDelegator.mint(amount) == 0, "BenqiStrategyV2::Deposit failed");
     }
 
     function deposit(uint256 amount) external override {
@@ -223,10 +252,7 @@ contract BenqiStrategyV2 is YakStrategyV2 {
 
     function _withdrawDepositTokens(uint256 amount) private {
         _unrollDebt(amount);
-        require(
-            tokenDelegator.redeemUnderlying(amount) == 0,
-            "BenqiStrategyV2::failed to redeem"
-        );
+        _redeemUnderlying(amount);
     }
 
     function reinvest() external override onlyEOA {
@@ -318,10 +344,7 @@ contract BenqiStrategyV2 is YakStrategyV2 {
                 tokenDelegator.borrow(toBorrowAmount) == 0,
                 "BenqiStrategyV2::borrowing failed"
             );
-            require(
-                tokenDelegator.mint(toBorrowAmount) == 0,
-                "BenqiStrategyV2::lending failed"
-            );
+            _depositCollateral(toBorrowAmount);
             supplied = tokenDelegator.balanceOfUnderlying(address(this));
             totalBorrowed = totalBorrowed.add(toBorrowAmount);
         }
@@ -375,14 +398,8 @@ contract BenqiStrategyV2 is YakStrategyV2 {
             if (unrollAmount > toRepay) {
                 unrollAmount = toRepay;
             }
-            require(
-                tokenDelegator.redeemUnderlying(unrollAmount) == 0,
-                "BenqiStrategyV2::failed to redeem"
-            );
-            require(
-                tokenDelegator.repayBorrow(unrollAmount) == 0,
-                "BenqiStrategyV2::failed to repay borrow"
-            );
+            _redeemUnderlying(unrollAmount);
+            _repayBorrow(unrollAmount);
             balance = tokenDelegator.balanceOfUnderlying(address(this));
             borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
             if (targetBorrow >= borrowed) {
@@ -394,7 +411,7 @@ contract BenqiStrategyV2 is YakStrategyV2 {
 
     function _stakeDepositTokens(uint256 amount) private {
         require(amount > 0, "BenqiStrategyV2::_stakeDepositTokens");
-        require(tokenDelegator.mint(amount) == 0, "BenqiStrategyV2::Deposit failed");
+        _depositCollateral(amount);
         uint256 borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
         uint256 principal = tokenDelegator.balanceOfUnderlying(address(this));
         _rollupDebt(principal, borrowed);
@@ -507,9 +524,8 @@ contract BenqiStrategyV2 is YakStrategyV2 {
         uint256 borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
         uint256 balance = tokenDelegator.balanceOfUnderlying(address(this));
         _unrollDebt(balance.sub(borrowed));
-        tokenDelegator.redeemUnderlying(
-            tokenDelegator.balanceOfUnderlying(address(this))
-        );
+        uint256 withdrawBalance = tokenDelegator.balanceOfUnderlying(address(this));
+        _redeemUnderlying(withdrawBalance);
         uint256 balanceAfter = depositToken.balanceOf(address(this));
         require(
             balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
