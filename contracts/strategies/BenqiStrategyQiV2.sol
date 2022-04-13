@@ -3,12 +3,11 @@ pragma experimental ABIEncoderV2;
 pragma solidity 0.7.3;
 
 import "./VariableRewardsStrategyForSA.sol";
-import "../lib/ExponentialNoError.sol";
-
 import "../interfaces/IBenqiUnitroller.sol";
 import "../interfaces/IBenqiERC20Delegator.sol";
+import "../lib/BenqiLibrary.sol";
 
-contract BenqiStrategyQiV2 is VariableRewardsStrategyForSA, ExponentialNoError {
+contract BenqiStrategyQiV2 is VariableRewardsStrategyForSA {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -93,35 +92,7 @@ contract BenqiStrategyQiV2 is VariableRewardsStrategyForSA, ExponentialNoError {
 
     function _calculateReward(uint8 tokenIndex, address account) internal view returns (uint256) {
         uint256 rewardAccrued = rewardController.rewardAccrued(tokenIndex, account);
-
-        Double memory supplyIndex = Double({mantissa: _supplyIndex(tokenIndex)});
-        Double memory supplierIndex = Double({
-            mantissa: rewardController.rewardSupplierIndex(tokenIndex, address(tokenDelegator), account)
-        });
-
-        if (supplierIndex.mantissa == 0 && supplyIndex.mantissa > 0) {
-            supplierIndex.mantissa = 1e36;
-        }
-        Double memory deltaIndex = supplyIndex.mantissa > 0 ? sub_(supplyIndex, supplierIndex) : Double({mantissa: 0});
-        uint256 supplyAccrued = mul_(tokenDelegator.balanceOf(account), deltaIndex);
-
+        uint256 supplyAccrued = BenqiLibrary.supplyAccrued(rewardController, tokenDelegator, tokenIndex, account);
         return rewardAccrued.add(supplyAccrued);
-    }
-
-    function _supplyIndex(uint8 rewardType) internal view returns (uint224) {
-        (uint224 supplyStateIndex, uint256 supplyStateTimestamp) = rewardController.rewardSupplyState(
-            rewardType,
-            address(tokenDelegator)
-        );
-        uint256 supplySpeed = rewardController.rewardSpeeds(rewardType, address(tokenDelegator));
-        uint256 deltaTimestamps = sub_(block.timestamp, uint256(supplyStateTimestamp));
-        if (deltaTimestamps > 0 && supplySpeed > 0) {
-            uint256 supplyTokens = IERC20(tokenDelegator).totalSupply();
-            uint256 qiAccrued = mul_(deltaTimestamps, supplySpeed);
-            Double memory ratio = supplyTokens > 0 ? fraction(qiAccrued, supplyTokens) : Double({mantissa: 0});
-            Double memory index = add_(Double({mantissa: supplyStateIndex}), ratio);
-            return uint224(index.mantissa);
-        }
-        return 0;
     }
 }

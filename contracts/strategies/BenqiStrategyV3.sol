@@ -5,12 +5,11 @@ import "../YakStrategyV2.sol";
 import "../interfaces/IBenqiUnitroller.sol";
 import "../interfaces/IBenqiERC20Delegator.sol";
 import "../interfaces/IWAVAX.sol";
-
 import "../interfaces/IERC20.sol";
 import "../lib/DexLibrary.sol";
-import "../lib/ExponentialNoError.sol";
+import "../lib/BenqiLibrary.sol";
 
-contract BenqiStrategyV3 is YakStrategyV2, ExponentialNoError {
+contract BenqiStrategyV3 is YakStrategyV2 {
     using SafeMath for uint256;
 
     IBenqiUnitroller private rewardController;
@@ -363,8 +362,8 @@ contract BenqiStrategyV3 is YakStrategyV2, ExponentialNoError {
     }
 
     function checkReward() public view override returns (uint256) {
-        uint256 qiRewards = _calculateReward(0, address(this));
-        uint256 avaxRewards = _calculateReward(1, address(this));
+        uint256 qiRewards = BenqiLibrary.calculateReward(rewardController, tokenDelegator, 0, address(this));
+        uint256 avaxRewards = BenqiLibrary.calculateReward(rewardController, tokenDelegator, 1, address(this));
 
         uint256 qiAsWavax = DexLibrary.estimateConversionThroughPair(
             qiRewards,
@@ -373,73 +372,6 @@ contract BenqiStrategyV3 is YakStrategyV2, ExponentialNoError {
             swapPairToken0
         );
         return avaxRewards.add(qiAsWavax);
-    }
-
-    function _calculateReward(uint8 tokenIndex, address account) internal view returns (uint256) {
-        uint256 rewardAccrued = rewardController.rewardAccrued(tokenIndex, account);
-
-        Double memory supplyIndex = Double({mantissa: _supplyIndex(tokenIndex)});
-        Double memory supplierIndex = Double({
-            mantissa: rewardController.rewardSupplierIndex(tokenIndex, address(tokenDelegator), account)
-        });
-
-        if (supplierIndex.mantissa == 0 && supplyIndex.mantissa > 0) {
-            supplierIndex.mantissa = 1e36;
-        }
-        Double memory deltaIndex = supplyIndex.mantissa > 0 ? sub_(supplyIndex, supplierIndex) : Double({mantissa: 0});
-        uint256 supplyAccrued = mul_(tokenDelegator.balanceOf(account), deltaIndex);
-
-        Double memory borrowerIndex = Double({
-            mantissa: rewardController.rewardBorrowerIndex(tokenIndex, address(tokenDelegator), account)
-        });
-
-        uint256 borrowAccrued = 0;
-        if (borrowerIndex.mantissa > 0) {
-            Exp memory marketBorrowIndex = Exp({mantissa: tokenDelegator.borrowIndex()});
-            Double memory borrowIndex = Double({mantissa: _borrowIndex(tokenIndex, marketBorrowIndex)});
-            if (borrowIndex.mantissa > 0) {
-                deltaIndex = sub_(borrowIndex, borrowerIndex);
-                uint256 borrowerAmount = div_(tokenDelegator.borrowBalanceStored(address(this)), marketBorrowIndex);
-                borrowAccrued = mul_(borrowerAmount, deltaIndex);
-            }
-        }
-
-        return rewardAccrued.add(supplyAccrued).add(borrowAccrued);
-    }
-
-    function _supplyIndex(uint8 rewardType) internal view returns (uint224) {
-        (uint224 supplyStateIndex, uint256 supplyStateTimestamp) = rewardController.rewardSupplyState(
-            rewardType,
-            address(tokenDelegator)
-        );
-
-        uint256 supplySpeed = rewardController.rewardSpeeds(rewardType, address(tokenDelegator));
-        uint256 deltaTimestamps = sub_(block.timestamp, uint256(supplyStateTimestamp));
-        if (deltaTimestamps > 0 && supplySpeed > 0) {
-            uint256 supplyTokens = IERC20(tokenDelegator).totalSupply();
-            uint256 qiAccrued = mul_(deltaTimestamps, supplySpeed);
-            Double memory ratio = supplyTokens > 0 ? fraction(qiAccrued, supplyTokens) : Double({mantissa: 0});
-            Double memory index = add_(Double({mantissa: supplyStateIndex}), ratio);
-            return safe224(index.mantissa, "new index exceeds 224 bits");
-        }
-        return 0;
-    }
-
-    function _borrowIndex(uint8 rewardType, Exp memory marketBorrowIndex) internal view returns (uint224) {
-        (uint224 borrowStateIndex, uint256 borrowStateTimestamp) = rewardController.rewardBorrowState(
-            rewardType,
-            address(tokenDelegator)
-        );
-        uint256 borrowSpeed = rewardController.rewardSpeeds(rewardType, address(tokenDelegator));
-        uint256 deltaTimestamps = sub_(block.timestamp, uint256(borrowStateTimestamp));
-        if (deltaTimestamps > 0 && borrowSpeed > 0) {
-            uint256 borrowAmount = div_(tokenDelegator.totalBorrows(), marketBorrowIndex);
-            uint256 qiAccrued = mul_(deltaTimestamps, borrowSpeed);
-            Double memory ratio = borrowAmount > 0 ? fraction(qiAccrued, borrowAmount) : Double({mantissa: 0});
-            Double memory index = add_(Double({mantissa: borrowStateIndex}), ratio);
-            return safe224(index.mantissa, "new index exceeds 224 bits");
-        }
-        return 0;
     }
 
     function getActualLeverage() public view returns (uint256) {
