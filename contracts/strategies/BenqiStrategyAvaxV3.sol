@@ -225,7 +225,7 @@ contract BenqiStrategyAvaxV3 is YakStrategyV2Payable, ReentrancyGuard {
         rewardController.claimReward(1, address(this), markets);
 
         uint256 avaxBalance = address(this).balance;
-        avaxBalance.sub(userDeposit);
+        avaxBalance = avaxBalance.sub(userDeposit);
         if (avaxBalance > 0) {
             WAVAX.deposit{value: avaxBalance}();
         }
@@ -241,19 +241,15 @@ contract BenqiStrategyAvaxV3 is YakStrategyV2Payable, ReentrancyGuard {
         }
 
         uint256 devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
-        uint256 adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
         uint256 reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
             _safeTransfer(address(rewardToken), devAddr, devFee);
-        }
-        if (adminFee > 0) {
-            _safeTransfer(address(rewardToken), owner(), adminFee);
         }
         if (reinvestFee > 0) {
             _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
         }
 
-        amount = amount.sub(devFee).sub(adminFee).sub(reinvestFee);
+        amount = amount.sub(devFee).sub(reinvestFee);
         WAVAX.withdraw(amount);
         _stakeDepositTokens(amount);
 
@@ -386,7 +382,10 @@ contract BenqiStrategyAvaxV3 is YakStrategyV2Payable, ReentrancyGuard {
         return totalDeposits();
     }
 
-    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
+    function rescueDeployedFunds(
+        uint256 minReturnAmountAccepted,
+        bool /*disableDeposits*/
+    ) external override onlyOwner {
         uint256 balanceBefore = address(this).balance;
         uint256 borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
         uint256 balance = tokenDelegator.balanceOfUnderlying(address(this));
@@ -395,7 +394,7 @@ contract BenqiStrategyAvaxV3 is YakStrategyV2Payable, ReentrancyGuard {
         uint256 balanceAfter = address(this).balance;
         require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "BenqiStrategyV1::rescueDeployedFunds");
         emit Reinvest(totalDeposits(), totalSupply);
-        if (DEPOSITS_ENABLED == true && disableDeposits == true) {
+        if (DEPOSITS_ENABLED == true) {
             updateDepositsEnabled(false);
         }
     }
