@@ -181,7 +181,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
     function withdraw(uint256 _amount) external override {
         uint256 depositTokenAmount = getDepositTokensForShares(_amount);
         require(depositTokenAmount > 0, "VariableRewardsStrategy::Withdraw amount too low");
-        uint256 withdrawAmount = _withdrawFromStakingContract(_amount);
+        uint256 withdrawAmount = _withdrawFromStakingContract(depositTokenAmount);
         uint256 withdrawFee = _calculateWithdrawFee(depositTokenAmount);
         depositToken.safeTransfer(msg.sender, withdrawAmount.sub(withdrawFee));
         _burn(msg.sender, _amount);
