@@ -34,10 +34,10 @@ contract EchidnaVoter is Ownable, IEchidnaVoter, ERC20 {
 
     /**
      * @notice veECD balance
-     * @return balance int128
+     * @return uint256 balance
      */
-    function veECDBalance() external view returns (int128 balance) {
-        (balance, ) = IVoteEscrow(ESCROW).locked(address(this));
+    function veECDBalance() external view returns (uint256) {
+        return IVoteEscrow(ESCROW).balanceOf(address(this));
     }
 
     /**

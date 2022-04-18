@@ -6,6 +6,8 @@ interface IVoteEscrow {
 
     function locked(address) external view returns (int128, uint256);
 
+    function balanceOf(address) external view returns (uint256);
+
     function increase_amount(uint256) external;
 
     function increase_unlock_time(uint256) external;
