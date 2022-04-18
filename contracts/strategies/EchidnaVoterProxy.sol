@@ -43,6 +43,7 @@ contract EchidnaVoterProxy is IEchidnaVoterProxy {
     IEchidnaVoter public immutable voter;
     address public devAddr;
     uint256 public boosterFee;
+    address public boosterFeeReceiver;
 
     // staking contract => pid => strategy
     mapping(address => mapping(uint256 => address)) private approvedStrategies;
@@ -60,11 +61,13 @@ contract EchidnaVoterProxy is IEchidnaVoterProxy {
     constructor(
         address _voter,
         address _devAddr,
-        uint256 _boosterFeeBips
+        uint256 _boosterFeeBips,
+        address _boosterFeeReceiver
     ) {
         devAddr = _devAddr;
         voter = IEchidnaVoter(_voter);
         boosterFee = _boosterFeeBips;
+        boosterFeeReceiver = _boosterFeeReceiver;
     }
 
     /**
@@ -89,6 +92,24 @@ contract EchidnaVoterProxy is IEchidnaVoterProxy {
             "EchidnaVoterProxy::Strategy for PID already added"
         );
         approvedStrategies[_stakingContract][pid] = _strategy;
+    }
+
+    /**
+     * @notice Update booster fee
+     * @dev Restricted to devAddr
+     * @param _boosterFeeBips new fee in bips (1% = 100 bips)
+     */
+    function setBoosterFee(uint256 _boosterFeeBips) external onlyDev {
+        boosterFee = _boosterFeeBips;
+    }
+
+    /**
+     * @notice Update booster fee receiver
+     * @dev Restricted to devAddr
+     * @param _boosterFeeReceiver address
+     */
+    function setBoosterFeeReceiver(address _boosterFeeReceiver) external onlyDev {
+        boosterFeeReceiver = _boosterFeeReceiver;
     }
 
     /**
@@ -206,9 +227,13 @@ contract EchidnaVoterProxy is IEchidnaVoterProxy {
     function _distributeReward() private {
         uint256 claimedECD = IERC20(ECD).balanceOf(address(voter));
         if (claimedECD > 0) {
-            uint256 reward = claimedECD.sub(_calculateBoostFee(claimedECD));
+            uint256 boostFee = _calculateBoostFee(claimedECD);
+            uint256 reward = claimedECD.sub(boostFee);
             voter.safeExecute(ECD, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, reward));
-            voter.lock();
+            if (boostFee > 0) {
+                voter.depositFromBalance(boostFee);
+                IERC20(address(voter)).safeTransfer(boosterFeeReceiver, boostFee);
+            }
         }
         uint256 claimedPTP = IERC20(PTP).balanceOf(address(voter));
         if (claimedPTP > 0) {
@@ -221,7 +246,7 @@ contract EchidnaVoterProxy is IEchidnaVoterProxy {
     }
 
     function _calculateBoostFee(uint256 amount) private view returns (uint256 boostFee) {
-        if (boosterFee > 0) {
+        if (boosterFeeReceiver > address(0) && voter.depositsEnabled()) {
             boostFee = amount.mul(boosterFee).div(BIPS_DIVISOR);
         }
     }

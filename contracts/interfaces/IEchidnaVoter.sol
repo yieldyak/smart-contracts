@@ -8,5 +8,7 @@ interface IEchidnaVoter {
         bytes calldata data
     ) external returns (bool, bytes memory);
 
-    function lock() external;
+    function depositFromBalance(uint256 _amount) external;
+
+    function depositsEnabled() external view returns (bool);
 }
