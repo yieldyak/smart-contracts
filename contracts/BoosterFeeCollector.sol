@@ -2,6 +2,7 @@
 pragma solidity 0.7.3;
 
 import "./interfaces/IPlatypusVoter.sol";
+import "./interfaces/IJoeVoter.sol";
 import "./interfaces/IBoosterFeeCollector.sol";
 import "./lib/Ownable.sol";
 import "./lib/ERC20.sol";
@@ -15,7 +16,9 @@ contract BoosterFeeCollector is Ownable, IBoosterFeeCollector {
     uint256 internal constant BIPS_DIVISOR = 10000;
 
     IERC20 public constant PTP = IERC20(0x22d4002028f537599bE9f666d1c4Fa138522f9c8);
-    IPlatypusVoter public constant VOTER = IPlatypusVoter(0x40089e90156Fc6F994cc0eC86dbe84634A1C156F);
+    IERC20 public constant JOE = IERC20(0x6e84a6216eA6dACC71eE8E6b0a5B7322EEbC0fDd);
+    IPlatypusVoter public constant yyPTP = IPlatypusVoter(0x40089e90156Fc6F994cc0eC86dbe84634A1C156F);
+    IJoeVoter public constant yyJOE = IJoeVoter(0xe7462905B79370389e8180E300F58f63D35B725F);
 
     mapping(address => uint256) public boostFeeBips;
     address public boosterFeeReceiver;
@@ -52,9 +55,19 @@ contract BoosterFeeCollector is Ownable, IBoosterFeeCollector {
     }
 
     function compound() external override {
-        uint256 amount = PTP.balanceOf(address(this));
-        PTP.approve(address(VOTER), amount);
-        VOTER.deposit(amount);
-        IERC20(address(VOTER)).safeTransfer(boosterFeeReceiver, amount);
+        uint256 amount;
+        if (yyPTP.depositsEnabled()) {
+            amount = PTP.balanceOf(address(this));
+            PTP.approve(address(yyPTP), amount);
+            yyPTP.deposit(amount);
+            IERC20(address(yyPTP)).safeTransfer(boosterFeeReceiver, amount);
+        }
+
+        if (yyJOE.depositsEnabled()) {
+            amount = JOE.balanceOf(address(this));
+            JOE.approve(address(yyJOE), amount);
+            yyJOE.deposit(amount);
+            IERC20(address(yyJOE)).safeTransfer(boosterFeeReceiver, amount);
+        }
     }
 }

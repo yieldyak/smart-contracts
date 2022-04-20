@@ -14,6 +14,8 @@ interface IJoeVoter {
 
     function depositsEnabled() external view returns (bool);
 
+    function deposit(uint256 _value) external;
+
     function depositFromBalance(uint256 _value) external;
 
     function setStakingContract(address _stakingContract) external;
