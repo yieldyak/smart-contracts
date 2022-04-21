@@ -357,9 +357,7 @@ contract AaveV3StrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
             .sub(balance.sub(borrowed).sub(amountToFreeUp));
         uint256 toRepay = borrowed.sub(targetBorrow);
         if (toRepay > 0) {
-            WAVAX.approve(address(tokenDelegator), toRepay);
-            tokenDelegator.repayWithATokens(address(depositToken), toRepay, 2);
-            WAVAX.approve(address(tokenDelegator), 0);
+            tokenDelegator.repayWithATokens(address(WAVAX), toRepay, 2);
         }
     }
 

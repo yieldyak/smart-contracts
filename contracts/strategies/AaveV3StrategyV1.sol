@@ -373,9 +373,7 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
             .sub(balance.sub(borrowed).sub(amountToFreeUp));
         uint256 toRepay = borrowed.sub(targetBorrow);
         if (toRepay > 0) {
-            depositToken.approve(address(tokenDelegator), toRepay);
             tokenDelegator.repayWithATokens(address(depositToken), toRepay, 2);
-            depositToken.approve(address(tokenDelegator), 0);
         }
     }
 
