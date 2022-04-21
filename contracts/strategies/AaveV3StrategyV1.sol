@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.3;
+pragma experimental ABIEncoderV2;
 
 import "../YakStrategyV2Payable.sol";
 import "../interfaces/IAaveV3IncentivesController.sol";
@@ -15,6 +16,38 @@ import "../lib/ReentrancyGuard.sol";
  */
 contract AaveV3StrategyV1 is YakStrategyV2 {
     using SafeMath for uint256;
+
+    struct Reward {
+        address reward;
+        uint256 amount;
+    }
+
+    struct RewardSwapPairs {
+        address reward;
+        address swapPair;
+    }
+
+    struct StrategySettings {
+        uint256 minTokensToReinvest;
+        uint256 adminFeeBips;
+        uint256 devFeeBips;
+        uint256 reinvestRewardBips;
+    }
+
+    struct LeverageSettings {
+        uint256 leverageLevel;
+        uint256 safetyFactor;
+        uint256 leverageBips;
+        uint256 minMinting;
+    }
+
+    // reward -> swapPair
+    mapping(address => address) public rewardSwapPairs;
+    address[] public supportedRewards;
+    uint256 public rewardCount;
+
+    event AddReward(address rewardToken, address swapPair);
+    event RemoveReward(address rewardToken);
 
     IAaveV3IncentivesController private rewardController;
     ILendingPoolAaveV3 private tokenDelegator;
@@ -33,38 +66,73 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
         address _tokenDelegator,
         address _depositToken,
         address _swapPairToken,
+        RewardSwapPairs[] memory _rewardSwapPairs,
         address _avToken,
         address _avDebtToken,
         address _timelock,
-        uint256 _leverageLevel,
-        uint256 _safetyFactor,
-        uint256 _leverageBips,
-        uint256 _minMinting,
-        uint256 _minTokensToReinvest,
-        uint256 _adminFeeBips,
-        uint256 _devFeeBips,
-        uint256 _reinvestRewardBips
+        LeverageSettings memory _leverageSettings,
+        StrategySettings memory _strategySettings
     ) {
         name = _name;
         rewardController = IAaveV3IncentivesController(_rewardController);
         tokenDelegator = ILendingPoolAaveV3(_tokenDelegator);
         rewardToken = IERC20(address(WAVAX));
-        _updateLeverage(_leverageLevel, _safetyFactor, _minMinting, _leverageBips);
+        _updateLeverage(
+            _leverageSettings.leverageLevel,
+            _leverageSettings.safetyFactor,
+            _leverageSettings.minMinting,
+            _leverageSettings.leverageBips
+        );
         devAddr = msg.sender;
         depositToken = IERC20(_depositToken);
         avToken = _avToken;
         avDebtToken = _avDebtToken;
-
         assignSwapPairSafely(_swapPairToken);
-        setAllowances();
-        updateMinTokensToReinvest(_minTokensToReinvest);
-        updateAdminFee(_adminFeeBips);
-        updateDevFee(_devFeeBips);
-        updateReinvestReward(_reinvestRewardBips);
+
+        for (uint256 i = 0; i < _rewardSwapPairs.length; i++) {
+            _addReward(_rewardSwapPairs[i].reward, _rewardSwapPairs[i].swapPair);
+        }
+
+        updateMinTokensToReinvest(_strategySettings.minTokensToReinvest);
+        updateAdminFee(_strategySettings.adminFeeBips);
+        updateDevFee(_strategySettings.devFeeBips);
+        updateReinvestReward(_strategySettings.reinvestRewardBips);
         updateDepositsEnabled(true);
         transferOwnership(_timelock);
 
         emit Reinvest(0, 0);
+    }
+
+    function addReward(address _rewardToken, address _swapPair) public onlyDev {
+        _addReward(_rewardToken, _swapPair);
+    }
+
+    function _addReward(address _rewardToken, address _swapPair) internal {
+        if (_rewardToken != address(rewardToken)) {
+            require(
+                DexLibrary.checkSwapPairCompatibility(IPair(_swapPair), _rewardToken, address(rewardToken)),
+                "VariableRewardsStrategy::Swap pair does not contain reward token"
+            );
+        }
+        rewardSwapPairs[_rewardToken] = _swapPair;
+        supportedRewards.push(_rewardToken);
+        rewardCount = rewardCount.add(1);
+        emit AddReward(_rewardToken, _swapPair);
+    }
+
+    function removeReward(address _rewardToken) public onlyDev {
+        delete rewardSwapPairs[_rewardToken];
+        bool found = false;
+        for (uint256 i = 0; i < supportedRewards.length; i++) {
+            if (_rewardToken == supportedRewards[i]) {
+                found = true;
+                supportedRewards[i] = supportedRewards[supportedRewards.length - 1];
+            }
+        }
+        require(found, "VariableRewardsStrategy::Reward to delete not found!");
+        supportedRewards.pop();
+        rewardCount = rewardCount.sub(1);
+        emit RemoveReward(_rewardToken);
     }
 
     function assignSwapPairSafely(address _swapPairToken) private {
@@ -81,7 +149,7 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
         IPair pair,
         IERC20 left,
         IERC20 right
-    ) private returns (bool) {
+    ) private pure returns (bool) {
         return pair.token0() == address(left) && pair.token1() == address(right);
     }
 
@@ -133,9 +201,8 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
         _rollupDebt();
     }
 
-    function setAllowances() public override onlyOwner {
-        IERC20(depositToken).approve(address(tokenDelegator), type(uint256).max);
-        IERC20(avToken).approve(address(tokenDelegator), type(uint256).max);
+    function setAllowances() public view override onlyOwner {
+        revert("setAllowances::deprecated");
     }
 
     function deposit(uint256 amount) external override {
@@ -160,9 +227,9 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
     function _deposit(address account, uint256 amount) private onlyAllowedDeposits {
         require(DEPOSITS_ENABLED == true, "AaveV3StrategyV1::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
-            uint256 avaxRewards = _checkRewards();
+            uint256 avaxRewards = checkReward();
             if (avaxRewards > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
-                _reinvest(avaxRewards);
+                _reinvest(true);
             }
         }
         require(depositToken.transferFrom(msg.sender, address(this), amount), "AaveV3StrategyV1::transfer failed");
@@ -193,30 +260,52 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
     }
 
     function reinvest() external override onlyEOA {
-        uint256 avaxRewards = _checkRewards();
-        require(avaxRewards >= MIN_TOKENS_TO_REINVEST, "AaveV3StrategyV1::reinvest");
-        _reinvest(avaxRewards);
+        _reinvest(false);
+    }
+
+    function _convertRewardsIntoWAVAX() private returns (uint256) {
+        uint256 avaxAmount = WAVAX.balanceOf(address(this));
+        uint256 count = supportedRewards.length;
+        for (uint256 i = 0; i < count; i++) {
+            address reward = supportedRewards[i];
+            if (reward == address(WAVAX)) {
+                uint256 balance = address(this).balance;
+                if (balance > 0) {
+                    WAVAX.deposit{value: balance}();
+                    avaxAmount = avaxAmount.add(balance);
+                }
+                continue;
+            }
+            uint256 amount = IERC20(reward).balanceOf(address(this));
+            if (amount > 0) {
+                address swapPair = rewardSwapPairs[reward];
+                if (swapPair > address(0)) {
+                    avaxAmount = avaxAmount.add(DexLibrary.swap(amount, reward, address(rewardToken), IPair(swapPair)));
+                }
+            }
+        }
+        return avaxAmount;
     }
 
     /**
      * @notice Reinvest rewards from staking contract to deposit tokens
      * @dev Reverts if the expected amount of tokens are not returned from `stakingContract`
-     * @param amount deposit tokens to reinvest
+     * @param userDeposit Ignores MIN_TOKENS_TO_REINVEST in case of a user deposit
      */
-    function _reinvest(uint256 amount) private {
+    function _reinvest(bool userDeposit) private {
         address[] memory assets = new address[](2);
         assets[0] = avToken;
         assets[1] = avDebtToken;
-        rewardController.claimRewards(assets, amount, address(this), address(WAVAX));
+        rewardController.claimAllRewards(assets, address(this));
+
+        uint256 amount = _convertRewardsIntoWAVAX();
+        if (!userDeposit) {
+            require(amount >= MIN_TOKENS_TO_REINVEST, "VariableRewardsStrategy::Reinvest amount too low");
+        }
 
         uint256 devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
             _safeTransfer(address(rewardToken), devAddr, devFee);
-        }
-
-        uint256 adminFee = amount.mul(ADMIN_FEE_BIPS).div(BIPS_DIVISOR);
-        if (adminFee > 0) {
-            _safeTransfer(address(rewardToken), owner(), adminFee);
         }
 
         uint256 reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
@@ -225,7 +314,7 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
         }
 
         uint256 depositTokenAmount = DexLibrary.swap(
-            amount.sub(devFee).sub(adminFee).sub(reinvestFee),
+            amount.sub(devFee).sub(reinvestFee),
             address(rewardToken),
             address(depositToken),
             swapPairToken
@@ -238,6 +327,7 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
     function _rollupDebt() internal {
         (uint256 balance, uint256 borrowed, uint256 borrowable) = _getAccountData();
         uint256 lendTarget = balance.sub(borrowed).mul(leverageLevel.sub(safetyFactor)).div(leverageBips);
+        depositToken.approve(address(tokenDelegator), lendTarget);
         while (balance < lendTarget) {
             if (balance.add(borrowable) > lendTarget) {
                 borrowable = lendTarget.sub(balance);
@@ -258,6 +348,7 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
             tokenDelegator.supply(address(depositToken), borrowable, address(this), 0);
             (balance, borrowed, borrowable) = _getAccountData();
         }
+        depositToken.approve(address(tokenDelegator), 0);
     }
 
     function _getRedeemable(
@@ -272,7 +363,7 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
     }
 
     function _unrollDebt(uint256 amountToFreeUp) internal {
-        (uint256 balance, uint256 borrowed, uint256 borrowable) = _getAccountData();
+        (uint256 balance, uint256 borrowed, ) = _getAccountData();
         uint256 targetBorrow = balance
             .sub(borrowed)
             .sub(amountToFreeUp)
@@ -280,14 +371,18 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
             .div(leverageBips)
             .sub(balance.sub(borrowed).sub(amountToFreeUp));
         uint256 toRepay = borrowed.sub(targetBorrow);
+        depositToken.approve(address(tokenDelegator), toRepay);
         if (toRepay > 0) {
             tokenDelegator.repayWithATokens(address(depositToken), toRepay, 2);
         }
+        depositToken.approve(address(tokenDelegator), 0);
     }
 
     function _stakeDepositTokens(uint256 amount) private {
         require(amount > 0, "AaveV3StrategyV1::_stakeDepositTokens");
+        depositToken.approve(address(tokenDelegator), amount);
         tokenDelegator.supply(address(depositToken), amount, address(this), 0);
+        depositToken.approve(address(tokenDelegator), 0);
         _rollupDebt();
     }
 
@@ -306,15 +401,32 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
         require(IERC20(token).transfer(to, value), "AaveV3StrategyV1::TRANSFER_FROM_FAILED");
     }
 
-    function _checkRewards() internal view returns (uint256 avaxAmount) {
+    function checkReward() public view override returns (uint256) {
         address[] memory assets = new address[](2);
         assets[0] = avToken;
         assets[1] = avDebtToken;
-        return rewardController.getUserRewards(assets, address(this), address(WAVAX));
-    }
-
-    function checkReward() public view override returns (uint256) {
-        return _checkRewards();
+        (address[] memory rewards, uint256[] memory amounts) = rewardController.getAllUserRewards(
+            assets,
+            address(this)
+        );
+        uint256 estimatedTotalReward = WAVAX.balanceOf(address(this));
+        estimatedTotalReward.add(address(this).balance);
+        for (uint256 i = 0; i < rewards.length; i++) {
+            address reward = rewards[i];
+            if (reward == address(WAVAX)) {
+                estimatedTotalReward = estimatedTotalReward.add(amounts[i]);
+            } else {
+                uint256 balance = IERC20(reward).balanceOf(address(this));
+                uint256 amount = balance.add(amounts[i]);
+                address swapPair = rewardSwapPairs[reward];
+                if (amount > 0 && swapPair > address(0)) {
+                    estimatedTotalReward = estimatedTotalReward.add(
+                        DexLibrary.estimateConversionThroughPair(amount, reward, address(WAVAX), IPair(swapPair))
+                    );
+                }
+            }
+        }
+        return estimatedTotalReward;
     }
 
     function getActualLeverage() public view returns (uint256) {
@@ -326,7 +438,10 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
         return totalDeposits();
     }
 
-    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
+    function rescueDeployedFunds(
+        uint256 minReturnAmountAccepted,
+        bool /*disableDeposits*/
+    ) external override onlyOwner {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         (uint256 balance, uint256 borrowed, ) = _getAccountData();
         _unrollDebt(balance.sub(borrowed));
@@ -334,7 +449,7 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
         uint256 balanceAfter = depositToken.balanceOf(address(this));
         require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "AaveV3StrategyV1::rescueDeployedFunds");
         emit Reinvest(totalDeposits(), totalSupply);
-        if (DEPOSITS_ENABLED == true && disableDeposits == true) {
+        if (DEPOSITS_ENABLED == true) {
             updateDepositsEnabled(false);
         }
     }
