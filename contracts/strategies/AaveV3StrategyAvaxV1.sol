@@ -79,10 +79,7 @@ contract AaveV3StrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         borrowed = IERC20(avDebtToken).balanceOf(address(this));
         borrowable = 0;
         if (balance.mul(leverageLevel.sub(leverageBips)).div(leverageLevel) > borrowed) {
-            borrowable = balance
-                .mul(leverageLevel.sub(leverageBips))
-                .div(leverageLevel)
-                .sub(borrowed);
+            borrowable = balance.mul(leverageLevel.sub(leverageBips)).div(leverageLevel).sub(borrowed);
         }
     }
 
@@ -184,11 +181,7 @@ contract AaveV3StrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
             // withdraws all
             amount = type(uint256).max;
         }
-        uint256 withdrawn = tokenDelegator.withdraw(
-            address(WAVAX),
-            amount,
-            address(this)
-        );
+        uint256 withdrawn = tokenDelegator.withdraw(address(WAVAX), amount, address(this));
         WAVAX.withdraw(withdrawn);
         _rollupDebt();
         return withdrawn;
@@ -233,10 +226,7 @@ contract AaveV3StrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
 
     function _rollupDebt() internal {
         (uint256 balance, uint256 borrowed, uint256 borrowable) = _getAccountData();
-        uint256 lendTarget = balance
-            .sub(borrowed)
-            .mul(leverageLevel.sub(safetyFactor))
-            .div(leverageBips);
+        uint256 lendTarget = balance.sub(borrowed).mul(leverageLevel.sub(safetyFactor)).div(leverageBips);
         while (balance < lendTarget) {
             if (balance.add(borrowable) > lendTarget) {
                 borrowable = lendTarget.sub(balance);
@@ -291,10 +281,7 @@ contract AaveV3StrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         address to,
         uint256 value
     ) private {
-        require(
-            IERC20(token).transfer(to, value),
-            "AaveStrategyAvaxV1::TRANSFER_FROM_FAILED"
-        );
+        require(IERC20(token).transfer(to, value), "AaveStrategyAvaxV1::TRANSFER_FROM_FAILED");
     }
 
     function _checkRewards() internal view returns (uint256 avaxAmount) {
@@ -317,20 +304,13 @@ contract AaveV3StrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         return totalDeposits();
     }
 
-    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits)
-        external
-        override
-        onlyOwner
-    {
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
         uint256 balanceBefore = WAVAX.balanceOf(address(this));
         (uint256 balance, uint256 borrowed, ) = _getAccountData();
         _unrollDebt(balance.sub(borrowed));
         tokenDelegator.withdraw(address(WAVAX), type(uint256).max, address(this));
         uint256 balanceAfter = WAVAX.balanceOf(address(this));
-        require(
-            balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
-            "AaveStrategyAvaxV1::rescueDeployedFunds"
-        );
+        require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "AaveStrategyAvaxV1::rescueDeployedFunds");
         emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
             updateDepositsEnabled(false);
