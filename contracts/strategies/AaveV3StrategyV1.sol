@@ -46,19 +46,20 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
     address[] public supportedRewards;
     uint256 public rewardCount;
 
-    event AddReward(address rewardToken, address swapPair);
-    event RemoveReward(address rewardToken);
+    uint256 public leverageLevel;
+    uint256 public safetyFactor;
+    uint256 public leverageBips;
+    uint256 public minMinting;
 
     IAaveV3IncentivesController private rewardController;
     ILendingPoolAaveV3 private tokenDelegator;
     IPair private swapPairToken;
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
-    uint256 private leverageLevel;
-    uint256 private safetyFactor;
-    uint256 private leverageBips;
-    uint256 private minMinting;
     address private avToken;
     address private avDebtToken;
+
+    event AddReward(address rewardToken, address swapPair);
+    event RemoveReward(address rewardToken);
 
     constructor(
         string memory _name,
@@ -371,18 +372,17 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
             .div(leverageBips)
             .sub(balance.sub(borrowed).sub(amountToFreeUp));
         uint256 toRepay = borrowed.sub(targetBorrow);
-        depositToken.approve(address(tokenDelegator), toRepay);
         if (toRepay > 0) {
+            depositToken.approve(address(tokenDelegator), toRepay);
             tokenDelegator.repayWithATokens(address(depositToken), toRepay, 2);
+            depositToken.approve(address(tokenDelegator), 0);
         }
-        depositToken.approve(address(tokenDelegator), 0);
     }
 
     function _stakeDepositTokens(uint256 amount) private {
         require(amount > 0, "AaveV3StrategyV1::_stakeDepositTokens");
         depositToken.approve(address(tokenDelegator), amount);
         tokenDelegator.supply(address(depositToken), amount, address(this), 0);
-        depositToken.approve(address(tokenDelegator), 0);
         _rollupDebt();
     }
 
