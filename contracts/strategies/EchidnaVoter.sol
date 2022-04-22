@@ -1,20 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.7.3;
 
-import "../interfaces/IWAVAX.sol";
 import "../interfaces/IEchidnaVoter.sol";
 import "../interfaces/IVoteEscrow.sol";
 import "../interfaces/IERC20.sol";
+import "../lib/SafeERC20.sol";
+import "../lib/SafeMath.sol";
 import "../lib/Ownable.sol";
 import "../lib/ERC20.sol";
-import "hardhat/console.sol";
 
 /**
  * @notice EchidnaVoter manages deposits for other strategies
  * using a proxy pattern.
  */
 contract EchidnaVoter is Ownable, IEchidnaVoter, ERC20 {
-    address public constant ESCROW = 0x721C2c768635D2b0147552861a0D8FDfde55C032;
+    using SafeERC20 for IERC20;
+    using SafeMath for uint256;
+
+    IVoteEscrow public constant ESCROW = IVoteEscrow(0x721C2c768635D2b0147552861a0D8FDfde55C032);
     IERC20 private constant ECD = IERC20(0xeb8343D5284CaEc921F035207ca94DB6BAaaCBcd);
     uint256 private constant MAXTIME = 2 * 365 * 86400;
     uint256 private constant WEEK = 7 * 86400;
@@ -23,8 +26,8 @@ contract EchidnaVoter is Ownable, IEchidnaVoter, ERC20 {
     bool private initialized;
     bool public override depositsEnabled = true;
 
-    modifier onlyEchidnaVoterProxy() {
-        require(msg.sender == voterProxy, "EchidnaVoter::onlyEchidnaVoterProxy");
+    modifier onlyProxy() {
+        require(msg.sender == voterProxy, "EchidnaVoter::onlyProxy");
         _;
     }
 
@@ -37,7 +40,7 @@ contract EchidnaVoter is Ownable, IEchidnaVoter, ERC20 {
      * @return uint256 balance
      */
     function veECDBalance() external view returns (uint256) {
-        return IVoteEscrow(ESCROW).balanceOf(address(this));
+        return ESCROW.balanceOf(address(this));
     }
 
     /**
@@ -65,11 +68,11 @@ contract EchidnaVoter is Ownable, IEchidnaVoter, ERC20 {
      */
     function deposit(uint256 _amount) external {
         require(depositsEnabled == true, "EchidnaVoter::deposits disabled");
-        require(IERC20(ECD).transferFrom(msg.sender, address(this), _amount), "EchidnaVoter::transfer failed");
+        require(ECD.transferFrom(msg.sender, address(this), _amount), "EchidnaVoter::transfer failed");
         _deposit(_amount);
     }
 
-    function depositFromBalance(uint256 _amount) external override onlyEchidnaVoterProxy {
+    function depositFromBalance(uint256 _amount) external override onlyProxy {
         require(depositsEnabled == true, "EchidnaVoter:deposits disabled");
         _deposit(_amount);
     }
@@ -78,25 +81,24 @@ contract EchidnaVoter is Ownable, IEchidnaVoter, ERC20 {
         _mint(msg.sender, _amount);
 
         if (initialized) {
-            ECD.approve(ESCROW, _amount);
-            IVoteEscrow(ESCROW).increase_amount(_amount);
-            ECD.approve(ESCROW, 0);
-            (, uint256 currentUnlockTime) = IVoteEscrow(ESCROW).locked(address(this));
-            uint256 unlockTime = block.timestamp + MAXTIME;
-            if ((unlockTime / WEEK) * WEEK > currentUnlockTime) {
-                IVoteEscrow(ESCROW).increase_unlock_time(unlockTime);
+            ECD.approve(address(ESCROW), _amount);
+            ESCROW.increase_amount(_amount);
+            ECD.approve(address(ESCROW), 0);
+            (, uint256 currentUnlockTime) = ESCROW.locked(address(this));
+            uint256 unlockTime = block.timestamp.add(MAXTIME);
+            if (unlockTime.div(WEEK).mul(WEEK) > currentUnlockTime) {
+                ESCROW.increase_unlock_time(unlockTime);
             }
         } else {
-            initLock();
+            _initLock(_amount);
         }
     }
 
-    function initLock() private {
-        uint256 amount = ECD.balanceOf(address(this));
-        uint256 unlockTime = block.timestamp + MAXTIME;
-        ECD.approve(ESCROW, amount);
-        IVoteEscrow(ESCROW).create_lock(amount, unlockTime);
-        ECD.approve(ESCROW, 0);
+    function _initLock(uint256 _amount) private {
+        uint256 unlockTime = block.timestamp.add(MAXTIME);
+        ECD.approve(address(ESCROW), _amount);
+        ESCROW.create_lock(_amount, unlockTime);
+        ECD.approve(address(ESCROW), 0);
         initialized = true;
     }
 
@@ -113,7 +115,7 @@ contract EchidnaVoter is Ownable, IEchidnaVoter, ERC20 {
         address target,
         uint256 value,
         bytes calldata data
-    ) external override onlyEchidnaVoterProxy returns (bool, bytes memory) {
+    ) external override onlyProxy returns (bool, bytes memory) {
         (bool success, bytes memory result) = target.call{value: value}(data);
 
         return (success, result);

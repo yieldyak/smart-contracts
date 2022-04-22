@@ -7,6 +7,7 @@ import "../interfaces/IEchidnaMasterChef.sol";
 import "../interfaces/IVeEcdRewardPool.sol";
 import "../interfaces/IEchidnaStrategyForLP.sol";
 import "../lib/SafeERC20.sol";
+import "../lib/SafeMath.sol";
 
 library SafeProxy {
     function safeExecute(

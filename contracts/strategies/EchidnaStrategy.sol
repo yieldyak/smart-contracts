@@ -6,10 +6,11 @@ import "../interfaces/IEchidnaBooster.sol";
 import "../interfaces/IEchidnaRewardPool.sol";
 import "../interfaces/IPlatypusPool.sol";
 import "../interfaces/IPlatypusAsset.sol";
-import "../interfaces/IMasterPlatypus.sol";
 import "../interfaces/IBoosterFeeCollector.sol";
 import "../lib/PlatypusLibrary.sol";
 import "./VariableRewardsStrategyForSA.sol";
+import "../lib/SafeERC20.sol";
+import "../lib/SafeMath.sol";
 
 contract EchidnaStrategy is VariableRewardsStrategyForSA {
     using SafeMath for uint256;
@@ -55,7 +56,7 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
         boosterFeeCollector = IBoosterFeeCollector(_boosterFeeCollector);
     }
 
-    function updateBoosterFeeCollector(address _collector) public onlyDev {
+    function updateBoosterFeeCollector(address _collector) public onlyOwner {
         boosterFeeCollector = IBoosterFeeCollector(_collector);
     }
 
