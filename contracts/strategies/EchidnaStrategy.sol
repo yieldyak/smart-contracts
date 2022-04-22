@@ -103,9 +103,9 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
         uint256 rewardCount = echidnaRewardPool.extraRewardsLength().add(1);
         Reward[] memory pendingRewards = new Reward[](rewardCount);
         (uint256 pendingPTP, uint256 boostFee) = _pendingPTP();
-        pendingRewards[0] = Reward({reward: echidnaRewardPool.rewardToken(), amount: pendingPTP.sub(boostFee)});
+        pendingRewards[0] = Reward({reward: address(PTP), amount: pendingPTP.sub(boostFee)});
         for (uint256 i = 1; i < rewardCount; i++) {
-            IEchidnaRewardPool extraRewardPool = IEchidnaRewardPool(echidnaRewardPool.extraRewards(i));
+            IEchidnaRewardPool extraRewardPool = IEchidnaRewardPool(echidnaRewardPool.extraRewards(i - 1));
             pendingRewards[i] = Reward({
                 reward: extraRewardPool.rewardToken(),
                 amount: extraRewardPool.earned(address(this))
