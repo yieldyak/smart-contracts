@@ -2,14 +2,13 @@
 pragma solidity 0.7.3;
 pragma experimental ABIEncoderV2;
 
-import "../YakStrategyV2Payable.sol";
+import "../YakStrategyV2.sol";
 import "../interfaces/IAaveV3IncentivesController.sol";
 import "../interfaces/ILendingPoolAaveV3.sol";
 import "../interfaces/IWAVAX.sol";
 import "../interfaces/IERC20.sol";
 import "../lib/SafeMath.sol";
 import "../lib/DexLibrary.sol";
-import "../lib/ReentrancyGuard.sol";
 
 /**
  * @title Aave strategy for ERC20
@@ -95,7 +94,6 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
         }
 
         updateMinTokensToReinvest(_strategySettings.minTokensToReinvest);
-        updateAdminFee(_strategySettings.adminFeeBips);
         updateDevFee(_strategySettings.devFeeBips);
         updateReinvestReward(_strategySettings.reinvestRewardBips);
         updateDepositsEnabled(true);

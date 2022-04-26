@@ -5,6 +5,8 @@ pragma solidity 0.7.3;
 import "../interfaces/IVectorPoolHelper.sol";
 import "../interfaces/IBoosterFeeCollector.sol";
 import "./VariableRewardsStrategyForSA.sol";
+import "../lib/SafeERC20.sol";
+import "../lib/SafeMath.sol";
 
 contract VectorStrategyForSA is VariableRewardsStrategyForSA {
     using SafeMath for uint256;
@@ -39,7 +41,7 @@ contract VectorStrategyForSA is VariableRewardsStrategyForSA {
         boosterFeeCollector = IBoosterFeeCollector(_boosterFeeCollector);
     }
 
-    function updateBoosterFeeCollector(address _collector) public onlyDev {
+    function updateBoosterFeeCollector(address _collector) public onlyOwner {
         boosterFeeCollector = IBoosterFeeCollector(_collector);
     }
 

@@ -38,7 +38,6 @@ contract BenqiStrategyV3 is YakStrategyV2 {
         uint256 _leverageLevel,
         uint256 _leverageBips,
         uint256 _minTokensToReinvest,
-        uint256 _adminFeeBips,
         uint256 _devFeeBips,
         uint256 _reinvestRewardBips
     ) {
@@ -61,7 +60,6 @@ contract BenqiStrategyV3 is YakStrategyV2 {
 
         assignSwapPairSafely(_swapPairToken0, _swapPairToken1);
         updateMinTokensToReinvest(_minTokensToReinvest);
-        updateAdminFee(_adminFeeBips);
         updateDevFee(_devFeeBips);
         updateReinvestReward(_reinvestRewardBips);
         updateDepositsEnabled(true);

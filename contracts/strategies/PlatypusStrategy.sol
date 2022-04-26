@@ -414,7 +414,7 @@ contract PlatypusStrategy is YakStrategyV2 {
         uint256 slippageAfter = _slippageFunc(k, n, c1, xThreshold, covAfter);
 
         // (Li + Di) * g(cov_after) - Li * g(cov_before)
-        return ((liability.add(amount)).wmul(slippageAfter)) - (liability.wmul(slippageBefore));
+        return ((liability.add(amount)).wmul(slippageAfter)).sub(liability.wmul(slippageBefore));
     }
 
     function _slippageFunc(
