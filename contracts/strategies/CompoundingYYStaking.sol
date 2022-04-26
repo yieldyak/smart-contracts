@@ -3,7 +3,6 @@ pragma experimental ABIEncoderV2;
 pragma solidity 0.7.3;
 
 import "../interfaces/IYYStaking.sol";
-import "../interfaces/IVoter.sol";
 import "./VariableRewardsStrategy.sol";
 
 contract CompoundingYYStaking is VariableRewardsStrategy {
@@ -13,8 +12,6 @@ contract CompoundingYYStaking is VariableRewardsStrategy {
     address public swapPairToken;
     address public swapPairPreSwap;
     address public preSwapToken;
-    address public voter;
-    bool public useVoter;
 
     constructor(
         string memory _name,
@@ -22,8 +19,6 @@ contract CompoundingYYStaking is VariableRewardsStrategy {
         address _preSwapToken,
         address _swapPairPreSwap,
         address _swapPairToken,
-        address _voter,
-        bool _useVoter,
         RewardSwapPairs[] memory _rewardSwapPairs,
         address _stakingContract,
         address _timelock,
@@ -32,13 +27,7 @@ contract CompoundingYYStaking is VariableRewardsStrategy {
         swapPairPreSwap = _swapPairPreSwap;
         swapPairToken = _swapPairToken;
         preSwapToken = _preSwapToken;
-        voter = _voter;
-        useVoter = _useVoter;
         stakingContract = IYYStaking(_stakingContract);
-    }
-
-    function setUseVoter(bool _useVoter) public onlyDev {
-        useVoter = _useVoter;
     }
 
     function _convertRewardTokenToDepositToken(uint256 _fromAmount) internal override returns (uint256 toAmount) {
@@ -49,12 +38,6 @@ contract CompoundingYYStaking is VariableRewardsStrategy {
                 address(preSwapToken),
                 IPair(swapPairPreSwap)
             );
-        }
-        if (useVoter) {
-            IERC20(preSwapToken).approve(address(voter), _fromAmount);
-            IVoter(voter).deposit(_fromAmount);
-            IERC20(preSwapToken).approve(address(voter), 0);
-            return _fromAmount;
         }
         return DexLibrary.swap(_fromAmount, address(preSwapToken), address(depositToken), IPair(swapPairToken));
     }
