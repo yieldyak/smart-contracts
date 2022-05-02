@@ -4,7 +4,6 @@ pragma solidity 0.7.3;
 import "../interfaces/IYetiVoter.sol";
 import "../interfaces/IYetiVoterProxy.sol";
 import "../interfaces/IYetiFarm.sol";
-import "../interfaces/IEchidnaStrategyForLP.sol";
 import "../lib/SafeERC20.sol";
 
 library SafeProxy {

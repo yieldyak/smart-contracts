@@ -8,7 +8,6 @@ import "../interfaces/IVeYeti.sol";
 import "../interfaces/IERC20.sol";
 import "../lib/Ownable.sol";
 import "../lib/ERC20.sol";
-import "hardhat/console.sol";
 
 /**
  * @notice YetiVoter manages deposits for other strategies
@@ -22,8 +21,8 @@ contract YetiVoter is Ownable, IYetiVoter, ERC20 {
     address public currentYetiRewarder;
     bool public override depositsEnabled = true;
 
-    modifier onlyYetiVoterProxy() {
-        require(msg.sender == voterProxy, "YetiVoter::onlyYetiVoterProxy");
+    modifier onlyProxy() {
+        require(msg.sender == voterProxy, "YetiVoter::onlyProxy");
         _;
     }
 
@@ -77,7 +76,7 @@ contract YetiVoter is Ownable, IYetiVoter, ERC20 {
         _deposit(_amount);
     }
 
-    function depositFromBalance(uint256 _amount) external override onlyYetiVoterProxy {
+    function depositFromBalance(uint256 _amount) external override onlyProxy {
         require(depositsEnabled == true, "YetiVoter:deposits disabled");
         _deposit(_amount);
     }
@@ -105,7 +104,7 @@ contract YetiVoter is Ownable, IYetiVoter, ERC20 {
         address target,
         uint256 value,
         bytes calldata data
-    ) external override onlyYetiVoterProxy returns (bool, bytes memory) {
+    ) external override onlyProxy returns (bool, bytes memory) {
         (bool success, bytes memory result) = target.call{value: value}(data);
 
         return (success, result);
