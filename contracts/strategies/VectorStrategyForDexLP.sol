@@ -6,6 +6,8 @@ import "../interfaces/IVectorMainStakingJoe.sol";
 import "../interfaces/IVectorJoePoolHelper.sol";
 import "../interfaces/IBoosterFeeCollector.sol";
 import "./VariableRewardsStrategyForLP.sol";
+import "../lib/SafeMath.sol";
+import "../lib/SafeERC20.sol";
 
 contract VectorStrategyForDexLP is VariableRewardsStrategyForLP {
     using SafeMath for uint256;
@@ -31,7 +33,7 @@ contract VectorStrategyForDexLP is VariableRewardsStrategyForLP {
         boosterFeeCollector = IBoosterFeeCollector(_boosterFeeCollector);
     }
 
-    function updateBoosterFeeCollector(address _collector) public onlyDev {
+    function updateBoosterFeeCollector(address _collector) public onlyOwner {
         boosterFeeCollector = IBoosterFeeCollector(_collector);
     }
 
