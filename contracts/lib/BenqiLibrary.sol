@@ -80,7 +80,7 @@ library BenqiLibrary {
             address(tokenDelegator)
         );
 
-        uint256 supplySpeed = rewardController.rewardSpeeds(rewardType, address(tokenDelegator));
+        uint256 supplySpeed = rewardController.supplyRewardSpeeds(rewardType, address(tokenDelegator));
         uint256 deltaTimestamps = Exponential.sub_(block.timestamp, uint256(supplyStateTimestamp));
         if (deltaTimestamps > 0 && supplySpeed > 0) {
             uint256 supplyTokens = IERC20(tokenDelegator).totalSupply();
@@ -104,7 +104,7 @@ library BenqiLibrary {
             rewardType,
             address(tokenDelegator)
         );
-        uint256 borrowSpeed = rewardController.rewardSpeeds(rewardType, address(tokenDelegator));
+        uint256 borrowSpeed = rewardController.borrowRewardSpeeds(rewardType, address(tokenDelegator));
         uint256 deltaTimestamps = Exponential.sub_(block.timestamp, uint256(borrowStateTimestamp));
         if (deltaTimestamps > 0 && borrowSpeed > 0) {
             uint256 borrowAmount = Exponential.div_(tokenDelegator.totalBorrows(), marketBorrowIndex);
