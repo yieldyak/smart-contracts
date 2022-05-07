@@ -21,7 +21,6 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
     uint256 public immutable PID;
 
     IEchidnaBooster public immutable echidnaBooster;
-    IEchidnaRewardPool public immutable echidnaRewardPool;
     IPlatypusPool public immutable platypusPool;
     IPlatypusAsset public immutable platypusAsset;
     IBoosterFeeCollector public boosterFeeCollector;
@@ -50,8 +49,6 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
         PID = _pid;
         platypusPool = IPlatypusPool(_platypusPool);
         echidnaBooster = IEchidnaBooster(_stakingContract);
-        (, , , address rewardPool, ) = IEchidnaBooster(_stakingContract).pools(_pid);
-        echidnaRewardPool = IEchidnaRewardPool(rewardPool);
         platypusAsset = IPlatypusAsset(IPlatypusPool(_platypusPool).assetOf(_depositToken));
         boosterFeeCollector = IBoosterFeeCollector(_boosterFeeCollector);
     }
@@ -76,7 +73,7 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
     }
 
     function _withdrawFromStakingContract(uint256 _amount) internal override returns (uint256 _withdrawAmount) {
-        uint256 lpBalance = echidnaRewardPool.balanceOf(address(this));
+        uint256 lpBalance = _echidnaRewardPool().balanceOf(address(this));
         uint256 liquidity = _amount.mul(lpBalance).div(totalDeposits());
         liquidity = liquidity > lpBalance ? lpBalance : liquidity;
         echidnaBooster.withdraw(PID, liquidity, false, false, 0, type(uint256).max);
@@ -95,11 +92,12 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
 
     function _emergencyWithdraw() internal override {
         depositToken.approve(address(echidnaBooster), 0);
-        uint256 lpBalance = echidnaRewardPool.balanceOf(address(this));
+        uint256 lpBalance = _echidnaRewardPool().balanceOf(address(this));
         echidnaBooster.withdraw(PID, lpBalance, false, false, 0, type(uint256).max);
     }
 
     function _pendingRewards() internal view override returns (Reward[] memory) {
+        IEchidnaRewardPool echidnaRewardPool = _echidnaRewardPool();
         uint256 rewardCount = echidnaRewardPool.extraRewardsLength().add(1);
         Reward[] memory pendingRewards = new Reward[](rewardCount);
         (uint256 pendingPTP, uint256 boostFee) = _pendingPTP();
@@ -116,17 +114,17 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
 
     function _getRewards() internal override {
         (, uint256 boostFee) = _pendingPTP();
-        echidnaRewardPool.getReward(address(this), true);
+        _echidnaRewardPool().getReward(address(this), true);
         PTP.safeTransfer(address(boosterFeeCollector), boostFee);
     }
 
     function _pendingPTP() internal view returns (uint256 _ptpAmount, uint256 _boostFee) {
-        _ptpAmount = echidnaRewardPool.earned(address(this));
+        _ptpAmount = _echidnaRewardPool().earned(address(this));
         _boostFee = boosterFeeCollector.calculateBoostFee(address(this), _ptpAmount);
     }
 
     function totalDeposits() public view override returns (uint256) {
-        uint256 assetBalance = echidnaRewardPool.balanceOf(address(this));
+        uint256 assetBalance = _echidnaRewardPool().balanceOf(address(this));
         if (assetBalance == 0) return 0;
         (uint256 depositTokenBalance, uint256 fee, bool enoughCash) = platypusPool.quotePotentialWithdraw(
             address(depositToken),
@@ -134,5 +132,10 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
         );
         require(enoughCash, "EchidnaStrategy::This shouldn't happen");
         return depositTokenBalance.add(fee);
+    }
+
+    function _echidnaRewardPool() internal view returns (IEchidnaRewardPool) {
+        (, , , address rewardPool, ) = IEchidnaBooster(address(echidnaBooster)).pools(PID);
+        return IEchidnaRewardPool(rewardPool);
     }
 }
