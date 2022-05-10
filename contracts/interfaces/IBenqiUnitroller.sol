@@ -43,7 +43,9 @@ interface IBenqiUnitroller {
         view
         returns (uint224 index, uint32 timestamp);
 
-    function rewardSpeeds(uint8 rewardType, address qiToken) external view returns (uint256);
+    function supplyRewardSpeeds(uint8 rewardType, address qiToken) external view returns (uint256);
+
+    function borrowRewardSpeeds(uint8 rewardType, address qiToken) external view returns (uint256);
 
     function rewardBorrowState(uint8 rewardType, address holder)
         external
