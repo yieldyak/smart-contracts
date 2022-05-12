@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.3;
+pragma solidity 0.8.13;
 
-import "../interfaces/IPlatypusVoter.sol";
 import "../interfaces/IBoosterFeeCollector.sol";
 import "../lib/AccessControl.sol";
 import "../lib/SafeERC20.sol";
 import "../lib/SafeMath.sol";
+
+import "../strategies/platypus/interfaces/IPlatypusVoter.sol";
 
 /**
  * @notice Role-based manager for collecting boost fees

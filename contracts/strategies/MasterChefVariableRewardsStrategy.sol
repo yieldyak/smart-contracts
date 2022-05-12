@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity 0.8.13;
 
 import "../YakStrategyV2.sol";
 import "../interfaces/IPair.sol";
@@ -23,13 +23,6 @@ abstract contract MasterChefVariableRewardsStrategy is YakStrategyV2 {
         address swapPair;
     }
 
-    struct StrategySettings {
-        uint256 minTokensToReinvest;
-        uint256 adminFeeBips;
-        uint256 devFeeBips;
-        uint256 reinvestRewardBips;
-    }
-
     uint256 public immutable PID;
     address private stakingContract;
 
@@ -48,7 +41,7 @@ abstract contract MasterChefVariableRewardsStrategy is YakStrategyV2 {
         address _timelock,
         uint256 _pid,
         StrategySettings memory _strategySettings
-    ) {
+    ) YakStrategyV2(_strategySettings) {
         name = _name;
         depositToken = IERC20(_depositToken);
         rewardToken = IERC20(_ecosystemToken);
@@ -61,10 +54,6 @@ abstract contract MasterChefVariableRewardsStrategy is YakStrategyV2 {
             _addReward(_extraRewards[i].reward, _extraRewards[i].swapPair);
         }
 
-        updateMinTokensToReinvest(_strategySettings.minTokensToReinvest);
-        updateAdminFee(_strategySettings.adminFeeBips);
-        updateDevFee(_strategySettings.devFeeBips);
-        updateReinvestReward(_strategySettings.reinvestRewardBips);
         updateDepositsEnabled(true);
         transferOwnership(_timelock);
         emit Reinvest(0, 0);
@@ -101,7 +90,7 @@ abstract contract MasterChefVariableRewardsStrategy is YakStrategyV2 {
      * @notice Approve tokens for use in Strategy
      * @dev Deprecated; approvals should be handled in context of staking
      */
-    function setAllowances() public override onlyOwner {
+    function setAllowances() public view override onlyOwner {
         revert("setAllowances::deprecated");
     }
 

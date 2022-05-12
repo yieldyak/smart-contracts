@@ -1,28 +1,46 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity 0.8.13;
 
 import "../lib/AccessControl.sol";
 
 interface IERC20 {
     function transfer(address recipient, uint256 amount) external returns (bool);
-    function balanceOf(address owner) external view returns (uint);
+
+    function balanceOf(address owner) external view returns (uint256);
 }
 
 interface IStrategy {
     function updateDevAddr(address newValue) external;
+
     // Joe
     function setExtraRewardSwapPair(address swapPair) external;
+
     // JoeLending
     function updateLeverage(uint256 _leverageLevel, uint256 _leverageBips) external;
+
     // Curve
     function updateCrvAvaxSwapPair(address swapPair) external;
+
     function updateMaxSwapSlippage(uint256 slippageBips) external;
+
     function removeReward(address rewardToken) external;
+
     function addReward(address rewardToken, address swapPair) external;
+
     // Benqi
-    function updateLeverage(uint256 _leverageLevel, uint256 _leverageBips, uint256 _redeemLimitSafetyMargin) external;
+    function updateLeverage(
+        uint256 _leverageLevel,
+        uint256 _leverageBips,
+        uint256 _redeemLimitSafetyMargin
+    ) external;
+
     // Aave
-    function updateLeverage(uint256 _leverageLevel, uint256 _safetyFactor, uint256 _minMinting, uint256 _leverageBips) external;
+    function updateLeverage(
+        uint256 _leverageLevel,
+        uint256 _safetyFactor,
+        uint256 _minMinting,
+        uint256 _leverageBips
+    ) external;
 }
 
 /**
@@ -30,7 +48,6 @@ interface IStrategy {
  * @dev YakFeeCollector may be used as `devAddr` on YakStrategy contracts
  */
 contract YakFeeCollectorV1 is AccessControl {
-
     /// @notice Role to sweep funds from this contract
     bytes32 public constant TOKEN_SWEEPER_ROLE = keccak256("TOKEN_SWEEPER_ROLE");
 
@@ -41,7 +58,7 @@ contract YakFeeCollectorV1 is AccessControl {
     bytes32 public constant DEV_ROLE = keccak256("DEV_ROLE");
 
     event SetDev(address indexed upgrader, address indexed strategy, address newValue);
-    event Sweep(address indexed sweeper, address indexed token, uint amount);
+    event Sweep(address indexed sweeper, address indexed token, uint256 amount);
 
     constructor(
         address _manager,
@@ -75,16 +92,15 @@ contract YakFeeCollectorV1 is AccessControl {
      * @param tokenAddress address
      * @param tokenAmount amount
      */
-    function sweepTokens(address tokenAddress, uint tokenAmount) external {
+    function sweepTokens(address tokenAddress, uint256 tokenAmount) external {
         require(hasRole(TOKEN_SWEEPER_ROLE, msg.sender), "sweepTokens::auth");
-        uint balance = IERC20(tokenAddress).balanceOf(address(this));
+        uint256 balance = IERC20(tokenAddress).balanceOf(address(this));
         if (balance < tokenAmount) {
             tokenAmount = balance;
         }
         require(tokenAmount > 0, "sweepTokens::balance");
         require(IERC20(tokenAddress).transfer(msg.sender, tokenAmount), "sweepTokens::transfer failed");
         emit Sweep(msg.sender, tokenAddress, tokenAmount);
-
     }
 
     /**
@@ -92,9 +108,9 @@ contract YakFeeCollectorV1 is AccessControl {
      * @dev Restricted to `TOKEN_SWEEPER_ROLE`
      * @param amount amount
      */
-    function sweepAVAX(uint amount) external {
+    function sweepAVAX(uint256 amount) external {
         require(hasRole(TOKEN_SWEEPER_ROLE, msg.sender), "sweepAVAX::auth");
-        uint balance = address(this).balance;
+        uint256 balance = address(this).balance;
         if (balance < amount) {
             amount = balance;
         }
@@ -111,17 +127,32 @@ contract YakFeeCollectorV1 is AccessControl {
         IStrategy(strategy).setExtraRewardSwapPair(swapPair);
     }
 
-    function updateLeverage(address strategy, uint leverageLevel, uint leverageBips) external {
+    function updateLeverage(
+        address strategy,
+        uint256 leverageLevel,
+        uint256 leverageBips
+    ) external {
         require(hasRole(DEV_ROLE, msg.sender), "execute::auth");
         IStrategy(strategy).updateLeverage(leverageLevel, leverageBips);
     }
 
-    function updateLeverage(address strategy, uint leverageLevel, uint leverageBips, uint redeemLimitSafetyMargin) external {
+    function updateLeverage(
+        address strategy,
+        uint256 leverageLevel,
+        uint256 leverageBips,
+        uint256 redeemLimitSafetyMargin
+    ) external {
         require(hasRole(DEV_ROLE, msg.sender), "execute::auth");
         IStrategy(strategy).updateLeverage(leverageLevel, leverageBips, redeemLimitSafetyMargin);
     }
 
-    function updateLeverage(address strategy, uint leverageLevel, uint safetyFactor, uint minMinting, uint leverageBips) external {
+    function updateLeverage(
+        address strategy,
+        uint256 leverageLevel,
+        uint256 safetyFactor,
+        uint256 minMinting,
+        uint256 leverageBips
+    ) external {
         require(hasRole(DEV_ROLE, msg.sender), "execute::auth");
         IStrategy(strategy).updateLeverage(leverageLevel, safetyFactor, minMinting, leverageBips);
     }
@@ -141,9 +172,12 @@ contract YakFeeCollectorV1 is AccessControl {
         IStrategy(strategy).removeReward(rewardToken);
     }
 
-    function addReward(address strategy, address rewardToken, address swapPair) external {
+    function addReward(
+        address strategy,
+        address rewardToken,
+        address swapPair
+    ) external {
         require(hasRole(DEV_ROLE, msg.sender), "execute::auth");
         IStrategy(strategy).addReward(rewardToken, swapPair);
-
     }
 }
