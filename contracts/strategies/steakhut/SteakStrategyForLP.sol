@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma experimental ABIEncoderV2;
-pragma solidity 0.7.3;
+pragma solidity 0.8.13;
 
-import "../interfaces/ISteakMasterChef.sol";
-import "../interfaces/IBoosterFeeCollector.sol";
-import "./VariableRewardsStrategyForLP.sol";
-import "../lib/SafeMath.sol";
-import "../lib/SafeERC20.sol";
+import "../VariableRewardsStrategyForLP.sol";
+import "../../interfaces/IBoosterFeeCollector.sol";
+import "../../lib/SafeMath.sol";
+import "../../lib/SafeERC20.sol";
+
+import "./interfaces/ISteakMasterChef.sol";
 
 contract SteakStrategyForLP is VariableRewardsStrategyForLP {
     using SafeMath for uint256;
