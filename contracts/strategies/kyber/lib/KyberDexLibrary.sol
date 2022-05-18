@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.3;
+pragma solidity 0.8.13;
 
-import "./SafeMath.sol";
+import "../../../lib/SafeMath.sol";
+import "../../../interfaces/IWAVAX.sol";
+
 import "../interfaces/IKyberPair.sol";
-import "../interfaces/IWAVAX.sol";
 
 library KyberDexLibrary {
     using SafeMath for uint256;

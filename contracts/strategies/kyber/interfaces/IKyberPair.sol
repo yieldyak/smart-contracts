@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.3;
+pragma solidity 0.8.13;
 
-import "./IERC20.sol";
+import "../../../interfaces/IERC20.sol";
 
 interface IKyberPair is IERC20 {
     function token0() external pure returns (address);

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
-pragma experimental ABIEncoderV2;
-pragma solidity 0.7.3;
+pragma solidity 0.8.13;
 
-import "../YakStrategyV2.sol";
-import "../interfaces/IPair.sol";
-import "../interfaces/IKyberPair.sol";
-import "../interfaces/IKyberFairLaunchV2.sol";
-import "../interfaces/IKyberRewardLockerV2.sol";
-import "../lib/KyberDexLibrary.sol";
-import "../lib/DexLibrary.sol";
-import "../lib/SafeERC20.sol";
+import "../../YakStrategyV2.sol";
+import "../../lib/DexLibrary.sol";
+import "../../lib/SafeERC20.sol";
+import "../../interfaces/IPair.sol";
+
+import "./interfaces/IKyberPair.sol";
+import "./interfaces/IKyberFairLaunchV2.sol";
+import "./interfaces/IKyberRewardLockerV2.sol";
+import "./lib/KyberDexLibrary.sol";
 
 /**
  * @notice KyberStrategy
@@ -29,13 +29,6 @@ contract KyberStrategy is YakStrategyV2 {
     struct RewardSwapPairs {
         address reward;
         address swapPair;
-    }
-
-    struct StrategySettings {
-        uint256 minTokensToReinvest;
-        uint256 adminFeeBips;
-        uint256 devFeeBips;
-        uint256 reinvestRewardBips;
     }
 
     struct SwapPairs {
@@ -67,7 +60,7 @@ contract KyberStrategy is YakStrategyV2 {
         uint256 _pid,
         address _timelock,
         StrategySettings memory _strategySettings
-    ) {
+    ) YakStrategyV2(_strategySettings) {
         name = _name;
         depositToken = IERC20(_depositToken);
         rewardToken = IERC20(address(WAVAX));
@@ -81,10 +74,6 @@ contract KyberStrategy is YakStrategyV2 {
         }
         assignSwapPairSafely(_swapPairs);
 
-        updateMinTokensToReinvest(_strategySettings.minTokensToReinvest);
-        updateAdminFee(_strategySettings.adminFeeBips);
-        updateDevFee(_strategySettings.devFeeBips);
-        updateReinvestReward(_strategySettings.reinvestRewardBips);
         updateDepositsEnabled(true);
         transferOwnership(_timelock);
         emit Reinvest(0, 0);
@@ -156,14 +145,6 @@ contract KyberStrategy is YakStrategyV2 {
         supportedRewards.pop();
         rewardCount = rewardCount.sub(1);
         emit RemoveReward(_rewardToken);
-    }
-
-    /**
-     * @notice Approve tokens for use in Strategy
-     * @dev Deprecated; approvals should be handled in context of staking
-     */
-    function setAllowances() public override onlyOwner {
-        revert("setAllowances::deprecated");
     }
 
     receive() external payable {
