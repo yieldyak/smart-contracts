@@ -131,14 +131,6 @@ contract BenqiStrategyAvaxV3 is YakStrategyV2Payable, ReentrancyGuard {
         swapPairToken0 = IPair(_swapPairToken0);
     }
 
-    /**
-     * @notice Approve tokens for use in Strategy
-     * @dev Deprecated; approvals should be handled in context of staking
-     */
-    function setAllowances() public view override onlyOwner {
-        revert("setAllowances::deprecated");
-    }
-
     function deposit() external payable override nonReentrant {
         _deposit(msg.sender, msg.value);
     }

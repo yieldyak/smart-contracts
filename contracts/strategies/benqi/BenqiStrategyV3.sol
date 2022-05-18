@@ -147,14 +147,6 @@ contract BenqiStrategyV3 is YakStrategyV2 {
         swapPairToken1 = IPair(_swapPairToken1);
     }
 
-    /**
-     * @notice Approve tokens for use in Strategy
-     * @dev Deprecated; approvals should be handled in context of staking
-     */
-    function setAllowances() public view override onlyOwner {
-        revert("setAllowances::deprecated");
-    }
-
     function deposit(uint256 amount) external override {
         _deposit(msg.sender, amount);
     }

@@ -115,7 +115,7 @@ contract JoeLendingStrategyAvaxV2 is YakStrategyV2Payable, ReentrancyGuard {
         swapPairToken0 = IPair(_swapPairToken0);
     }
 
-    function setAllowances() public override onlyOwner {
+    function setAllowances() public onlyOwner {
         tokenDelegator.approve(address(tokenDelegator), type(uint256).max);
     }
 

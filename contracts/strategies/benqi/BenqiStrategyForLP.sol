@@ -66,7 +66,7 @@ contract BenqiStrategyForLP is YakStrategy {
         return pair.token0() == address(left) && pair.token1() == address(right);
     }
 
-    function setAllowances() public override onlyOwner {
+    function setAllowances() public onlyOwner {
         depositToken.approve(address(stakingContract), MAX_UINT);
     }
 

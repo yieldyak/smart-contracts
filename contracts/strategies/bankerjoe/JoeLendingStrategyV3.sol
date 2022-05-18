@@ -137,7 +137,7 @@ contract JoeLendingStrategyV3 is YakStrategyV2 {
         swapPairToken1 = IPair(_swapPairToken1);
     }
 
-    function setAllowances() public override onlyOwner {
+    function setAllowances() public onlyOwner {
         depositToken.approve(address(tokenDelegator), type(uint256).max);
         tokenDelegator.approve(address(tokenDelegator), type(uint256).max);
     }

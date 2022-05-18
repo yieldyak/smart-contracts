@@ -189,10 +189,6 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
         _rollupDebt();
     }
 
-    function setAllowances() public view override onlyOwner {
-        revert("setAllowances::deprecated");
-    }
-
     function deposit(uint256 amount) external override {
         _deposit(msg.sender, amount);
     }

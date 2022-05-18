@@ -72,14 +72,6 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
         swapPairPoolReward = IPair(_swapPairPoolReward);
     }
 
-    /**
-     * @notice Approve tokens for use in Strategy
-     * @dev Deprecated; approvals should be handled in context of staking
-     */
-    function setAllowances() public view override onlyOwner {
-        revert("setAllowances::deprecated");
-    }
-
     function setExtraRewardSwapPair(address _extraTokenSwapPair) external onlyDev {
         _setExtraRewardSwapPair(_extraTokenSwapPair);
     }

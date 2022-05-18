@@ -87,14 +87,6 @@ contract PlatypusStrategy is YakStrategyV2 {
     }
 
     /**
-     * @notice Approve tokens for use in Strategy
-     * @dev Deprecated; approvals should be handled in context of staking
-     */
-    function setAllowances() public view override onlyOwner {
-        revert("setAllowances::deprecated");
-    }
-
-    /**
      * @notice Update extra reward swap pair (if applicable)
      * @dev Function name matches interface for FeeCollector
      */

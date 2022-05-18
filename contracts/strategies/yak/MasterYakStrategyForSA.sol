@@ -47,7 +47,7 @@ contract MasterYakStrategyForSA is YakStrategy {
 
     receive() external payable {}
 
-    function setAllowances() public override onlyOwner {
+    function setAllowances() public onlyOwner {
         depositToken.approve(address(stakingContract), MAX_UINT);
     }
 

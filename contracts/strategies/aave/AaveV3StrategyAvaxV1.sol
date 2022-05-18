@@ -173,10 +173,6 @@ contract AaveV3StrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         _rollupDebt();
     }
 
-    function setAllowances() public view override onlyOwner {
-        revert("setAllowances::deprecated");
-    }
-
     function deposit() external payable override nonReentrant {
         WAVAX.deposit{value: msg.value}();
         _deposit(msg.sender, msg.value);

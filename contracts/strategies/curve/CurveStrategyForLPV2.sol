@@ -63,7 +63,7 @@ contract CurveStrategyForLPV2 is YakStrategy {
         emit Reinvest(0, 0);
     }
 
-    function setAllowances() public override onlyOwner {
+    function setAllowances() public onlyOwner {
         depositToken.approve(address(stakingContract), type(uint256).max);
         IERC20(zapSettings.zapToken).approve(zapSettings.zapContract, type(uint256).max);
     }

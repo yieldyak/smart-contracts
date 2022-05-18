@@ -71,12 +71,6 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
     }
 
     /**
-     * @notice Approve tokens for use in Strategy
-     * @dev Should use modifier `onlyOwner` to avoid griefing
-     */
-    function setAllowances() public virtual;
-
-    /**
      * @notice Revoke token allowance
      * @param token address
      * @param spender address

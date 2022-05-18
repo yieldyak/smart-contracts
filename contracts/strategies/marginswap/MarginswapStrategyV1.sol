@@ -49,10 +49,6 @@ contract MarginswapStrategyV1 is YakStrategyV2 {
         return stakingContract.viewHourlyBondAmount(address(depositToken), address(this));
     }
 
-    function setAllowances() public view override onlyOwner {
-        revert("deprecated");
-    }
-
     function deposit(uint256 amount) external override {
         _deposit(msg.sender, amount);
     }

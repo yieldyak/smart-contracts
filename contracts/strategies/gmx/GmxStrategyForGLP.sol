@@ -38,14 +38,6 @@ contract GmxStrategyForGLP is YakStrategyV2 {
         emit Reinvest(0, 0);
     }
 
-    /**
-     * @notice Approve tokens for use in Strategy
-     * @dev Deprecated; approvals should be handled in context of staking
-     */
-    function setAllowances() public view override onlyOwner {
-        revert("setAllowances::deprecated");
-    }
-
     function setProxy(address _proxy) external onlyOwner {
         proxy = IGmxProxy(_proxy);
     }

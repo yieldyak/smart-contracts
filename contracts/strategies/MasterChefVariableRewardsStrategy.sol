@@ -87,14 +87,6 @@ abstract contract MasterChefVariableRewardsStrategy is YakStrategyV2 {
     }
 
     /**
-     * @notice Approve tokens for use in Strategy
-     * @dev Deprecated; approvals should be handled in context of staking
-     */
-    function setAllowances() public view override onlyOwner {
-        revert("setAllowances::deprecated");
-    }
-
-    /**
      * @notice Deposit tokens to receive receipt tokens
      * @param amount Amount of tokens to deposit
      */
