@@ -29,6 +29,7 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
     uint256 public MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST;
     bool public DEPOSITS_ENABLED;
 
+    uint256 public ADMIN_FEE_BIPS;
     uint256 public REINVEST_REWARD_BIPS;
     uint256 public DEV_FEE_BIPS;
 
@@ -210,6 +211,16 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
         require(newValue.add(REINVEST_REWARD_BIPS) <= BIPS_DIVISOR);
         emit UpdateDevFee(DEV_FEE_BIPS, newValue);
         DEV_FEE_BIPS = newValue;
+    }
+
+    /**
+     * @notice Update admin fee
+     * @param newValue fee in BIPS
+     */
+    function updateAdminFee(uint256 newValue) public onlyOwner {
+        require(newValue.add(DEV_FEE_BIPS).add(REINVEST_REWARD_BIPS) <= BIPS_DIVISOR);
+        emit UpdateAdminFee(ADMIN_FEE_BIPS, newValue);
+        ADMIN_FEE_BIPS = newValue;
     }
 
     /**
