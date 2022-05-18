@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.3;
-pragma experimental ABIEncoderV2;
+pragma solidity 0.8.13;
 
 import "./YakERC20.sol";
 import "./lib/SafeMath.sol";
@@ -8,7 +7,6 @@ import "./lib/Ownable.sol";
 import "./lib/EnumerableSet.sol";
 import "./lib/SafeERC20.sol";
 import "./lib/ReentrancyGuard.sol";
-import "./interfaces/IERC20.sol";
 import "./YakRegistry.sol";
 import "./YakStrategy.sol";
 

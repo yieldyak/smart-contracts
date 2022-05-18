@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.0;
+pragma solidity 0.8.13;
 
 import "./lib/SafeMath.sol";
 import "./lib/AccessControl.sol";
@@ -12,14 +12,14 @@ import "./interfaces/IWAVAX.sol";
  * @dev Epochs are used to stagger distributions
  */
 contract YakARC is AccessControl {
-    using SafeMath for uint;
+    using SafeMath for uint256;
 
     /// @notice Role to sweep funds from this contract (excluding AVAX/WAVAX)
     bytes32 public constant TOKEN_SWEEPER_ROLE = keccak256("TOKEN_SWEEPER_ROLE");
 
     /// @notice Role to update payees and ratio of payments
     bytes32 public constant DISTRIBUTION_UPDATER_ROLE = keccak256("DISTRIBUTION_UPDATER_ROLE");
-    
+
     /// @dev WAVAX
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
 
@@ -27,33 +27,33 @@ contract YakARC is AccessControl {
     YakFeeCollectorV1 public feeCollector;
 
     /// @notice Epoch of the last distribution
-    uint public lastPaymentEpoch;
+    uint256 public lastPaymentEpoch;
 
     /// @notice Start time of the first epoch
-    uint public immutable startTimestamp;
+    uint256 public immutable startTimestamp;
 
     /// @notice Minimum time between distributions
-    uint public constant epochLength = 86400; // 24 hours
+    uint256 public constant epochLength = 86400; // 24 hours
 
     /// @notice Array of payees. Upgradable
     address[] public distributionAddresses;
 
     /// @notice Array of payment ratios. Denominated in bips. Must sum to 10000 (100%). Upgradable
-    uint[] public distributionRatios;
+    uint256[] public distributionRatios;
 
-    event Sweep(address indexed sweeper, address token, uint amount);
-    event Paid(uint indexed epoch, address indexed payee, uint amount);
-    event Distribution(uint indexed epoch, address indexed by, uint amount);
-    event UpdateDistributions(address[] payee, uint[] ratioBips);
+    event Sweep(address indexed sweeper, address token, uint256 amount);
+    event Paid(uint256 indexed epoch, address indexed payee, uint256 amount);
+    event Distribution(uint256 indexed epoch, address indexed by, uint256 amount);
+    event UpdateDistributions(address[] payee, uint256[] ratioBips);
 
-    constructor (
+    constructor(
         address _manager,
         address _tokenSweeper,
         address _upgrader,
         address payable _feeCollector,
         address[] memory _distributionAddresses,
-        uint[] memory _distributionRatios,
-        uint _startTimestamp
+        uint256[] memory _distributionRatios,
+        uint256 _startTimestamp
     ) {
         _setupRole(DEFAULT_ADMIN_ROLE, _manager);
         _setupRole(TOKEN_SWEEPER_ROLE, _tokenSweeper);
@@ -65,7 +65,7 @@ contract YakARC is AccessControl {
         startTimestamp = _startTimestamp;
     }
 
-    function getDistributionLength() public view returns (uint) {
+    function getDistributionLength() public view returns (uint256) {
         return distributionAddresses.length;
     }
 
@@ -73,7 +73,7 @@ contract YakARC is AccessControl {
      * @notice Current distribution epoch
      * @return number of current epoch
      */
-    function currentEpoch() public view returns (uint) {
+    function currentEpoch() public view returns (uint256) {
         return block.timestamp.sub(startTimestamp).div(epochLength);
     }
 
@@ -81,7 +81,7 @@ contract YakARC is AccessControl {
      * @notice When the next distribution is allowed occur
      * @return timestamp of next epoch
      */
-    function nextEpoch() public view returns (uint) {
+    function nextEpoch() public view returns (uint256) {
         return startTimestamp.add(lastPaymentEpoch.add(1).mul(epochLength));
     }
 
@@ -89,19 +89,19 @@ contract YakARC is AccessControl {
      * @notice Current feeCollector balance in WAVAX+AVAX
      * @return balance
      */
-    function currentBalance() external view returns (uint) {
+    function currentBalance() external view returns (uint256) {
         return WAVAX.balanceOf(address(feeCollector)).add(address(feeCollector).balance);
     }
 
     function _sweepWAVAX() internal {
-        uint balance = WAVAX.balanceOf(address(feeCollector));
+        uint256 balance = WAVAX.balanceOf(address(feeCollector));
         if (balance > 0) {
             feeCollector.sweepTokens(address(WAVAX), balance);
         }
     }
 
     function _sweepAVAX() internal {
-        uint balance = address(feeCollector).balance;
+        uint256 balance = address(feeCollector).balance;
         if (balance > 0) {
             feeCollector.sweepAVAX(balance);
         }
@@ -117,10 +117,10 @@ contract YakARC is AccessControl {
         _sweepAVAX();
         _sweepWAVAX();
         WAVAX.withdraw(WAVAX.balanceOf(address(this)));
-        uint balance = address(this).balance;
-        uint totalPaid;
-        for (uint i; i < distributionAddresses.length; i++) {
-            uint amount = balance.mul(distributionRatios[i]).div(10000);
+        uint256 balance = address(this).balance;
+        uint256 totalPaid;
+        for (uint256 i; i < distributionAddresses.length; i++) {
+            uint256 amount = balance.mul(distributionRatios[i]).div(10000);
             if (amount > 0) {
                 totalPaid = totalPaid.add(amount);
                 (bool success, ) = distributionAddresses[i].call{value: amount}("");
@@ -139,11 +139,11 @@ contract YakARC is AccessControl {
      * @param tokenAddress address
      * @param tokenAmount amount
      */
-    function sweepTokens(address tokenAddress, uint tokenAmount) external {
+    function sweepTokens(address tokenAddress, uint256 tokenAmount) external {
         require(hasRole(TOKEN_SWEEPER_ROLE, msg.sender), "sweepTokens::auth");
         require(tokenAddress != address(WAVAX), "sweepTokens::not allowed");
         feeCollector.sweepTokens(tokenAddress, tokenAmount);
-        uint balance = IERC20(tokenAddress).balanceOf(address(this));
+        uint256 balance = IERC20(tokenAddress).balanceOf(address(this));
         if (balance < tokenAmount) {
             tokenAmount = balance;
         }
@@ -151,10 +151,10 @@ contract YakARC is AccessControl {
         emit Sweep(msg.sender, tokenAddress, tokenAmount);
     }
 
-    function _updateDistributions(address[] memory addresses, uint[] memory ratioBips) private {
+    function _updateDistributions(address[] memory addresses, uint256[] memory ratioBips) private {
         require(addresses.length == ratioBips.length, "_updateDistributions::different lengths");
-        uint sum;
-        for (uint i; i < addresses.length; i++) {
+        uint256 sum;
+        for (uint256 i; i < addresses.length; i++) {
             sum = sum.add(ratioBips[i]);
         }
         require(sum == 10000, "_updateDistributions::invalid ratioBips");
@@ -169,7 +169,7 @@ contract YakARC is AccessControl {
      * @param addresses payees
      * @param ratioBips payment ratios in bips, must add to 10000 // 100bps = 1%
      */
-    function updateDistributions(address[] calldata addresses, uint[] calldata ratioBips) external {
+    function updateDistributions(address[] calldata addresses, uint256[] calldata ratioBips) external {
         require(hasRole(DISTRIBUTION_UPDATER_ROLE, msg.sender), "updateDistributions::auth");
         _updateDistributions(addresses, ratioBips);
     }

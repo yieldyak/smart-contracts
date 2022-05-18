@@ -1,31 +1,48 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.3;
+pragma solidity 0.8.13;
 
 import "../lib/AccessControl.sol";
 import "../lib/SafeMath.sol";
 
 interface IERC20 {
     function transfer(address recipient, uint256 amount) external returns (bool);
+
     function balanceOf(address owner) external view returns (uint256);
 }
 
 interface IStrategy {
     function REINVEST_REWARD_BIPS() external view returns (uint256);
+
     function ADMIN_FEE_BIPS() external view returns (uint256);
+
     function DEV_FEE_BIPS() external view returns (uint256);
+
     function transferOwnership(address newOwner) external;
+
     function updateMinTokensToReinvest(uint256 newValue) external;
+
     function updateAdminFee(uint256 newValue) external;
+
     function updateDevFee(uint256 newValue) external;
+
     function updateDepositsEnabled(bool newValue) external;
+
     function updateMaxTokensToDepositWithoutReinvest(uint256 newValue) external;
+
     function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external;
+
     function updateReinvestReward(uint256 newValue) external;
+
     function recoverERC20(address tokenAddress, uint256 tokenAmount) external;
+
     function recoverAVAX(uint256 amount) external;
+
     function setAllowances() external;
+
     function revokeAllowance(address token, address spender) external;
+
     function allowDepositor(address depositor) external;
+
     function removeDepositor(address depositor) external;
 }
 
@@ -80,7 +97,7 @@ contract YakStrategyManagerV1 is AccessControl {
     event SetDepositsEnabled(address indexed strategy, bool newValue);
     event SetAllowances(address indexed strategy);
     event Recover(address indexed strategy, address indexed token, uint256 amount);
-    event Recovered(address token, uint amount);
+    event Recovered(address token, uint256 amount);
     event EmergencyWithdraw(address indexed strategy);
     event AllowDepositor(address indexed strategy, address indexed depositor);
     event RemoveDepositor(address indexed strategy, address indexed depositor);
@@ -141,16 +158,21 @@ contract YakStrategyManagerV1 is AccessControl {
      * @param devFeeBips platform fees
      * @param reinvestRewardBips reinvest reward
      */
-    function setFees(address strategy, uint256 adminFeeBips, uint256 devFeeBips, uint256 reinvestRewardBips) external {
+    function setFees(
+        address strategy,
+        uint256 adminFeeBips,
+        uint256 devFeeBips,
+        uint256 reinvestRewardBips
+    ) external {
         require(hasRole(FEE_SETTER_ROLE, msg.sender), "setFees::auth");
         require(adminFeeBips.add(devFeeBips).add(reinvestRewardBips) <= maxFeeBips, "setFees::Fees too high");
-        if (adminFeeBips != IStrategy(strategy).ADMIN_FEE_BIPS()){
+        if (adminFeeBips != IStrategy(strategy).ADMIN_FEE_BIPS()) {
             IStrategy(strategy).updateAdminFee(adminFeeBips);
         }
-        if (devFeeBips != IStrategy(strategy).DEV_FEE_BIPS()){
+        if (devFeeBips != IStrategy(strategy).DEV_FEE_BIPS()) {
             IStrategy(strategy).updateDevFee(devFeeBips);
         }
-        if (reinvestRewardBips != IStrategy(strategy).REINVEST_REWARD_BIPS()){
+        if (reinvestRewardBips != IStrategy(strategy).REINVEST_REWARD_BIPS()) {
             IStrategy(strategy).updateReinvestReward(reinvestRewardBips);
         }
         emit SetFees(strategy, adminFeeBips, devFeeBips, reinvestRewardBips);
@@ -174,8 +196,15 @@ contract YakStrategyManagerV1 is AccessControl {
      * @param token address
      * @param spender address
      */
-    function revokeAllowance(address strategy, address token, address spender) external {
-        require(hasRole(STRATEGY_DISABLER_ROLE, msg.sender) || hasRole(EMERGENCY_RESCUER_ROLE, msg.sender), "revokeAllowance::auth");
+    function revokeAllowance(
+        address strategy,
+        address token,
+        address spender
+    ) external {
+        require(
+            hasRole(STRATEGY_DISABLER_ROLE, msg.sender) || hasRole(EMERGENCY_RESCUER_ROLE, msg.sender),
+            "revokeAllowance::auth"
+        );
         IStrategy(strategy).revokeAllowance(token, spender);
     }
 
@@ -282,7 +311,11 @@ contract YakStrategyManagerV1 is AccessControl {
      * @param tokenAddress address
      * @param tokenAmount amount
      */
-    function recoverTokens(address strategy, address tokenAddress, uint256 tokenAmount) external {
+    function recoverTokens(
+        address strategy,
+        address tokenAddress,
+        uint256 tokenAmount
+    ) external {
         require(hasRole(EMERGENCY_SWEEPER_ROLE, msg.sender), "recoverTokens::auth");
         IStrategy(strategy).recoverERC20(tokenAddress, tokenAmount);
         _transferTokens(tokenAddress, tokenAmount);

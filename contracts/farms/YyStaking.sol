@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.3;
+pragma solidity 0.8.13;
 
 import "../lib/Ownable.sol";
 import "../lib/SafeMath.sol";
@@ -57,7 +57,7 @@ contract YyStaking is Ownable {
     uint256 public depositFeePercent;
 
     /// @dev The precision of `depositFeePercent`
-    uint256 constant internal DEPOSIT_FEE_PERCENT_PRECISION = 10000;
+    uint256 internal constant DEPOSIT_FEE_PERCENT_PRECISION = 10000;
 
     /// @notice Accumulated `token` rewards per share, scaled to `ACC_REWARD_PER_SHARE_PRECISION`
     mapping(IERC20 => uint256) public accRewardPerShare;
@@ -261,7 +261,9 @@ contract YyStaking is Ownable {
         uint256 _accRewardTokenPerShare = accRewardPerShare[_token];
 
         uint256 _currRewardBalance = _token.balanceOf(address(this));
-        uint256 _rewardBalance = _token == depositToken ? _currRewardBalance.sub(_totalDepositTokens) : _currRewardBalance;
+        uint256 _rewardBalance = _token == depositToken
+            ? _currRewardBalance.sub(_totalDepositTokens)
+            : _currRewardBalance;
 
         if (_rewardBalance != lastRewardBalance[_token] && _totalDepositTokens != 0) {
             uint256 _accruedReward = _rewardBalance.sub(lastRewardBalance[_token]);
@@ -337,7 +339,9 @@ contract YyStaking is Ownable {
         uint256 _totalDepositTokens = internalBalance;
 
         uint256 _currRewardBalance = _token.balanceOf(address(this));
-        uint256 _rewardBalance = _token == depositToken ? _currRewardBalance.sub(_totalDepositTokens) : _currRewardBalance;
+        uint256 _rewardBalance = _token == depositToken
+            ? _currRewardBalance.sub(_totalDepositTokens)
+            : _currRewardBalance;
 
         // Did YyStaking receive any token
         if (_rewardBalance == lastRewardBalance[_token] || _totalDepositTokens == 0) {

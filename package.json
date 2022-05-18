@@ -24,9 +24,12 @@
   "prettier": {
     "overrides": [
       {
-        "files": "*.sol",
+        "files": [
+          "*.sol",
+          "*.js"
+        ],
         "options": {
-          "printWidth": 89,
+          "printWidth": 120,
           "tabWidth": 4,
           "useTabs": false,
           "singleQuote": false,

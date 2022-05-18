@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.3;
+pragma solidity 0.8.13;
 
 import "../YakStrategyV2.sol";
 import "../interfaces/IPair.sol";
@@ -25,13 +25,6 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         address swapPair;
     }
 
-    struct StrategySettings {
-        uint256 minTokensToReinvest;
-        uint256 adminFeeBips;
-        uint256 devFeeBips;
-        uint256 reinvestRewardBips;
-    }
-
     // reward -> swapPair
     mapping(address => address) public rewardSwapPairs;
     address[] public supportedRewards;
@@ -46,7 +39,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         RewardSwapPairs[] memory _rewardSwapPairs,
         address _timelock,
         StrategySettings memory _strategySettings
-    ) {
+    ) YakStrategyV2(_strategySettings) {
         name = _name;
         depositToken = IERC20(_depositToken);
         rewardToken = IERC20(address(WAVAX));
@@ -56,10 +49,6 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
             _addReward(_rewardSwapPairs[i].reward, _rewardSwapPairs[i].swapPair);
         }
 
-        updateMinTokensToReinvest(_strategySettings.minTokensToReinvest);
-        updateAdminFee(_strategySettings.adminFeeBips);
-        updateDevFee(_strategySettings.devFeeBips);
-        updateReinvestReward(_strategySettings.reinvestRewardBips);
         updateDepositsEnabled(true);
         transferOwnership(_timelock);
         emit Reinvest(0, 0);
@@ -103,14 +92,6 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
 
     function calculateWithdrawFee(uint256 _amount) public view returns (uint256) {
         return _calculateWithdrawFee(_amount);
-    }
-
-    /**
-     * @notice Approve tokens for use in Strategy
-     * @dev Deprecated; approvals should be handled in context of staking
-     */
-    function setAllowances() public override onlyOwner {
-        revert("setAllowances::deprecated");
     }
 
     /**

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.3;
-pragma experimental ABIEncoderV2;
+pragma solidity 0.8.13;
 
 import "./lib/Ownable.sol";
 import "./lib/EnumerableSet.sol";
@@ -26,7 +25,6 @@ contract YakRegistry is Ownable {
         address rewardToken;
         uint256 minTokensToReinvest;
         uint256 maxTokensToDepositWithoutReinvest;
-        uint256 adminFeeBips;
         uint256 devFeeBips;
         uint256 reinvestRewardBips;
     }
@@ -64,7 +62,6 @@ contract YakRegistry is Ownable {
                 rewardToken: address(strategy.rewardToken()),
                 minTokensToReinvest: strategy.MIN_TOKENS_TO_REINVEST(),
                 maxTokensToDepositWithoutReinvest: strategy.MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST(),
-                adminFeeBips: strategy.ADMIN_FEE_BIPS(),
                 devFeeBips: strategy.DEV_FEE_BIPS(),
                 reinvestRewardBips: strategy.REINVEST_REWARD_BIPS()
             });
