@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma experimental ABIEncoderV2;
-pragma solidity 0.7.3;
+pragma solidity 0.8.13;
 
-import "../interfaces/IVectorMainStaking.sol";
-import "../interfaces/IVectorPoolHelperV2.sol";
-import "../interfaces/IBoosterFeeCollector.sol";
-import "./VariableRewardsStrategyForSA.sol";
-import "../lib/SafeERC20.sol";
-import "../lib/SafeMath.sol";
+import "../VariableRewardsStrategyForSA.sol";
+import "../../lib/SafeERC20.sol";
+import "../../lib/SafeMath.sol";
+import "../../interfaces/IBoosterFeeCollector.sol";
+
+import "./interfaces/IVectorMainStaking.sol";
+import "./interfaces/IVectorPoolHelperV2.sol";
 
 contract VectorStrategyForSAV2 is VariableRewardsStrategyForSA {
     using SafeMath for uint256;
