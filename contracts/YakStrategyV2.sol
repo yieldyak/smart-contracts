@@ -203,10 +203,11 @@ abstract contract YakStrategyV2 is YakERC20, Ownable, Permissioned {
 
     /**
      * @notice Update admin fee
-     * @param newValue fee in BIPS
+     * @dev Deprecated; Kept for compatibility
+     * @param newValue fee in BIPS; required to be 0
      */
     function updateAdminFee(uint256 newValue) public onlyOwner {
-        require(newValue.add(DEV_FEE_BIPS).add(REINVEST_REWARD_BIPS) <= BIPS_DIVISOR);
+        require(newValue == 0);
         emit UpdateAdminFee(ADMIN_FEE_BIPS, newValue);
         ADMIN_FEE_BIPS = newValue;
     }
