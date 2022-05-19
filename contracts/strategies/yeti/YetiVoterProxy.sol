@@ -120,7 +120,7 @@ contract YetiVoterProxy is IYetiVoterProxy {
     ) external override onlyStrategy(_stakingContract) {
         IERC20(_token).safeTransfer(address(voter), _amount);
         voter.safeExecute(_token, 0, abi.encodeWithSignature("approve(address,uint256)", _stakingContract, _amount));
-        voter.safeExecute(_stakingContract, 0, abi.encodeWithSignature("stake(uint256)", _amount));
+        voter.safeExecute(_stakingContract, 0, abi.encodeWithSignature("deposit(uint256)", _amount));
         voter.safeExecute(_token, 0, abi.encodeWithSignature("approve(address,uint256)", _stakingContract, 0));
     }
 
@@ -159,7 +159,7 @@ contract YetiVoterProxy is IYetiVoterProxy {
      * @param _stakingContract Masterchef
      */
     function pendingRewards(address _stakingContract) external view override returns (uint256 pendingYETI) {
-        pendingYETI = IYetiFarm(_stakingContract).earned(address(voter));
+        pendingYETI = IYetiFarm(_stakingContract).pendingTokens(address(voter));
         pendingYETI = pendingYETI.sub(_calculateBoostFee(pendingYETI));
     }
 
@@ -169,7 +169,7 @@ contract YetiVoterProxy is IYetiVoterProxy {
      * @return balance in depositToken
      */
     function poolBalance(address _stakingContract) external view override returns (uint256 balance) {
-        return IYetiFarm(_stakingContract).balanceOf(address(voter));
+        (balance, , ) = IYetiFarm(_stakingContract).userInfo(address(voter));
     }
 
     /**
@@ -177,7 +177,7 @@ contract YetiVoterProxy is IYetiVoterProxy {
      * @param _stakingContract Masterchef
      */
     function claimReward(address _stakingContract) external override onlyStrategy(_stakingContract) {
-        voter.safeExecute(_stakingContract, 0, abi.encodeWithSignature("getReward()"));
+        voter.safeExecute(_stakingContract, 0, abi.encodeWithSignature("withdraw(uint256)", 0));
         uint256 claimedYETI = YETI.balanceOf(address(voter));
         if (claimedYETI > 0) {
             uint256 boostFee = _calculateBoostFee(claimedYETI);

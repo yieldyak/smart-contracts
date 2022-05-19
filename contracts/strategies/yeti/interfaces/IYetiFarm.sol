@@ -2,13 +2,18 @@
 pragma solidity 0.8.13;
 
 interface IYetiFarm {
-    function stake(uint256 amount) external;
+    function deposit(uint256 amount) external;
 
     function withdraw(uint256 amount) external;
 
-    function earned(address account) external view returns (uint256);
+    function pendingTokens(address account) external view returns (uint256);
 
-    function getReward() external;
-
-    function balanceOf(address account) external view returns (uint256);
+    function userInfo(address account)
+        external
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256
+        );
 }
