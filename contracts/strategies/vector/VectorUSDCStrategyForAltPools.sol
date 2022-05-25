@@ -19,12 +19,12 @@ contract VectorUSDCStrategyForAltPools is VariableRewardsStrategyForSA {
     IVectorMainStaking public immutable vectorMainStaking;
     IBoosterFeeCollector public boosterFeeCollector;
 
-    address public immutable vectorAsset;
+    address public immutable platypusAsset;
 
     constructor(
         string memory _name,
         address _depositToken,
-        address _vectorAsset,
+        address _platypusAsset,
         address _swapPairDepositToken,
         RewardSwapPairs[] memory _rewardSwapPairs,
         address _stakingContract,
@@ -42,7 +42,7 @@ contract VectorUSDCStrategyForAltPools is VariableRewardsStrategyForSA {
         )
     {
         vectorMainStaking = IVectorMainStaking(_stakingContract);
-        vectorAsset = _vectorAsset;
+        platypusAsset = _platypusAsset;
         boosterFeeCollector = IBoosterFeeCollector(_boosterFeeCollector);
     }
 
@@ -104,7 +104,7 @@ contract VectorUSDCStrategyForAltPools is VariableRewardsStrategyForSA {
     }
 
     function _vectorPoolHelper() private view returns (IVectorPoolHelperV2) {
-        (, , , , , , , , address helper) = vectorMainStaking.getPoolInfo(vectorAsset);
+        (, , , , , , , , address helper) = vectorMainStaking.getPoolInfo(platypusAsset);
         return IVectorPoolHelperV2(helper);
     }
 }
