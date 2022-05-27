@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "../VariableRewardsStrategyForLP.sol";
+import "../VariableRewardsStrategyForLPV2.sol";
 import "../../interfaces/IBoosterFeeCollector.sol";
 import "../../lib/SafeMath.sol";
 import "../../lib/SafeERC20.sol";
 
 import "./interfaces/ISteakMasterChef.sol";
 
-contract SteakStrategyForLP is VariableRewardsStrategyForLP {
+contract SteakStrategyForLP is VariableRewardsStrategyForLPV2 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -19,16 +19,14 @@ contract SteakStrategyForLP is VariableRewardsStrategyForLP {
     IBoosterFeeCollector public boosterFeeCollector;
 
     constructor(
-        string memory _name,
-        address _depositToken,
         SwapPairs memory _swapPairs,
         RewardSwapPairs[] memory _rewardSwapPairs,
         address _stakingContract,
         uint256 _pid,
         address _boosterFeeCollector,
-        address _timelock,
+        BaseSettings memory _baseSettings,
         StrategySettings memory _strategySettings
-    ) VariableRewardsStrategyForLP(_name, _depositToken, _swapPairs, _rewardSwapPairs, _timelock, _strategySettings) {
+    ) VariableRewardsStrategyForLPV2(_swapPairs, _rewardSwapPairs, _baseSettings, _strategySettings) {
         steakMasterChef = ISteakMasterChef(_stakingContract);
         boosterFeeCollector = IBoosterFeeCollector(_boosterFeeCollector);
         PID = _pid;
@@ -39,9 +37,9 @@ contract SteakStrategyForLP is VariableRewardsStrategyForLP {
     }
 
     function _depositToStakingContract(uint256 _amount) internal override {
-        depositToken.approve(address(steakMasterChef), _amount);
+        IERC20(asset).approve(address(steakMasterChef), _amount);
         steakMasterChef.deposit(PID, _amount);
-        depositToken.approve(address(steakMasterChef), 0);
+        IERC20(asset).approve(address(steakMasterChef), 0);
     }
 
     function _withdrawFromStakingContract(uint256 _amount) internal override returns (uint256 _withdrawAmount) {
@@ -50,7 +48,7 @@ contract SteakStrategyForLP is VariableRewardsStrategyForLP {
     }
 
     function _emergencyWithdraw() internal override {
-        depositToken.approve(address(steakMasterChef), 0);
+        IERC20(asset).approve(address(steakMasterChef), 0);
         steakMasterChef.withdraw(PID, totalDeposits());
     }
 
@@ -70,7 +68,7 @@ contract SteakStrategyForLP is VariableRewardsStrategyForLP {
         JOE.safeTransfer(address(boosterFeeCollector), boostFee);
     }
 
-    function totalDeposits() public view override returns (uint256) {
+    function totalAssets() public view override returns (uint256) {
         (uint256 amount, ) = steakMasterChef.userInfo(PID, address(this));
         return amount;
     }

@@ -3,7 +3,6 @@ pragma solidity 0.8.13;
 
 import "./EnumerableSet.sol";
 import "./Address.sol";
-import "./Context.sol";
 
 /**
  * @dev Contract module that allows children to implement role-based access
@@ -40,7 +39,7 @@ import "./Context.sol";
  * grant and revoke this role. Extra precautions should be taken to secure
  * accounts that have been granted it.
  */
-abstract contract AccessControl is Context {
+abstract contract AccessControl {
     using EnumerableSet for EnumerableSet.AddressSet;
     using Address for address;
 
@@ -132,7 +131,7 @@ abstract contract AccessControl is Context {
      * - the caller must have ``role``'s admin role.
      */
     function grantRole(bytes32 role, address account) public virtual {
-        require(hasRole(_roles[role].adminRole, _msgSender()), "AccessControl: sender must be an admin to grant");
+        require(hasRole(_roles[role].adminRole, msg.sender), "AccessControl: sender must be an admin to grant");
 
         _grantRole(role, account);
     }
@@ -147,7 +146,7 @@ abstract contract AccessControl is Context {
      * - the caller must have ``role``'s admin role.
      */
     function revokeRole(bytes32 role, address account) public virtual {
-        require(hasRole(_roles[role].adminRole, _msgSender()), "AccessControl: sender must be an admin to revoke");
+        require(hasRole(_roles[role].adminRole, msg.sender), "AccessControl: sender must be an admin to revoke");
 
         _revokeRole(role, account);
     }
@@ -167,7 +166,7 @@ abstract contract AccessControl is Context {
      * - the caller must be `account`.
      */
     function renounceRole(bytes32 role, address account) public virtual {
-        require(account == _msgSender(), "AccessControl: can only renounce roles for self");
+        require(account == msg.sender, "AccessControl: can only renounce roles for self");
 
         _revokeRole(role, account);
     }
@@ -204,13 +203,13 @@ abstract contract AccessControl is Context {
 
     function _grantRole(bytes32 role, address account) private {
         if (_roles[role].members.add(account)) {
-            emit RoleGranted(role, account, _msgSender());
+            emit RoleGranted(role, account, msg.sender);
         }
     }
 
     function _revokeRole(bytes32 role, address account) private {
         if (_roles[role].members.remove(account)) {
-            emit RoleRevoked(role, account, _msgSender());
+            emit RoleRevoked(role, account, msg.sender);
         }
     }
 }
