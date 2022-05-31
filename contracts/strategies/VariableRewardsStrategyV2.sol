@@ -155,7 +155,7 @@ abstract contract VariableRewardsStrategyV2 is YakStrategyV3 {
     function previewWithdraw(uint256 _assets) public view override returns (uint256) {
         uint256 withdrawFee = _calculateWithdrawFee(_assets);
         uint256 maxSlippage = _calculateMaxSlippage(_assets);
-        return convertToShares(_assets - withdrawFee - maxSlippage);
+        return convertToShares(_assets + withdrawFee + maxSlippage);
     }
 
     function previewRedeem(uint256 _shares) public view override returns (uint256) {
@@ -245,20 +245,6 @@ abstract contract VariableRewardsStrategyV2 is YakStrategyV3 {
             }
         }
         return estimatedTotalReward;
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            ACCOUNTING
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Estimate recoverable balance after withdraw fee
-     * @return deposit tokens after withdraw fee
-     */
-    function estimateDeployedBalance() external view override returns (uint256) {
-        uint256 depositBalance = totalDeposits();
-        uint256 withdrawFee = _calculateWithdrawFee(depositBalance);
-        return depositBalance.sub(withdrawFee);
     }
 
     /*//////////////////////////////////////////////////////////////

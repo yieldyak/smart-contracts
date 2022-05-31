@@ -6,6 +6,7 @@ import "./lib/ERC20.sol";
 import "./lib/SafeERC20.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IERC4626.sol";
+import "hardhat/console.sol";
 
 /**
  * @notice YakStrategy should be inherited by new strategies
@@ -17,6 +18,7 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
         string name;
         string symbol;
         address asset;
+        bool depositsEnabled;
         address devAddr;
     }
 
@@ -39,6 +41,7 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
     constructor(BaseSettings memory _settings) ERC20(_settings.name, _settings.symbol) {
         asset = _settings.asset;
         devAddr = _settings.devAddr;
+        updateDepositsEnabled(_settings.depositsEnabled);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -50,12 +53,6 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
      * @dev MUST be inclusive of any fees that are charged against assets in the Vault.
      */
     function totalAssets() public view virtual returns (uint256);
-
-    /**
-     * @notice Estimated deposit token balance deployed by strategy, excluding balance
-     * @return deposit tokens
-     */
-    function estimateDeployedBalance() external view virtual returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
                               INTERNAL HOOKS
@@ -101,12 +98,10 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
      * @notice Mints shares Vault shares to receiver by depositing exactly amount assets of asset.
      */
     function deposit(uint256 _assets, address _receiver) public override returns (uint256 shares) {
-        require(DEPOSITS_ENABLED, "YakStrategyV3::Deposits disabled");
-        require(_assets <= maxDeposit(_receiver), "YakStrategyV3::Deposit more than max");
-
-        IERC20(asset).safeTransferFrom(msg.sender, address(this), _assets);
+        require(_assets <= maxDeposit(_receiver), "YakBase::Deposit more than max");
 
         shares = previewDeposit(_assets);
+        IERC20(asset).safeTransferFrom(msg.sender, address(this), _assets);
 
         _mint(_receiver, shares);
 
@@ -119,10 +114,9 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
      * @notice Mints exactly shares Vault shares to receiver by depositing amount of underlying tokens.
      */
     function mint(uint256 _shares, address _receiver) public override returns (uint256 assets) {
-        require(_shares <= maxMint(_receiver), "YakStrategyV3: mint more than max");
+        require(_shares <= maxMint(_receiver), "YakBase::Mint more than max");
 
         assets = previewMint(_shares);
-
         IERC20(asset).safeTransferFrom(msg.sender, address(this), assets);
 
         _mint(_receiver, _shares);
@@ -141,22 +135,23 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
         address _receiver,
         address _owner
     ) public override returns (uint256 shares) {
-        require(_assets > 0, "YakStrategyV3::Withdraw amount too low");
-        require(_assets <= maxWithdraw(_owner), "YakStrategyV3::Withdraw more than max");
+        require(_assets > 0, "YakBase::Withdraw amount too low");
+        require(_assets <= maxWithdraw(_owner), "YakBase::Withdraw more than max");
 
-        shares = previewWithdraw(_assets);
+        shares = convertToShares(_assets);
         if (msg.sender != _owner) {
             _spendAllowance(_owner, msg.sender, shares);
         }
 
-        uint256 amount = withdraw(_assets, shares);
-        require(amount >= _assets, "YakBase::Slippage too high");
+        uint256 minReceive = previewWithdraw(_assets);
+        uint256 received = withdraw(_assets, shares);
+        require(received >= minReceive, "YakBase::Slippage too high");
 
         _burn(_owner, shares);
 
-        emit Withdraw(msg.sender, _receiver, _owner, amount, shares);
+        emit Withdraw(msg.sender, _receiver, _owner, received, shares);
 
-        IERC20(asset).safeTransfer(_receiver, amount);
+        IERC20(asset).safeTransfer(_receiver, received);
     }
 
     function redeem(
@@ -164,19 +159,22 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
         address _receiver,
         address _owner
     ) public override returns (uint256 assets) {
-        require(_shares <= maxRedeem(_owner), "YakStrategyV3: redeem more than max");
+        require(_shares > 0, "YakBase::Redeem amount too low");
+        require(_shares <= maxRedeem(_owner), "YakBase::Redeem more than max");
         if (msg.sender != _owner) {
             _spendAllowance(_owner, msg.sender, _shares);
         }
 
-        assets = previewRedeem(_shares);
-        withdraw(assets, _shares);
+        uint256 minReceive = previewRedeem(_shares);
+        assets = convertToAssets(_shares);
+        uint256 received = withdraw(assets, _shares);
+        require(received >= minReceive, "YakBase::Slippage too high");
 
         _burn(_owner, _shares);
 
-        emit Withdraw(msg.sender, _receiver, _owner, assets, _shares);
+        emit Withdraw(msg.sender, _receiver, _owner, received, _shares);
 
-        IERC20(asset).safeTransfer(_receiver, assets);
+        IERC20(asset).safeTransfer(_receiver, received);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -217,12 +215,12 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
         return convertToShares(_assets);
     }
 
-    function previewWithdraw(uint256 _assets) public view virtual override returns (uint256) {
-        return convertToShares(_assets);
-    }
-
     function previewMint(uint256 _shares) public view virtual override returns (uint256) {
         return convertToAssets(_shares);
+    }
+
+    function previewWithdraw(uint256 _assets) public view virtual override returns (uint256) {
+        return convertToShares(_assets);
     }
 
     function previewRedeem(uint256 _shares) public view virtual override returns (uint256) {
@@ -266,5 +264,19 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
      */
     function maxRedeem(address _owner) public view virtual override returns (uint256) {
         return balanceOf(_owner);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                ADMIN
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Enable/disable deposits
+     * @param _newValue bool
+     */
+    function updateDepositsEnabled(bool _newValue) public onlyOwner {
+        require(DEPOSITS_ENABLED != _newValue);
+        DEPOSITS_ENABLED = _newValue;
+        emit DepositsEnabled(_newValue);
     }
 }

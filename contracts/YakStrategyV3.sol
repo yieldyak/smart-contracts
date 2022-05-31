@@ -13,7 +13,6 @@ abstract contract YakStrategyV3 is YakBase {
 
     struct StrategySettings {
         address reward;
-        bool depositsEnabled;
         address timelock;
         uint256 minTokensToReinvest;
         uint256 devFeeBips;
@@ -47,7 +46,6 @@ abstract contract YakStrategyV3 is YakBase {
 
     constructor(BaseSettings memory _baseSettings, StrategySettings memory _strategySettings) YakBase(_baseSettings) {
         rewardToken = _strategySettings.reward;
-        updateDepositsEnabled(_strategySettings.depositsEnabled);
         updateMinTokensToReinvest(_strategySettings.minTokensToReinvest);
         updateDevFee(_strategySettings.devFeeBips);
         updateReinvestReward(_strategySettings.reinvestRewardBips);
@@ -132,16 +130,6 @@ abstract contract YakStrategyV3 is YakBase {
         require(_newValue + DEV_FEE_BIPS <= BIPS_DIVISOR);
         emit UpdateReinvestReward(REINVEST_REWARD_BIPS, _newValue);
         REINVEST_REWARD_BIPS = _newValue;
-    }
-
-    /**
-     * @notice Enable/disable deposits
-     * @param _newValue bool
-     */
-    function updateDepositsEnabled(bool _newValue) public onlyOwner {
-        require(DEPOSITS_ENABLED != _newValue);
-        DEPOSITS_ENABLED = _newValue;
-        emit DepositsEnabled(_newValue);
     }
 
     /**
