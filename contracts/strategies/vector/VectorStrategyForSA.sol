@@ -18,9 +18,11 @@ contract VectorStrategyForSA is VariableRewardsStrategyForSA {
 
     IVectorMainStaking public immutable vectorMainStaking;
     IBoosterFeeCollector public boosterFeeCollector;
+    uint256 public maxSlippageBips;
 
     constructor(
         address _stakingContract,
+        uint256 _maxSlippageBips,
         address _boosterFeeCollector,
         address _swapPairDepositToken,
         RewardSwapPairs[] memory _rewardSwapPairs,
@@ -29,10 +31,23 @@ contract VectorStrategyForSA is VariableRewardsStrategyForSA {
     ) VariableRewardsStrategyForSA(_swapPairDepositToken, _rewardSwapPairs, _baseSettings, _strategySettings) {
         vectorMainStaking = IVectorMainStaking(_stakingContract);
         boosterFeeCollector = IBoosterFeeCollector(_boosterFeeCollector);
+        maxSlippageBips = _maxSlippageBips;
     }
 
     function updateBoosterFeeCollector(address _collector) public onlyOwner {
         boosterFeeCollector = IBoosterFeeCollector(_collector);
+    }
+
+    /**
+     * @notice Update max slippage for withdrawal
+     * @dev Function name matches interface for FeeCollector
+     */
+    function updateMaxSwapSlippage(uint256 slippageBips) public onlyDev {
+        maxSlippageBips = slippageBips;
+    }
+
+    function _getMaxSlippageBips() internal view override returns (uint256) {
+        return maxSlippageBips;
     }
 
     function _depositToStakingContract(uint256 _amount) internal override {
