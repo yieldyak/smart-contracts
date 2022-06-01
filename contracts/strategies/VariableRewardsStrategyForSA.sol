@@ -22,11 +22,7 @@ abstract contract VariableRewardsStrategyForSA is VariableRewardsStrategy {
 
     function assignSwapPairSafely(address _swapPairDepositToken) private {
         require(
-            DexLibrary.checkSwapPairCompatibility(
-                IPair(_swapPairDepositToken),
-                address(depositToken),
-                address(rewardToken)
-            ),
+            DexLibrary.checkSwapPairCompatibility(IPair(_swapPairDepositToken), asset, address(rewardToken)),
             "VariableRewardsStrategyForSA::swapPairDepositToken does not match deposit and reward token"
         );
         swapPairDepositToken = _swapPairDepositToken;
@@ -38,11 +34,6 @@ abstract contract VariableRewardsStrategyForSA is VariableRewardsStrategy {
         override
         returns (uint256 toAmount)
     {
-        toAmount = DexLibrary.swap(
-            fromAmount,
-            address(rewardToken),
-            address(depositToken),
-            IPair(swapPairDepositToken)
-        );
+        toAmount = DexLibrary.swap(fromAmount, address(rewardToken), asset, IPair(swapPairDepositToken));
     }
 }

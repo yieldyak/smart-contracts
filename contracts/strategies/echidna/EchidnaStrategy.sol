@@ -28,30 +28,19 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
     IBoosterFeeCollector public boosterFeeCollector;
 
     constructor(
-        string memory _name,
-        address _depositToken,
-        address _swapPairDepositToken,
-        RewardSwapPairs[] memory _rewardSwapPairs,
         address _stakingContract,
         address _platypusPool,
         uint256 _pid,
         address _boosterFeeCollector,
-        address _timelock,
+        address _swapPairDepositToken,
+        RewardSwapPairs[] memory _rewardSwapPairs,
+        BaseSettings memory _baseSettings,
         StrategySettings memory _strategySettings
-    )
-        VariableRewardsStrategyForSA(
-            _name,
-            _depositToken,
-            _swapPairDepositToken,
-            _rewardSwapPairs,
-            _timelock,
-            _strategySettings
-        )
-    {
+    ) VariableRewardsStrategyForSA(_swapPairDepositToken, _rewardSwapPairs, _baseSettings, _strategySettings) {
         PID = _pid;
         platypusPool = IPlatypusPool(_platypusPool);
         echidnaBooster = IEchidnaBooster(_stakingContract);
-        platypusAsset = IPlatypusAsset(IPlatypusPool(_platypusPool).assetOf(_depositToken));
+        platypusAsset = IPlatypusAsset(IPlatypusPool(_platypusPool).assetOf(asset));
         boosterFeeCollector = IBoosterFeeCollector(_boosterFeeCollector);
     }
 
@@ -62,9 +51,9 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
     function _depositToStakingContract(uint256 _amount) internal override {
         uint256 depositFee = _calculateDepositFee(_amount);
         uint256 liquidity = PlatypusLibrary.depositTokenToAsset(address(platypusAsset), _amount, depositFee);
-        depositToken.approve(address(platypusPool), _amount);
-        platypusPool.deposit(address(depositToken), _amount, address(this), type(uint256).max);
-        depositToken.approve(address(platypusPool), 0);
+        IERC20(asset).approve(address(platypusPool), _amount);
+        platypusPool.deposit(asset, _amount, address(this), type(uint256).max);
+        IERC20(asset).approve(address(platypusPool), 0);
         IERC20(address(platypusAsset)).approve(address(echidnaBooster), liquidity);
         echidnaBooster.deposit(PID, liquidity, false, type(uint256).max);
         IERC20(address(platypusAsset)).approve(address(echidnaBooster), 0);
@@ -80,20 +69,14 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
         liquidity = liquidity > lpBalance ? lpBalance : liquidity;
         echidnaBooster.withdraw(PID, liquidity, false, false, 0, type(uint256).max);
 
-        (uint256 expectedAmount, , ) = platypusPool.quotePotentialWithdraw(address(depositToken), liquidity);
+        (uint256 expectedAmount, , ) = platypusPool.quotePotentialWithdraw(asset, liquidity);
         IERC20(address(platypusAsset)).approve(address(platypusPool), liquidity);
-        _withdrawAmount = platypusPool.withdraw(
-            address(depositToken),
-            liquidity,
-            expectedAmount,
-            address(this),
-            type(uint256).max
-        );
+        _withdrawAmount = platypusPool.withdraw(asset, liquidity, expectedAmount, address(this), type(uint256).max);
         IERC20(address(platypusAsset)).approve(address(platypusPool), 0);
     }
 
     function _emergencyWithdraw() internal override {
-        depositToken.approve(address(echidnaBooster), 0);
+        IERC20(asset).approve(address(echidnaBooster), 0);
         uint256 lpBalance = _echidnaRewardPool().balanceOf(address(this));
         echidnaBooster.withdraw(PID, lpBalance, false, false, 0, type(uint256).max);
     }
@@ -125,11 +108,11 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
         _boostFee = boosterFeeCollector.calculateBoostFee(address(this), _ptpAmount);
     }
 
-    function totalDeposits() public view override returns (uint256) {
+    function totalAssets() public view override returns (uint256) {
         uint256 assetBalance = _echidnaRewardPool().balanceOf(address(this));
         if (assetBalance == 0) return 0;
         (uint256 depositTokenBalance, uint256 fee, bool enoughCash) = platypusPool.quotePotentialWithdraw(
-            address(depositToken),
+            asset,
             assetBalance
         );
         require(enoughCash, "EchidnaStrategy::This shouldn't happen");

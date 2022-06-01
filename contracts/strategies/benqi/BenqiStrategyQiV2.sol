@@ -21,33 +21,22 @@ contract BenqiStrategyQiV2 is VariableRewardsStrategyForSA {
     uint256 private redeemLimitSafetyMargin;
 
     constructor(
-        string memory _name,
-        address _depositToken,
-        address _swapPairDepositToken,
-        RewardSwapPairs[] memory _rewardSwapPairs,
         address _rewardController,
         address _tokenDelegator,
-        address _timelock,
+        address _swapPairDepositToken,
+        RewardSwapPairs[] memory _rewardSwapPairs,
+        BaseSettings memory _baseSettings,
         StrategySettings memory _strategySettings
-    )
-        VariableRewardsStrategyForSA(
-            _name,
-            _depositToken,
-            _swapPairDepositToken,
-            _rewardSwapPairs,
-            _timelock,
-            _strategySettings
-        )
-    {
+    ) VariableRewardsStrategyForSA(_swapPairDepositToken, _rewardSwapPairs, _baseSettings, _strategySettings) {
         rewardController = IBenqiUnitroller(_rewardController);
         tokenDelegator = IBenqiERC20Delegator(_tokenDelegator);
         _enterMarket();
     }
 
     function _depositToStakingContract(uint256 _amount) internal override {
-        depositToken.approve(address(tokenDelegator), _amount);
+        IERC20(asset).approve(address(tokenDelegator), _amount);
         require(tokenDelegator.mint(_amount) == 0, "Deposit failed");
-        depositToken.approve(address(tokenDelegator), 0);
+        IERC20(asset).approve(address(tokenDelegator), 0);
     }
 
     function _withdrawFromStakingContract(uint256 _amount) internal override returns (uint256 _withdrawAmount) {
@@ -78,7 +67,7 @@ contract BenqiStrategyQiV2 is VariableRewardsStrategyForSA {
         }
     }
 
-    function totalDeposits() public view override returns (uint256) {
+    function totalAssets() public view override returns (uint256) {
         (, uint256 internalBalance, , uint256 exchangeRate) = tokenDelegator.getAccountSnapshot(address(this));
         return internalBalance.mul(exchangeRate).div(1e18);
     }

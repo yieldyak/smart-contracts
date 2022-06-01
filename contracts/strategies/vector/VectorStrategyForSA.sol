@@ -20,24 +20,13 @@ contract VectorStrategyForSA is VariableRewardsStrategyForSA {
     IBoosterFeeCollector public boosterFeeCollector;
 
     constructor(
-        string memory _name,
-        address _depositToken,
-        address _swapPairDepositToken,
-        RewardSwapPairs[] memory _rewardSwapPairs,
         address _stakingContract,
         address _boosterFeeCollector,
-        address _timelock,
+        address _swapPairDepositToken,
+        RewardSwapPairs[] memory _rewardSwapPairs,
+        BaseSettings memory _baseSettings,
         StrategySettings memory _strategySettings
-    )
-        VariableRewardsStrategyForSA(
-            _name,
-            _depositToken,
-            _swapPairDepositToken,
-            _rewardSwapPairs,
-            _timelock,
-            _strategySettings
-        )
-    {
+    ) VariableRewardsStrategyForSA(_swapPairDepositToken, _rewardSwapPairs, _baseSettings, _strategySettings) {
         vectorMainStaking = IVectorMainStaking(_stakingContract);
         boosterFeeCollector = IBoosterFeeCollector(_boosterFeeCollector);
     }
@@ -48,21 +37,21 @@ contract VectorStrategyForSA is VariableRewardsStrategyForSA {
 
     function _depositToStakingContract(uint256 _amount) internal override {
         IVectorPoolHelper vectorPoolHelper = _vectorPoolHelper();
-        depositToken.approve(address(vectorPoolHelper.mainStaking()), _amount);
+        IERC20(asset).approve(address(vectorPoolHelper.mainStaking()), _amount);
         vectorPoolHelper.deposit(_amount);
-        depositToken.approve(address(vectorPoolHelper.mainStaking()), 0);
+        IERC20(asset).approve(address(vectorPoolHelper.mainStaking()), 0);
     }
 
     function _withdrawFromStakingContract(uint256 _amount) internal override returns (uint256 _withdrawAmount) {
-        uint256 balanceBefore = depositToken.balanceOf(address(this));
+        uint256 balanceBefore = IERC20(asset).balanceOf(address(this));
         _vectorPoolHelper().withdraw(_amount, 0);
-        uint256 balanceAfter = depositToken.balanceOf(address(this));
+        uint256 balanceAfter = IERC20(asset).balanceOf(address(this));
         return balanceAfter.sub(balanceBefore);
     }
 
     function _emergencyWithdraw() internal override {
         IVectorPoolHelper vectorPoolHelper = _vectorPoolHelper();
-        depositToken.approve(address(vectorPoolHelper), 0);
+        IERC20(asset).approve(address(vectorPoolHelper), 0);
         vectorPoolHelper.withdraw(totalDeposits(), 0);
     }
 
@@ -95,12 +84,12 @@ contract VectorStrategyForSA is VariableRewardsStrategyForSA {
         PTP.safeTransfer(address(boosterFeeCollector), boostFee);
     }
 
-    function totalDeposits() public view override returns (uint256) {
+    function totalAssets() public view override returns (uint256) {
         return _vectorPoolHelper().depositTokenBalance();
     }
 
     function _vectorPoolHelper() private view returns (IVectorPoolHelper) {
-        (, , , , , , , , address helper) = vectorMainStaking.getPoolInfo(address(depositToken));
+        (, , , , , , , , address helper) = vectorMainStaking.getPoolInfo(asset);
         return IVectorPoolHelper(helper);
     }
 }
