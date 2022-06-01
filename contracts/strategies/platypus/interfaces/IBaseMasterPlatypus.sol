@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-interface IMasterPlatypus {
+interface IBaseMasterPlatypus {
     function poolLength() external view returns (uint256);
 
     function pendingTokens(uint256 _pid, address _user)
@@ -47,14 +47,7 @@ interface IMasterPlatypus {
 
     function updateFactor(address _user, uint256 _newVePtpBalance) external;
 
-    function userInfo(uint256 _pid, address _user)
-        external
-        view
-        returns (
-            uint256 _amount,
-            uint256 _rewardDebt,
-            uint256 _factor
-        );
+    function userInfo(uint256 _pid, address _user) external view returns (uint256 _amount, uint256 _rewardDebt);
 
     function poolInfo(uint256 _pid)
         external
@@ -64,8 +57,6 @@ interface IMasterPlatypus {
             uint256 _allocPoint,
             uint256 _lastRewardTimestamp,
             uint256 _accPtpPerShare,
-            address _rewarder,
-            uint256 _sumOfFactors,
-            uint256 _accPtpPerFactorShare
+            address _rewarder
         );
 }
