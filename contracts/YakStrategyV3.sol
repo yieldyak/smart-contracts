@@ -57,7 +57,7 @@ abstract contract YakStrategyV3 is YakBase {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Reward tokens avialable to strategy, including balance
+     * @notice Reward tokens available to strategy, including balance
      * @return reward tokens
      */
     function checkReward() public view virtual returns (uint256);

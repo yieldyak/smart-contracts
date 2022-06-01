@@ -6,7 +6,6 @@ import "./lib/ERC20.sol";
 import "./lib/SafeERC20.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IERC4626.sol";
-import "hardhat/console.sol";
 
 /**
  * @notice YakStrategy should be inherited by new strategies
@@ -49,7 +48,7 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Total amount of the underlying asset that is “managed” by Strategy.
+     * @notice Total amount of the underlying asset that is “managed” by Vault.
      * @dev MUST be inclusive of any fees that are charged against assets in the Vault.
      */
     function totalAssets() public view virtual returns (uint256);
@@ -65,9 +64,9 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
     function deposit(uint256 _assets, uint256 _shares) internal virtual;
 
     /**
-     * @notice Withdraw assets from underlying farm / strategy
+     * @notice Withdraw assets from underlying farm
      * @dev Do not burn shares
-     * @return actual withdraw amount
+     * @return withdraw amount after fees and actual slippage
      */
     function withdraw(uint256 _assets, uint256 _shares) internal virtual returns (uint256);
 
@@ -95,7 +94,7 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
     }
 
     /**
-     * @notice Mints shares Vault shares to receiver by depositing exactly amount assets of asset.
+     * @notice Mints "shares" Vault shares to receiver by depositing exactly amount "_assets" of asset.
      */
     function deposit(uint256 _assets, address _receiver) public override returns (uint256 shares) {
         require(_assets <= maxDeposit(_receiver), "YakBase::Deposit more than max");
@@ -111,7 +110,7 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
     }
 
     /**
-     * @notice Mints exactly shares Vault shares to receiver by depositing amount of underlying tokens.
+     * @notice Mints exactly "shares" Vault shares to receiver by depositing amount of underlying tokens.
      */
     function mint(uint256 _shares, address _receiver) public override returns (uint256 assets) {
         require(_shares <= maxMint(_receiver), "YakBase::Mint more than max");
@@ -148,10 +147,9 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
         require(received >= minReceive, "YakBase::Slippage too high");
 
         _burn(_owner, shares);
+        IERC20(asset).safeTransfer(_receiver, received);
 
         emit Withdraw(msg.sender, _receiver, _owner, received, shares);
-
-        IERC20(asset).safeTransfer(_receiver, received);
     }
 
     function redeem(
@@ -171,10 +169,9 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
         require(received >= minReceive, "YakBase::Slippage too high");
 
         _burn(_owner, _shares);
+        IERC20(asset).safeTransfer(_receiver, received);
 
         emit Withdraw(msg.sender, _receiver, _owner, received, _shares);
-
-        IERC20(asset).safeTransfer(_receiver, received);
     }
 
     /*//////////////////////////////////////////////////////////////
