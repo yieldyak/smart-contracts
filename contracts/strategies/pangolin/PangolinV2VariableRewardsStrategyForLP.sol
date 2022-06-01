@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.13;
 
-import "../MasterChefVariableRewardsStrategyForLP.sol";
+import "../VariableRewardsStrategyForLP.sol";
 import "../../interfaces/IERC20.sol";
 import "../../interfaces/IPair.sol";
 import "../../lib/DexLibrary.sol";
@@ -10,62 +10,46 @@ import "../../lib/DexLibrary.sol";
 import "./interfaces/IMiniChefV2.sol";
 import "./interfaces/IPangolinRewarder.sol";
 
-/**
- * notice: this strategy is not handling extra reward and rewarders.
- * we are waiting for the Pangolin team to provide additional information on the rewarders
- */
-contract PangolinV2VariableRewardsStrategyForLP is MasterChefVariableRewardsStrategyForLP {
+contract PangolinV2VariableRewardsStrategyForLP is VariableRewardsStrategyForLP {
     using SafeMath for uint256;
 
     IMiniChefV2 public miniChef;
+    uint256 public immutable PID;
     address private poolRewardToken;
 
     constructor(
-        string memory _name,
-        address _depositToken,
-        address _rewardToken,
         address _poolRewardToken,
-        SwapPairs memory _swapPairs,
-        ExtraReward[] memory _extraRewards,
         address _stakingContract,
         uint256 _pid,
-        address _timelock,
+        SwapPairs memory _swapPairs,
+        RewardSwapPairs[] memory _rewardSwapPairs,
+        BaseSettings memory _baseSettings,
         StrategySettings memory _strategySettings
-    )
-        MasterChefVariableRewardsStrategyForLP(
-            _name,
-            _depositToken,
-            _rewardToken,
-            _poolRewardToken,
-            _swapPairs,
-            _extraRewards,
-            _stakingContract,
-            _timelock,
-            _pid,
-            _strategySettings
-        )
-    {
+    ) VariableRewardsStrategyForLP(_swapPairs, _rewardSwapPairs, _baseSettings, _strategySettings) {
         poolRewardToken = _poolRewardToken;
+        PID = _pid;
         miniChef = IMiniChefV2(_stakingContract);
     }
 
-    function _depositMasterchef(uint256 _pid, uint256 _amount) internal override {
-        depositToken.approve(address(miniChef), _amount);
-        miniChef.deposit(_pid, _amount, address(this));
+    function _depositToStakingContract(uint256 _amount) internal override {
+        IERC20(asset).approve(address(miniChef), _amount);
+        miniChef.deposit(PID, _amount, address(this));
+        IERC20(asset).approve(address(miniChef), 0);
     }
 
-    function _withdrawMasterchef(uint256 _pid, uint256 _amount) internal override {
-        miniChef.withdraw(_pid, _amount, address(this));
+    function _withdrawFromStakingContract(uint256 _amount) internal override returns (uint256 _withdrawAmount) {
+        miniChef.withdraw(PID, _amount, address(this));
+        _withdrawAmount = _amount;
     }
 
-    function _emergencyWithdraw(uint256 _pid) internal override {
-        miniChef.emergencyWithdraw(_pid, address(this));
-        depositToken.approve(address(miniChef), 0);
+    function _emergencyWithdraw() internal override {
+        miniChef.emergencyWithdraw(PID, address(this));
+        IERC20(asset).approve(address(miniChef), 0);
     }
 
-    function _pendingRewards(uint256 _pid) internal view override returns (Reward[] memory) {
-        uint256 poolRewardAmount = miniChef.pendingReward(_pid, address(this));
-        IPangolinRewarder rewarder = IPangolinRewarder(miniChef.rewarder(_pid));
+    function _pendingRewards() internal view override returns (Reward[] memory) {
+        uint256 poolRewardAmount = miniChef.pendingReward(PID, address(this));
+        IPangolinRewarder rewarder = IPangolinRewarder(miniChef.rewarder(PID));
         Reward[] memory pendingRewards;
         if (address(rewarder) > address(0)) {
             (address[] memory rewardTokens, uint256[] memory rewardAmounts) = rewarder.pendingTokens(
@@ -84,27 +68,12 @@ contract PangolinV2VariableRewardsStrategyForLP is MasterChefVariableRewardsStra
         return pendingRewards;
     }
 
-    function _getRewards(uint256 _pid) internal override {
-        miniChef.harvest(_pid, address(this));
+    function _getRewards() internal override {
+        miniChef.harvest(PID, address(this));
     }
 
-    function _getDepositBalance(uint256 pid) internal view override returns (uint256 amount) {
-        (amount, ) = miniChef.userInfo(pid, address(this));
-    }
-
-    function _getDepositFeeBips(
-        uint256 /*pid*/
-    ) internal pure override returns (uint256) {
-        return 0;
-    }
-
-    function _getWithdrawFeeBips(
-        uint256 /*pid*/
-    ) internal pure override returns (uint256) {
-        return 0;
-    }
-
-    function _bip() internal pure override returns (uint256) {
-        return 10000;
+    function totalAssets() public view override returns (uint256) {
+        (uint256 amount, ) = miniChef.userInfo(PID, address(this));
+        return amount;
     }
 }
