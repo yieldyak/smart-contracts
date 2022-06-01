@@ -12,13 +12,11 @@ abstract contract VariableRewardsStrategyForSA is VariableRewardsStrategy {
     address private swapPairDepositToken;
 
     constructor(
-        string memory _name,
-        address _depositToken,
         address _swapPairDepositToken,
         RewardSwapPairs[] memory _rewardSwapPairs,
-        address _timelock,
+        BaseSettings memory _baseSettings,
         StrategySettings memory _strategySettings
-    ) VariableRewardsStrategy(_name, _depositToken, _rewardSwapPairs, _timelock, _strategySettings) {
+    ) VariableRewardsStrategy(_rewardSwapPairs, _baseSettings, _strategySettings) {
         assignSwapPairSafely(_swapPairDepositToken);
     }
 

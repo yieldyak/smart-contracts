@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "../YakStrategyV2.sol";
+import "../YakStrategyV3.sol";
 import "../interfaces/IPair.sol";
 import "../lib/DexLibrary.sol";
 import "../lib/SafeERC20.sol";
@@ -9,11 +9,12 @@ import "../lib/SafeERC20.sol";
 /**
  * @notice VariableRewardsStrategy
  */
-abstract contract VariableRewardsStrategy is YakStrategyV2 {
+abstract contract VariableRewardsStrategy is YakStrategyV3 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     IWAVAX internal constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    uint256 public constant SLIPPAGE_BIPS_DIVISOR = 10000;
 
     struct Reward {
         address reward;
@@ -34,121 +35,38 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
     event RemoveReward(address rewardToken);
 
     constructor(
-        string memory _name,
-        address _depositToken,
         RewardSwapPairs[] memory _rewardSwapPairs,
-        address _timelock,
+        BaseSettings memory _baseSettings,
         StrategySettings memory _strategySettings
-    ) YakStrategyV2(_strategySettings) {
-        name = _name;
-        depositToken = IERC20(_depositToken);
-        rewardToken = IERC20(address(WAVAX));
+    ) YakStrategyV3(_baseSettings, _strategySettings) {
         devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
 
         for (uint256 i = 0; i < _rewardSwapPairs.length; i++) {
             _addReward(_rewardSwapPairs[i].reward, _rewardSwapPairs[i].swapPair);
         }
 
-        updateDepositsEnabled(true);
-        transferOwnership(_timelock);
         emit Reinvest(0, 0);
     }
 
-    function addReward(address _rewardToken, address _swapPair) public onlyDev {
-        _addReward(_rewardToken, _swapPair);
-    }
+    /*//////////////////////////////////////////////////////////////
+                            ABSTRACT FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
-    function _addReward(address _rewardToken, address _swapPair) internal {
-        if (_rewardToken != address(rewardToken)) {
-            require(
-                DexLibrary.checkSwapPairCompatibility(IPair(_swapPair), _rewardToken, address(rewardToken)),
-                "VariableRewardsStrategy::Swap pair does not contain reward token"
-            );
-        }
-        rewardSwapPairs[_rewardToken] = _swapPair;
-        supportedRewards.push(_rewardToken);
-        rewardCount = rewardCount.add(1);
-        emit AddReward(_rewardToken, _swapPair);
-    }
+    function _depositToStakingContract(uint256 _amount) internal virtual;
 
-    function removeReward(address _rewardToken) public onlyDev {
-        delete rewardSwapPairs[_rewardToken];
-        bool found = false;
-        for (uint256 i = 0; i < supportedRewards.length; i++) {
-            if (_rewardToken == supportedRewards[i]) {
-                found = true;
-                supportedRewards[i] = supportedRewards[supportedRewards.length - 1];
-            }
-        }
-        require(found, "VariableRewardsStrategy::Reward to delete not found!");
-        supportedRewards.pop();
-        rewardCount = rewardCount.sub(1);
-        emit RemoveReward(_rewardToken);
-    }
+    function _withdrawFromStakingContract(uint256 _amount) internal virtual returns (uint256 withdrawAmount);
 
-    function calculateDepositFee(uint256 _amount) public view returns (uint256) {
-        return _calculateDepositFee(_amount);
-    }
+    function _pendingRewards() internal view virtual returns (Reward[] memory);
 
-    function calculateWithdrawFee(uint256 _amount) public view returns (uint256) {
-        return _calculateWithdrawFee(_amount);
-    }
+    function _getRewards() internal virtual;
 
-    /**
-     * @notice Deposit tokens to receive receipt tokens
-     * @param _amount Amount of tokens to deposit
-     */
-    function deposit(uint256 _amount) external override {
-        _deposit(msg.sender, _amount);
-    }
+    function _convertRewardTokenToDepositToken(uint256 _fromAmount) internal virtual returns (uint256 toAmount);
 
-    /**
-     * @notice Deposit using Permit
-     * @param _amount Amount of tokens to deposit
-     * @param _deadline The time at which to expire the signature
-     * @param _v The recovery byte of the signature
-     * @param _r Half of the ECDSA signature pair
-     * @param _s Half of the ECDSA signature pair
-     */
-    function depositWithPermit(
-        uint256 _amount,
-        uint256 _deadline,
-        uint8 _v,
-        bytes32 _r,
-        bytes32 _s
-    ) external override {
-        depositToken.permit(msg.sender, address(this), _amount, _deadline, _v, _r, _s);
-        _deposit(msg.sender, _amount);
-    }
+    function _emergencyWithdraw() internal virtual;
 
-    function depositFor(address _account, uint256 _amount) external override {
-        _deposit(_account, _amount);
-    }
-
-    function _deposit(address _account, uint256 _amount) internal {
-        require(DEPOSITS_ENABLED == true, "VariableRewardsStrategy::Deposits disabled");
-        if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
-            uint256 estimatedTotalReward = checkReward();
-            if (estimatedTotalReward > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
-                _reinvest(true);
-            }
-        }
-        require(
-            depositToken.transferFrom(msg.sender, address(this), _amount),
-            "VariableRewardsStrategy::Deposit token transfer failed"
-        );
-        uint256 depositFee = _calculateDepositFee(_amount);
-        _mint(_account, getSharesForDepositTokens(_amount.sub(depositFee)));
-        _stakeDepositTokens(_amount);
-        emit Deposit(_account, _amount);
-    }
-
-    /**
-     * @notice Withdraw fee bips from underlying farm
-     */
-    function _getDepositFeeBips() internal view virtual returns (uint256) {
-        return 0;
-    }
+    /*//////////////////////////////////////////////////////////////
+                            VIRTUAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     /**
      * @notice Calculate deposit fee of underlying farm
@@ -156,24 +74,13 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
      */
     function _calculateDepositFee(uint256 _amount) internal view virtual returns (uint256) {
         uint256 depositFeeBips = _getDepositFeeBips();
-        return _amount.mul(depositFeeBips).div(_bip());
-    }
-
-    function withdraw(uint256 _amount) external override {
-        uint256 depositTokenAmount = getDepositTokensForShares(_amount);
-        require(depositTokenAmount > 0, "VariableRewardsStrategy::Withdraw amount too low");
-        uint256 withdrawAmount = _withdrawFromStakingContract(depositTokenAmount);
-        uint256 withdrawFee = _calculateWithdrawFee(depositTokenAmount);
-        depositToken.safeTransfer(msg.sender, withdrawAmount.sub(withdrawFee));
-        _burn(msg.sender, _amount);
-        emit Withdraw(msg.sender, depositTokenAmount);
+        return (_amount * depositFeeBips) / _bip();
     }
 
     /**
      * @notice Withdraw fee bips from underlying farm
-     * @dev Important: Do not override if withdraw fee is deducted from the amount returned by _withdrawFromStakingContract
      */
-    function _getWithdrawFeeBips() internal view virtual returns (uint256) {
+    function _getDepositFeeBips() internal view virtual returns (uint256) {
         return 0;
     }
 
@@ -187,8 +94,107 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         return _amount.mul(withdrawFeeBips).div(_bip());
     }
 
-    function reinvest() external override onlyEOA {
-        _reinvest(false);
+    /**
+     * @notice Withdraw fee bips from underlying farm
+     * @dev Important: Do not override if withdraw fee is deducted from the amount returned by _withdrawFromStakingContract
+     */
+    function _getWithdrawFeeBips() internal view virtual returns (uint256) {
+        return 0;
+    }
+
+    function _bip() internal view virtual returns (uint256) {
+        return 10000;
+    }
+
+    function _getMaxSlippageBips() internal view virtual returns (uint256) {
+        return 0;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                DEPOSIT
+    //////////////////////////////////////////////////////////////*/
+
+    function deposit(uint256 _assets, uint256) internal override {
+        if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
+            uint256 estimatedTotalReward = checkReward();
+            if (estimatedTotalReward > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
+                _reinvest(true);
+            }
+        }
+        _stakeDepositTokens(_assets);
+    }
+
+    function _stakeDepositTokens(uint256 _amount) private {
+        require(_amount > 0, "VariableRewardsStrategy::Stake amount too low");
+        _depositToStakingContract(_amount);
+    }
+
+    function previewDeposit(uint256 _assets) public view override returns (uint256) {
+        uint256 depositFee = _calculateDepositFee(_assets);
+        return convertToShares(_assets - depositFee);
+    }
+
+    function previewMint(uint256 _shares) public view override returns (uint256) {
+        uint256 assets = convertToAssets(_shares);
+        uint256 depositFee = _calculateDepositFee(assets);
+        return assets + depositFee;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              WITHDRAW
+    //////////////////////////////////////////////////////////////*/
+
+    function withdraw(uint256 assets, uint256) internal override returns (uint256) {
+        return _withdrawFromStakingContract(assets);
+    }
+
+    function previewWithdraw(uint256 _assets) public view override returns (uint256) {
+        uint256 withdrawFee = _calculateWithdrawFee(_assets);
+        uint256 maxSlippage = _calculateMaxSlippage(_assets - withdrawFee);
+        return convertToShares(_assets + withdrawFee + maxSlippage);
+    }
+
+    function previewRedeem(uint256 _shares) public view override returns (uint256) {
+        uint256 assets = convertToAssets(_shares);
+        uint256 withdrawFee = _calculateWithdrawFee(assets);
+        uint256 maxSlippage = _calculateMaxSlippage(assets - withdrawFee);
+        return assets - withdrawFee - maxSlippage;
+    }
+
+    function _calculateMaxSlippage(uint256 amount) internal view virtual returns (uint256) {
+        uint256 slippageBips = _getMaxSlippageBips();
+        return (amount * slippageBips) / SLIPPAGE_BIPS_DIVISOR;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              REINVEST
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Reinvest rewards from staking contract to deposit tokens
+     * @dev Reverts if the expected amount of tokens are not returned from the staking contract
+     */
+    function _reinvest(bool userDeposit) internal override {
+        _getRewards();
+        uint256 amount = _convertRewardsIntoWAVAX();
+        if (!userDeposit) {
+            require(amount >= MIN_TOKENS_TO_REINVEST, "VariableRewardsStrategy::Reinvest amount too low");
+        }
+
+        uint256 devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
+        if (devFee > 0) {
+            IERC20(rewardToken).safeTransfer(devAddr, devFee);
+        }
+
+        uint256 reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
+        if (reinvestFee > 0) {
+            IERC20(rewardToken).safeTransfer(msg.sender, reinvestFee);
+        }
+
+        uint256 depositTokenAmount = _convertRewardTokenToDepositToken(amount.sub(devFee).sub(reinvestFee));
+
+        _stakeDepositTokens(depositTokenAmount);
+        emit Reinvest(totalDeposits(), totalSupply());
     }
 
     function _convertRewardsIntoWAVAX() private returns (uint256) {
@@ -208,43 +214,11 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
             if (amount > 0) {
                 address swapPair = rewardSwapPairs[reward];
                 if (swapPair > address(0)) {
-                    avaxAmount = avaxAmount.add(DexLibrary.swap(amount, reward, address(rewardToken), IPair(swapPair)));
+                    avaxAmount = avaxAmount.add(DexLibrary.swap(amount, reward, rewardToken, IPair(swapPair)));
                 }
             }
         }
         return avaxAmount;
-    }
-
-    /**
-     * @notice Reinvest rewards from staking contract to deposit tokens
-     * @dev Reverts if the expected amount of tokens are not returned from the staking contract
-     */
-    function _reinvest(bool userDeposit) private {
-        _getRewards();
-        uint256 amount = _convertRewardsIntoWAVAX();
-        if (!userDeposit) {
-            require(amount >= MIN_TOKENS_TO_REINVEST, "VariableRewardsStrategy::Reinvest amount too low");
-        }
-
-        uint256 devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
-        if (devFee > 0) {
-            rewardToken.safeTransfer(devAddr, devFee);
-        }
-
-        uint256 reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
-        if (reinvestFee > 0) {
-            rewardToken.safeTransfer(msg.sender, reinvestFee);
-        }
-
-        uint256 depositTokenAmount = _convertRewardTokenToDepositToken(amount.sub(devFee).sub(reinvestFee));
-
-        _stakeDepositTokens(depositTokenAmount);
-        emit Reinvest(totalDeposits(), totalSupply);
-    }
-
-    function _stakeDepositTokens(uint256 _amount) private {
-        require(_amount > 0, "VariableRewardsStrategy::Stake amount too low");
-        _depositToStakingContract(_amount);
     }
 
     function checkReward() public view override returns (uint256) {
@@ -269,47 +243,53 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         return estimatedTotalReward;
     }
 
-    /**
-     * @notice Estimate recoverable balance after withdraw fee
-     * @return deposit tokens after withdraw fee
-     */
-    function estimateDeployedBalance() external view override returns (uint256) {
-        uint256 depositBalance = totalDeposits();
-        uint256 withdrawFee = _calculateWithdrawFee(depositBalance);
-        return depositBalance.sub(withdrawFee);
+    /*//////////////////////////////////////////////////////////////
+                             ADMIN
+    //////////////////////////////////////////////////////////////*/
+
+    function addReward(address _rewardToken, address _swapPair) public onlyDev {
+        _addReward(_rewardToken, _swapPair);
     }
 
-    function rescueDeployedFunds(
-        uint256 _minReturnAmountAccepted,
-        bool /*_disableDeposits*/
-    ) external override onlyOwner {
-        uint256 balanceBefore = depositToken.balanceOf(address(this));
+    function _addReward(address _rewardToken, address _swapPair) internal {
+        if (_rewardToken != rewardToken) {
+            require(
+                DexLibrary.checkSwapPairCompatibility(IPair(_swapPair), _rewardToken, rewardToken),
+                "VariableRewardsStrategy::Swap pair does not contain reward token"
+            );
+        }
+        rewardSwapPairs[_rewardToken] = _swapPair;
+        supportedRewards.push(_rewardToken);
+        rewardCount = rewardCount + 1;
+        emit AddReward(_rewardToken, _swapPair);
+    }
+
+    function removeReward(address _rewardToken) public onlyDev {
+        delete rewardSwapPairs[_rewardToken];
+        bool found = false;
+        for (uint256 i = 0; i < supportedRewards.length; i++) {
+            if (_rewardToken == supportedRewards[i]) {
+                found = true;
+                supportedRewards[i] = supportedRewards[supportedRewards.length - 1];
+            }
+        }
+        require(found, "VariableRewardsStrategy::Reward to delete not found!");
+        supportedRewards.pop();
+        rewardCount = rewardCount - 1;
+        emit RemoveReward(_rewardToken);
+    }
+
+    function _rescueDeployedFunds(uint256 _minReturnAmountAccepted) internal override {
+        uint256 balanceBefore = IERC20(asset).balanceOf(address(this));
         _emergencyWithdraw();
-        uint256 balanceAfter = depositToken.balanceOf(address(this));
+        uint256 balanceAfter = IERC20(asset).balanceOf(address(this));
         require(
             balanceAfter.sub(balanceBefore) >= _minReturnAmountAccepted,
             "VariableRewardsStrategy::Emergency withdraw minimum return amount not reached"
         );
-        emit Reinvest(totalDeposits(), totalSupply);
+        emit Reinvest(totalDeposits(), totalSupply());
         if (DEPOSITS_ENABLED == true) {
             updateDepositsEnabled(false);
         }
     }
-
-    function _bip() internal view virtual returns (uint256) {
-        return 10000;
-    }
-
-    /* VIRTUAL */
-    function _convertRewardTokenToDepositToken(uint256 _fromAmount) internal virtual returns (uint256 toAmount);
-
-    function _depositToStakingContract(uint256 _amount) internal virtual;
-
-    function _withdrawFromStakingContract(uint256 _amount) internal virtual returns (uint256 withdrawAmount);
-
-    function _emergencyWithdraw() internal virtual;
-
-    function _getRewards() internal virtual;
-
-    function _pendingRewards() internal view virtual returns (Reward[] memory);
 }
