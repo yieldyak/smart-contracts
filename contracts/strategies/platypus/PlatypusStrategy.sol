@@ -9,7 +9,6 @@ import "../../interfaces/IERC20.sol";
 import "../../interfaces/IPair.sol";
 import "../../interfaces/IWAVAX.sol";
 
-import "./interfaces/IMasterPlatypus.sol";
 import "./interfaces/IPlatypusPool.sol";
 import "./interfaces/IPlatypusVoterProxy.sol";
 import "./interfaces/IPlatypusAsset.sol";
@@ -30,7 +29,7 @@ contract PlatypusStrategy is YakStrategyV2 {
     uint256 internal constant WAD = 10**18;
     uint256 internal constant RAY = 10**27;
 
-    IMasterPlatypus public immutable masterchef;
+    address public immutable masterchef;
     IPlatypusAsset public immutable asset;
     IPlatypusPool public pool;
     IPlatypusVoterProxy public proxy;
@@ -61,7 +60,7 @@ contract PlatypusStrategy is YakStrategyV2 {
         PID = _pid;
         devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
 
-        masterchef = IMasterPlatypus(_stakingContract);
+        masterchef = _stakingContract;
         pool = IPlatypusPool(_pool);
         asset = IPlatypusAsset(pool.assetOf(_depositToken));
         proxy = IPlatypusVoterProxy(_voterProxy);
@@ -172,7 +171,7 @@ contract PlatypusStrategy is YakStrategyV2 {
                 _reinvest(rewardTokenBalance, poolTokenAmount, extraTokenAmount);
             }
         } else {
-            proxy.claimReward(address(masterchef), PID);
+            proxy.claimReward(masterchef, PID);
         }
         depositToken.safeTransferFrom(msg.sender, address(this), amount);
         uint256 depositFee = _calculateDepositFee(amount);
@@ -187,16 +186,16 @@ contract PlatypusStrategy is YakStrategyV2 {
         uint256 _fee
     ) internal {
         depositToken.safeTransfer(address(proxy), _amount);
-        proxy.deposit(_pid, address(masterchef), address(pool), address(depositToken), address(asset), _amount, _fee);
+        proxy.deposit(_pid, masterchef, address(pool), address(depositToken), address(asset), _amount, _fee);
     }
 
     function withdraw(uint256 amount) external override {
         uint256 depositTokenAmount = getDepositTokensForShares(amount);
         require(depositTokenAmount > 0, "PlatypusStrategy::withdraw");
-        proxy.claimReward(address(masterchef), PID);
+        proxy.claimReward(masterchef, PID);
         uint256 withdrawalAmount = proxy.withdraw(
             PID,
-            address(masterchef),
+            masterchef,
             address(pool),
             address(depositToken),
             address(asset),
@@ -253,7 +252,7 @@ contract PlatypusStrategy is YakStrategyV2 {
         uint256 poolTokenAmount,
         uint256 extraTokenAmount
     ) private {
-        proxy.claimReward(address(masterchef), PID);
+        proxy.claimReward(masterchef, PID);
         uint256 amount = rewardTokenBalance.add(_convertPoolTokensIntoReward(poolTokenAmount));
         amount.add(_convertExtraTokensIntoReward(rewardTokenBalance, extraTokenAmount));
 
@@ -342,7 +341,7 @@ contract PlatypusStrategy is YakStrategyV2 {
         )
     {
         (uint256 pendingPtp, uint256 pendingBonusToken, address bonusTokenAddress) = proxy.pendingRewards(
-            address(masterchef),
+            masterchef,
             _pid
         );
         uint256 reinvestFeeBips = proxy.reinvestFeeBips();
@@ -419,13 +418,13 @@ contract PlatypusStrategy is YakStrategyV2 {
     }
 
     function totalDeposits() public view override returns (uint256) {
-        uint256 depositBalance = proxy.poolBalance(address(masterchef), PID);
+        uint256 depositBalance = proxy.poolBalance(masterchef, PID);
         return depositBalance;
     }
 
     function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
-        proxy.emergencyWithdraw(PID, address(masterchef), address(pool), address(depositToken), address(asset));
+        proxy.emergencyWithdraw(PID, masterchef, address(pool), address(depositToken), address(asset));
         uint256 balanceAfter = depositToken.balanceOf(address(this));
         require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "PlatypusStrategy::rescueDeployedFunds");
         emit Reinvest(totalDeposits(), totalSupply);

@@ -5,8 +5,8 @@ import "../../lib/SafeERC20.sol";
 import "../../lib/SafeMath.sol";
 
 import "./interfaces/IPlatypusVoter.sol";
-import "./interfaces/IMasterPlatypus.sol";
 import "./interfaces/IMasterPlatypusV2.sol";
+import "./interfaces/IBaseMasterPlatypus.sol";
 import "./interfaces/IPlatypusPool.sol";
 import "./interfaces/IPlatypusAsset.sol";
 import "./interfaces/IPlatypusStrategy.sol";
@@ -58,7 +58,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
 
     // staking contract => pid => strategy
     mapping(address => mapping(uint256 => address)) private approvedStrategies;
-    address private constant MASTERCHEF_V1 = 0xB0523f9F473812FB195Ee49BC7d2ab9873a98044;
+    address private constant BASE_MASTER_PLATYPUS = 0x7125B4211357d7C3a90F796c956c12c681146EbB;
 
     modifier onlyDev() {
         require(msg.sender == devAddr, "PlatypusVoterProxy::onlyDev");
@@ -242,7 +242,13 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         uint256 _amount
     ) private view returns (uint256) {
         uint256 totalDeposits = _poolBalance(_stakingContract, _pid);
-        (uint256 balance, , ) = IMasterPlatypus(_stakingContract).userInfo(_pid, address(platypusVoter));
+        uint256 balance;
+        if (_stakingContract == BASE_MASTER_PLATYPUS) {
+            (balance, ) = IBaseMasterPlatypus(_stakingContract).userInfo(_pid, address(platypusVoter));
+        } else {
+            (balance, , ) = IMasterPlatypusV2(_stakingContract).userInfo(_pid, address(platypusVoter));
+        }
+
         return _amount.mul(balance).div(totalDeposits);
     }
 
@@ -350,8 +356,9 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
             address
         )
     {
-        (uint256 pendingPtp, address bonusTokenAddress, , uint256 pendingBonusToken) = IMasterPlatypus(_stakingContract)
-            .pendingTokens(_pid, address(platypusVoter));
+        (uint256 pendingPtp, address bonusTokenAddress, , uint256 pendingBonusToken) = IMasterPlatypusV2(
+            _stakingContract
+        ).pendingTokens(_pid, address(platypusVoter));
 
         return (pendingPtp, pendingBonusToken, bonusTokenAddress);
     }
@@ -367,11 +374,16 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
     }
 
     function _poolBalance(address _stakingContract, uint256 _pid) internal view returns (uint256 balance) {
-        (uint256 assetBalance, , ) = IMasterPlatypus(_stakingContract).userInfo(_pid, address(platypusVoter));
+        uint256 assetBalance;
+        if (_stakingContract == BASE_MASTER_PLATYPUS) {
+            (assetBalance, ) = IBaseMasterPlatypus(_stakingContract).userInfo(_pid, address(platypusVoter));
+        } else {
+            (assetBalance, , ) = IMasterPlatypusV2(_stakingContract).userInfo(_pid, address(platypusVoter));
+        }
         if (assetBalance == 0) return 0;
         address asset;
-        if (_stakingContract == MASTERCHEF_V1) {
-            (asset, , , , , , ) = IMasterPlatypus(_stakingContract).poolInfo(_pid);
+        if (_stakingContract == BASE_MASTER_PLATYPUS) {
+            (asset, , , , ) = IBaseMasterPlatypus(_stakingContract).poolInfo(_pid);
         } else {
             (asset, , , , , , , ) = IMasterPlatypusV2(_stakingContract).poolInfo(_pid);
         }
@@ -395,7 +407,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         override
         onlyStrategy(_stakingContract, _pid)
     {
-        (address bonusTokenAddress, ) = IMasterPlatypus(_stakingContract).rewarderBonusTokenInfo(_pid);
+        (address bonusTokenAddress, ) = IMasterPlatypusV2(_stakingContract).rewarderBonusTokenInfo(_pid);
 
         platypusVoter.safeExecute(_stakingContract, 0, abi.encodeWithSignature("deposit(uint256,uint256)", _pid, 0));
         if (bonusTokenAddress == WAVAX) {
