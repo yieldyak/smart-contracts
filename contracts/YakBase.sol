@@ -37,7 +37,7 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
         _;
     }
 
-    constructor(BaseSettings memory _settings) ERC20(_settings.name, _settings.symbol) {
+    constructor(BaseSettings memory _settings) ERC20(_settings.name, _settings.symbol, 18) {
         asset = _settings.asset;
         devAddr = _settings.devAddr;
         updateDepositsEnabled(_settings.depositsEnabled);
@@ -139,7 +139,11 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
 
         shares = convertToShares(_assets);
         if (msg.sender != _owner) {
-            _spendAllowance(_owner, msg.sender, shares);
+            uint256 allowed = allowance[_owner][msg.sender];
+
+            if (allowed != type(uint256).max) {
+                allowance[_owner][msg.sender] = allowed - shares;
+            }
         }
 
         uint256 minReceive = previewWithdraw(_assets);
@@ -159,8 +163,13 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
     ) public override returns (uint256 assets) {
         require(_shares > 0, "YakBase::Redeem amount too low");
         require(_shares <= maxRedeem(_owner), "YakBase::Redeem more than max");
+
         if (msg.sender != _owner) {
-            _spendAllowance(_owner, msg.sender, _shares);
+            uint256 allowed = allowance[_owner][msg.sender];
+
+            if (allowed != type(uint256).max) {
+                allowance[_owner][msg.sender] = allowed - _shares;
+            }
         }
 
         uint256 minReceive = previewRedeem(_shares);
@@ -186,7 +195,7 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
      * @return shares receipt tokens
      */
     function convertToShares(uint256 _assets) public view returns (uint256 shares) {
-        uint256 tSupply = totalSupply();
+        uint256 tSupply = totalSupply;
         uint256 tAssets = totalAssets();
         if (tSupply == 0 || tAssets == 0) {
             return _assets;
@@ -200,7 +209,7 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
      * @return assets deposit tokens
      */
     function convertToAssets(uint256 _shares) public view returns (uint256 assets) {
-        uint256 tSupply = totalSupply();
+        uint256 tSupply = totalSupply;
         uint256 tAssets = totalAssets();
         if (tSupply == 0 || tAssets == 0) {
             return 0;
@@ -252,7 +261,7 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
      * @dev MUST factor in both global and user-specific limits, like if withdrawals are entirely disabled (even temporarily) it MUST return 0.
      */
     function maxWithdraw(address _owner) public view virtual override returns (uint256) {
-        return previewRedeem(balanceOf(_owner));
+        return previewRedeem(balanceOf[_owner]);
     }
 
     /**
@@ -260,7 +269,7 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
      * @dev MUST factor in both global and user-specific limits, like if redemption is entirely disabled (even temporarily) it MUST return 0.
      */
     function maxRedeem(address _owner) public view virtual override returns (uint256) {
-        return balanceOf(_owner);
+        return balanceOf[_owner];
     }
 
     /*//////////////////////////////////////////////////////////////

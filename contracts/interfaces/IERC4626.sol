@@ -2,13 +2,11 @@
 
 pragma solidity ^0.8.0;
 
-import "./IERC20.sol";
-
 /**
  * @dev Interface of the ERC4626 "Tokenized Vault Standard", as defined in
  * https://eips.ethereum.org/EIPS/eip-4626[ERC-4626].
  */
-interface IERC4626 is IERC20 {
+interface IERC4626 {
     event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
 
     event Withdraw(

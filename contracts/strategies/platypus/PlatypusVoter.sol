@@ -31,7 +31,7 @@ contract PlatypusVoter is IPlatypusVoter, Ownable, ERC20 {
         _;
     }
 
-    constructor(address _owner) ERC20("Yield Yak PTP", "yyPTP") {
+    constructor(address _owner) ERC20("Yield Yak PTP", "yyPTP", 18) {
         transferOwnership(_owner);
     }
 

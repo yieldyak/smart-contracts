@@ -26,7 +26,7 @@ contract YetiVoter is Ownable, IYetiVoter, ERC20 {
         _;
     }
 
-    constructor(address _owner) ERC20("Yield Yak YETI", "yyYETI") {
+    constructor(address _owner) ERC20("Yield Yak YETI", "yyYETI", 18) {
         transferOwnership(_owner);
     }
 
