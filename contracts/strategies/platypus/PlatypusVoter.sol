@@ -97,10 +97,10 @@ contract PlatypusVoter is IPlatypusVoter, Ownable, ERC20 {
      * @param _amount to deposit
      */
     function _deposit(uint256 _amount) internal {
-        IERC20(PTP).safeApprove(address(vePTP), _amount);
+        IERC20(PTP).approve(address(vePTP), _amount);
         _mint(msg.sender, _amount);
         vePTP.deposit(_amount);
-        IERC20(PTP).safeApprove(address(vePTP), 0);
+        IERC20(PTP).approve(address(vePTP), 0);
     }
 
     /**

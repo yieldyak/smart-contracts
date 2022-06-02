@@ -54,9 +54,9 @@ contract YakVaultForSA is YakBase, ReentrancyGuard {
         require(_assets > 0, "YakVault::deposit, amount too low");
         require(checkStrategies(), "YakVault::deposit, deposit temporarily paused");
         if (activeStrategy != address(0)) {
-            IERC20(asset).safeApprove(activeStrategy, _assets);
+            IERC20(asset).approve(activeStrategy, _assets);
             YakStrategy(activeStrategy).deposit(_assets);
-            IERC20(asset).safeApprove(activeStrategy, 0);
+            IERC20(asset).approve(activeStrategy, 0);
         }
     }
 
@@ -177,9 +177,9 @@ contract YakVaultForSA is YakBase, ReentrancyGuard {
         require(supportedStrategies.contains(strategy), "YakVault::depositToStrategy, strategy not registered");
         uint256 depositTokenBalance = IERC20(asset).balanceOf(address(this));
         require(depositTokenBalance >= amount, "YakVault::depositToStrategy, amount exceeds balance");
-        IERC20(asset).safeApprove(strategy, amount);
+        IERC20(asset).approve(strategy, amount);
         YakStrategy(strategy).deposit(amount);
-        IERC20(asset).safeApprove(strategy, 0);
+        IERC20(asset).approve(strategy, 0);
     }
 
     /**
@@ -199,9 +199,9 @@ contract YakVaultForSA is YakBase, ReentrancyGuard {
         uint256 depositTokenBalance = IERC20(asset).balanceOf(address(this));
         require(depositTokenBalance >= 0, "YakVault::depositPercentageToStrategy, balance zero");
         uint256 amount = depositTokenBalance.mul(depositPercentageBips).div(BIPS_DIVISOR);
-        IERC20(asset).safeApprove(strategy, amount);
+        IERC20(asset).approve(strategy, amount);
         YakStrategy(strategy).deposit(amount);
-        IERC20(asset).safeApprove(strategy, 0);
+        IERC20(asset).approve(strategy, 0);
     }
 
     /**
@@ -264,7 +264,7 @@ contract YakVaultForSA is YakBase, ReentrancyGuard {
             yakRegistry.disabledStrategies(strategy) || getDeployedBalance(strategy) == 0,
             "YakVault::removeStrategy, cannot remove enabled strategy with funds"
         );
-        IERC20(asset).safeApprove(strategy, 0);
+        IERC20(asset).approve(strategy, 0);
         supportedStrategies.remove(strategy);
         emit RemoveStrategy(strategy);
     }
