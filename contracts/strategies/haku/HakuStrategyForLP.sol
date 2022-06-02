@@ -2,90 +2,58 @@
 
 pragma solidity 0.8.13;
 
-import "../MasterChefStrategyForLP.sol";
+import "../VariableRewardsStrategyForLP.sol";
 
 import "./interfaces/IHakuChef.sol";
 
-contract HakuStrategyForLP is MasterChefStrategyForLP {
-    using SafeMath for uint256;
+contract HakuStrategyForLP is VariableRewardsStrategyForLP {
+    address private constant HAKU = 0x695Fa794d59106cEbd40ab5f5cA19F458c723829;
 
     IHakuChef public hakuChef;
-    address public swapPairRewardToken;
+    uint256 public immutable PID;
 
     constructor(
-        string memory _name,
-        address _depositToken,
-        address _rewardToken,
-        address _nativeRewardToken,
-        SwapPairs memory _swapPairs,
-        address _stakingRewards,
+        address _stakingContract,
         uint256 _pid,
-        address _timelock,
+        SwapPairs memory _swapPairs,
+        RewardSwapPairs[] memory _rewardSwapPairs,
+        BaseSettings memory _baseSettings,
         StrategySettings memory _strategySettings
-    )
-        MasterChefStrategyForLP(
-            _name,
-            _depositToken,
-            _rewardToken,
-            _nativeRewardToken,
-            _swapPairs,
-            _timelock,
-            _pid,
-            _strategySettings
-        )
-    {
-        hakuChef = IHakuChef(_stakingRewards);
+    ) VariableRewardsStrategyForLP(_swapPairs, _rewardSwapPairs, _baseSettings, _strategySettings) {
+        hakuChef = IHakuChef(_stakingContract);
+        PID = _pid;
     }
 
-    function _depositMasterchef(uint256 _pid, uint256 _amount) internal override {
-        depositToken.approve(address(hakuChef), _amount);
-        hakuChef.deposit(_pid, _amount);
+    function _depositToStakingContract(uint256 _amount) internal override {
+        IERC20(asset).approve(address(hakuChef), _amount);
+        hakuChef.deposit(PID, _amount);
+        IERC20(asset).approve(address(hakuChef), 0);
     }
 
-    function _withdrawMasterchef(uint256 _pid, uint256 _amount) internal override {
-        hakuChef.withdraw(_pid, _amount);
+    function _withdrawFromStakingContract(uint256 _amount) internal override returns (uint256 _withdrawAmount) {
+        hakuChef.withdraw(PID, _amount);
+        return _amount;
     }
 
-    function _emergencyWithdraw(uint256 _pid) internal override {
-        depositToken.approve(address(hakuChef), 0);
-        hakuChef.emergencyWithdraw(_pid);
+    function _emergencyWithdraw() internal override {
+        IERC20(asset).approve(address(hakuChef), 0);
+        hakuChef.emergencyWithdraw(PID);
     }
 
-    /**
-     * @notice Returns pending rewards
-     * @dev `rewarder` distributions are not considered
-     */
-    function _pendingRewards(uint256 _pid, address _user)
-        internal
-        view
-        override
-        returns (
-            uint256,
-            uint256,
-            address
-        )
-    {
-        uint256 pendingHaku = hakuChef.pendingCake(_pid, _user);
-        return (pendingHaku, 0, address(0));
+    function _pendingRewards() internal view override returns (Reward[] memory) {
+        uint256 pendingHaku = hakuChef.pendingCake(PID, address(this));
+
+        Reward[] memory pendingRewards = new Reward[](1);
+        pendingRewards[0] = Reward({reward: HAKU, amount: pendingHaku});
+        return pendingRewards;
     }
 
-    function _getRewards(uint256 _pid) internal override {
-        hakuChef.deposit(_pid, 0);
+    function _getRewards() internal override {
+        hakuChef.deposit(PID, 0);
     }
 
-    function _getDepositBalance(uint256 _pid, address _user) internal view override returns (uint256 amount) {
-        (amount, ) = hakuChef.userInfo(_pid, _user);
-    }
-
-    function _getDepositFeeBips(uint256) internal pure override returns (uint256) {
-        return 0;
-    }
-
-    function _getWithdrawFeeBips(uint256) internal pure override returns (uint256) {
-        return 0;
-    }
-
-    function _bip() internal pure override returns (uint256) {
-        return 10000;
+    function totalAssets() public view override returns (uint256) {
+        (uint256 amount, ) = hakuChef.userInfo(PID, address(this));
+        return amount;
     }
 }

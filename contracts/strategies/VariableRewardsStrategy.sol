@@ -227,7 +227,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV3 {
             address reward = rewards[i].reward;
             if (reward == address(WAVAX)) {
                 estimatedTotalReward = estimatedTotalReward + rewards[i].amount;
-            } else {
+            } else if (reward > address(0)) {
                 uint256 balance = IERC20(reward).balanceOf(address(this));
                 uint256 amount = balance + rewards[i].amount;
                 address swapPair = rewardSwapPairs[rewards[i].reward];
@@ -245,7 +245,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV3 {
                              ADMIN
     //////////////////////////////////////////////////////////////*/
 
-    function addReward(address _rewardToken, address _swapPair) public onlyDev {
+    function addReward(address _rewardToken, address _swapPair) public virtual onlyDev {
         _addReward(_rewardToken, _swapPair);
     }
 
@@ -262,7 +262,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV3 {
         emit AddReward(_rewardToken, _swapPair);
     }
 
-    function removeReward(address _rewardToken) public onlyDev {
+    function removeReward(address _rewardToken) public virtual onlyDev {
         delete rewardSwapPairs[_rewardToken];
         bool found = false;
         for (uint256 i = 0; i < supportedRewards.length; i++) {

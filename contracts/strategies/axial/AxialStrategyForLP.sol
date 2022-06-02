@@ -2,19 +2,20 @@
 
 pragma solidity 0.8.13;
 
-import "../MasterChefStrategy.sol";
+import "../VariableRewardsStrategy.sol";
 import "../../interfaces/IERC20.sol";
 import "../../interfaces/IPair.sol";
 import "../../lib/DexLibrary.sol";
+
 import "./interfaces/IAxialChef.sol";
 import "./interfaces/IAxialSwap.sol";
 
-contract AxialStrategyForLP is MasterChefStrategy {
-    using SafeMath for uint256;
-
-    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+contract AxialStrategyForLP is VariableRewardsStrategy {
+    address private constant AXIAL = 0xcF8419A615c57511807236751c0AF38Db4ba3351;
 
     IAxialChef public axialChef;
+    uint256 public immutable PID;
+
     ZapSettings private zapSettings;
 
     /**
@@ -29,91 +30,58 @@ contract AxialStrategyForLP is MasterChefStrategy {
     }
 
     constructor(
-        string memory _name,
-        address _depositToken,
-        address _poolRewardToken,
-        address _swapPairPoolReward,
-        address _swapPairExtraReward,
         address _stakingContract,
-        ZapSettings memory _zapSettings,
         uint256 _pid,
-        address _timelock,
+        ZapSettings memory _zapSettings,
+        RewardSwapPairs[] memory _rewardSwapPairs,
+        BaseSettings memory _baseSettings,
         StrategySettings memory _strategySettings
-    )
-        MasterChefStrategy(
-            _name,
-            _depositToken,
-            address(WAVAX), /*rewardToken=*/
-            _poolRewardToken,
-            _swapPairPoolReward,
-            _swapPairExtraReward,
-            _timelock,
-            _pid,
-            _strategySettings
-        )
-    {
+    ) VariableRewardsStrategy(_rewardSwapPairs, _baseSettings, _strategySettings) {
         axialChef = IAxialChef(_stakingContract);
         zapSettings = _zapSettings;
         IERC20(zapSettings.zapToken).approve(zapSettings.zapContract, type(uint256).max);
+        PID = _pid;
     }
 
-    function _depositMasterchef(uint256 _pid, uint256 _amount) internal override {
-        depositToken.approve(address(axialChef), _amount);
-        axialChef.deposit(_pid, _amount);
+    function _depositToStakingContract(uint256 _amount) internal override {
+        IERC20(asset).approve(address(axialChef), _amount);
+        axialChef.deposit(PID, _amount);
+        IERC20(asset).approve(address(axialChef), 0);
     }
 
-    function _withdrawMasterchef(uint256 _pid, uint256 _amount) internal override {
-        axialChef.withdraw(_pid, _amount);
+    function _withdrawFromStakingContract(uint256 _amount) internal override returns (uint256 _withdrawAmount) {
+        axialChef.withdraw(PID, _amount);
+        return _amount;
     }
 
-    function _emergencyWithdraw(uint256 _pid) internal override {
-        axialChef.emergencyWithdraw(_pid);
-        depositToken.approve(address(axialChef), 0);
+    function _emergencyWithdraw() internal override {
+        axialChef.emergencyWithdraw(PID);
+        IERC20(asset).approve(address(axialChef), 0);
     }
 
-    function _pendingRewards(uint256 _pid, address _user)
-        internal
-        view
-        override
-        returns (
-            uint256,
-            uint256,
-            address
-        )
-    {
+    function _pendingRewards() internal view override returns (Reward[] memory) {
         (uint256 pendingAxial, address bonusTokenAddress, , uint256 pendingBonusToken) = axialChef.pendingTokens(
-            _pid,
-            _user
+            PID,
+            address(this)
         );
-        return (pendingAxial, pendingBonusToken, bonusTokenAddress);
+
+        Reward[] memory pendingRewards = new Reward[](2);
+        pendingRewards[0] = Reward({reward: AXIAL, amount: pendingAxial});
+        pendingRewards[0] = Reward({reward: bonusTokenAddress, amount: pendingBonusToken});
+        return pendingRewards;
     }
 
-    function _getRewards(uint256 _pid) internal override {
-        axialChef.withdraw(_pid, 0);
+    function _getRewards() internal override {
+        axialChef.withdraw(PID, 0);
     }
 
-    function _getDepositBalance(uint256 pid, address user) internal view override returns (uint256 amount) {
-        (amount, ) = axialChef.userInfo(pid, user);
+    function totalAssets() public view override returns (uint256) {
+        (uint256 amount, ) = axialChef.userInfo(PID, address(this));
+        return amount;
     }
 
     function updateMaxSwapSlippage(uint256 _maxSlippageBips) external onlyDev {
         zapSettings.maxSlippage = _maxSlippageBips;
-    }
-
-    function _getDepositFeeBips(
-        uint256 /* pid */
-    ) internal pure override returns (uint256) {
-        return 0;
-    }
-
-    function _getWithdrawFeeBips(
-        uint256 /* pid */
-    ) internal pure override returns (uint256) {
-        return 0;
-    }
-
-    function _bip() internal pure override returns (uint256) {
-        return 10000;
     }
 
     function _convertRewardTokenToDepositToken(uint256 fromAmount) internal override returns (uint256 toAmount) {
@@ -126,8 +94,7 @@ contract AxialStrategyForLP is MasterChefStrategy {
         uint256[] memory amounts = new uint256[](zapSettings.tokenCount);
         uint256 zapTokenIndex = IAxialSwap(zapSettings.zapContract).getTokenIndex(zapSettings.zapToken);
         amounts[zapTokenIndex] = zapTokenAmount;
-        uint256 slippage = zapTokenAmount.mul(zapSettings.maxSlippage).div(BIPS_DIVISOR);
-        return
-            IAxialSwap(zapSettings.zapContract).addLiquidity(amounts, zapTokenAmount.sub(slippage), type(uint256).max);
+        uint256 slippage = (zapTokenAmount * zapSettings.maxSlippage) / BIPS_DIVISOR;
+        return IAxialSwap(zapSettings.zapContract).addLiquidity(amounts, zapTokenAmount - slippage, type(uint256).max);
     }
 }

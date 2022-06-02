@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.13;
 
-import "../VariableRewardsStrategy.sol";
+import "../VariableRewardsStrategyForSA.sol";
 import "../../lib/SafeERC20.sol";
 import "../../interfaces/IBoosterFeeCollector.sol";
 
@@ -13,7 +13,7 @@ import "../platypus/interfaces/IPlatypusAsset.sol";
 import "./interfaces/IEchidnaBooster.sol";
 import "./interfaces/IEchidnaRewardPool.sol";
 
-contract EchidnaStrategy is VariableRewardsStrategy {
+contract EchidnaStrategy is VariableRewardsStrategyForSA {
     using SafeERC20 for IERC20;
 
     struct PoolSettings {
@@ -41,7 +41,14 @@ contract EchidnaStrategy is VariableRewardsStrategy {
         RewardSwapPairs[] memory _rewardSwapPairs,
         BaseSettings memory _baseSettings,
         StrategySettings memory _strategySettings
-    ) VariableRewardsStrategy(_rewardSwapPairs, _baseSettings, _strategySettings) {
+    )
+        VariableRewardsStrategyForSA(
+            poolSettings.swapPairDepositToken,
+            _rewardSwapPairs,
+            _baseSettings,
+            _strategySettings
+        )
+    {
         PID = poolSettings.pid;
         platypusPool = IPlatypusPool(poolSettings.platypusPool);
         echidnaBooster = IEchidnaBooster(_stakingContract);
@@ -76,15 +83,6 @@ contract EchidnaStrategy is VariableRewardsStrategy {
         IERC20(address(platypusAsset)).approve(address(echidnaBooster), liquidity);
         echidnaBooster.deposit(PID, liquidity, false, type(uint256).max);
         IERC20(address(platypusAsset)).approve(address(echidnaBooster), 0);
-    }
-
-    function _convertRewardTokenToDepositToken(uint256 fromAmount)
-        internal
-        virtual
-        override
-        returns (uint256 toAmount)
-    {
-        toAmount = DexLibrary.swap(fromAmount, address(rewardToken), asset, IPair(swapPairDepositToken));
     }
 
     function _calculateDepositFee(uint256 amount) internal view override returns (uint256) {
