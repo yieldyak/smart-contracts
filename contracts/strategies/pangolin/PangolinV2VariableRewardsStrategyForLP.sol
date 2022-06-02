@@ -11,8 +11,6 @@ import "./interfaces/IMiniChefV2.sol";
 import "./interfaces/IPangolinRewarder.sol";
 
 contract PangolinV2VariableRewardsStrategyForLP is VariableRewardsStrategyForLP {
-    using SafeMath for uint256;
-
     IMiniChefV2 public miniChef;
     uint256 public immutable PID;
     address private poolRewardToken;
@@ -57,7 +55,7 @@ contract PangolinV2VariableRewardsStrategyForLP is VariableRewardsStrategyForLP 
                 address(this),
                 poolRewardAmount
             );
-            pendingRewards = new Reward[](rewardTokens.length.add(1));
+            pendingRewards = new Reward[](rewardTokens.length + 1);
             for (uint256 i = 0; i < rewardTokens.length; i++) {
                 pendingRewards[i + 1] = Reward({reward: rewardTokens[i], amount: rewardAmounts[i]});
             }

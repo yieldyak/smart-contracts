@@ -6,8 +6,6 @@ import "../VariableRewardsStrategyForSA.sol";
 import "./interfaces/IStableJoeStaking.sol";
 
 contract CompoundingJoeV3 is VariableRewardsStrategyForSA {
-    using SafeMath for uint256;
-
     IStableJoeStaking public stakingContract;
 
     constructor(

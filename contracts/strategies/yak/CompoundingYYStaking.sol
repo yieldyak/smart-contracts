@@ -6,8 +6,6 @@ import "../VariableRewardsStrategy.sol";
 import "./interfaces/IYYStaking.sol";
 
 contract CompoundingYYStaking is VariableRewardsStrategy {
-    using SafeMath for uint256;
-
     IYYStaking public stakingContract;
     address public swapPairToken;
     address public swapPairPreSwap;
