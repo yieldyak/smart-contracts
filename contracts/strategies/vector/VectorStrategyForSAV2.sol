@@ -3,14 +3,12 @@ pragma solidity 0.8.13;
 
 import "../VariableRewardsStrategyForSA.sol";
 import "../../lib/SafeERC20.sol";
-import "../../lib/SafeMath.sol";
 import "../../interfaces/IBoosterFeeCollector.sol";
 
 import "./interfaces/IVectorMainStaking.sol";
 import "./interfaces/IVectorPoolHelperV2.sol";
 
 contract VectorStrategyForSAV2 is VariableRewardsStrategyForSA {
-    using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     IERC20 private constant PTP = IERC20(0x22d4002028f537599bE9f666d1c4Fa138522f9c8);
@@ -61,7 +59,7 @@ contract VectorStrategyForSAV2 is VariableRewardsStrategyForSA {
         uint256 balanceBefore = IERC20(asset).balanceOf(address(this));
         _vectorPoolHelper().withdraw(_amount, 0);
         uint256 balanceAfter = IERC20(asset).balanceOf(address(this));
-        return balanceAfter.sub(balanceBefore);
+        return balanceAfter - balanceBefore;
     }
 
     function _emergencyWithdraw() internal override {
@@ -76,7 +74,7 @@ contract VectorStrategyForSAV2 is VariableRewardsStrategyForSA {
         Reward[] memory pendingRewards = new Reward[](count);
         (uint256 pendingVTX, uint256 pendingPTP) = vectorPoolHelper.earned(address(PTP));
         uint256 boostFee = boosterFeeCollector.calculateBoostFee(address(this), pendingPTP);
-        pendingRewards[0] = Reward({reward: address(PTP), amount: pendingPTP.sub(boostFee)});
+        pendingRewards[0] = Reward({reward: address(PTP), amount: pendingPTP - boostFee});
         pendingRewards[1] = Reward({reward: address(VTX), amount: pendingVTX});
         uint256 offset = 2;
         for (uint256 i = 0; i < count; i++) {
@@ -94,7 +92,7 @@ contract VectorStrategyForSAV2 is VariableRewardsStrategyForSA {
     function _getRewards() internal override {
         uint256 ptpBalanceBefore = PTP.balanceOf(address(this));
         _vectorPoolHelper().getReward();
-        uint256 amount = PTP.balanceOf(address(this)).sub(ptpBalanceBefore);
+        uint256 amount = PTP.balanceOf(address(this)) - ptpBalanceBefore;
         uint256 boostFee = boosterFeeCollector.calculateBoostFee(address(this), amount);
         PTP.safeTransfer(address(boosterFeeCollector), boostFee);
     }
