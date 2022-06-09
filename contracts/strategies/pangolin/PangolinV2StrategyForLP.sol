@@ -3,14 +3,11 @@
 pragma solidity 0.8.13;
 
 import "../VariableRewardsStrategyForLP.sol";
-import "../../interfaces/IERC20.sol";
-import "../../interfaces/IPair.sol";
-import "../../lib/DexLibrary.sol";
 
 import "./interfaces/IMiniChefV2.sol";
 import "./interfaces/IPangolinRewarder.sol";
 
-contract PangolinV2VariableRewardsStrategyForLP is VariableRewardsStrategyForLP {
+contract PangolinV2StrategyForLP is VariableRewardsStrategyForLP {
     IMiniChefV2 public miniChef;
     uint256 public immutable PID;
     address private poolRewardToken;
