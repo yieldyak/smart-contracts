@@ -6,8 +6,7 @@ import "./lib/BenqiLibrary.sol";
 import "./interfaces/IBenqiUnitroller.sol";
 import "./interfaces/IBenqiERC20Delegator.sol";
 
-contract BenqiStrategyQiV2 is VariableRewardsStrategyForSA {
-    using SafeMath for uint256;
+contract BenqiStrategyQi is VariableRewardsStrategyForSA {
     using SafeERC20 for IERC20;
 
     address private constant QI = 0x8729438EB15e2C8B576fCc6AeCdA6A148776C0F5;
@@ -69,7 +68,7 @@ contract BenqiStrategyQiV2 is VariableRewardsStrategyForSA {
 
     function totalAssets() public view override returns (uint256) {
         (, uint256 internalBalance, , uint256 exchangeRate) = tokenDelegator.getAccountSnapshot(address(this));
-        return internalBalance.mul(exchangeRate).div(1e18);
+        return (internalBalance * exchangeRate) / 1e18;
     }
 
     function _enterMarket() internal {
@@ -81,6 +80,6 @@ contract BenqiStrategyQiV2 is VariableRewardsStrategyForSA {
     function _calculateReward(uint8 tokenIndex, address account) internal view returns (uint256) {
         uint256 rewardAccrued = rewardController.rewardAccrued(tokenIndex, account);
         uint256 supplyAccrued = BenqiLibrary.supplyAccrued(rewardController, tokenDelegator, tokenIndex, account);
-        return rewardAccrued.add(supplyAccrued);
+        return rewardAccrued + supplyAccrued;
     }
 }
