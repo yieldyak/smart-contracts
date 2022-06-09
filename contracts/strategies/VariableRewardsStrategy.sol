@@ -13,7 +13,6 @@ abstract contract VariableRewardsStrategy is YakStrategyV3 {
     using SafeERC20 for IERC20;
 
     IWAVAX internal constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
-    uint256 public constant SLIPPAGE_BIPS_DIVISOR = 10000;
 
     struct Reward {
         address reward;
@@ -71,9 +70,9 @@ abstract contract VariableRewardsStrategy is YakStrategyV3 {
      * @notice Calculate deposit fee of underlying farm
      * @dev Override if deposit fee is calculated dynamically
      */
-    function _calculateDepositFee(uint256 _amount) internal view virtual returns (uint256) {
+    function _calculateDepositFee(uint256 _assets) internal view virtual override returns (uint256) {
         uint256 depositFeeBips = _getDepositFeeBips();
-        return (_amount * depositFeeBips) / _bip();
+        return (_assets * depositFeeBips) / _bip();
     }
 
     /**
@@ -88,9 +87,9 @@ abstract contract VariableRewardsStrategy is YakStrategyV3 {
      * @dev Override if withdraw fee is calculated dynamically
      * @dev Important: Do not override if withdraw fee is deducted from the amount returned by _withdrawFromStakingContract
      */
-    function _calculateWithdrawFee(uint256 _amount) internal view virtual returns (uint256) {
+    function _calculateWithdrawFee(uint256 _assets) internal view returns (uint256) {
         uint256 withdrawFeeBips = _getWithdrawFeeBips();
-        return (_amount * withdrawFeeBips) / _bip();
+        return (_assets * withdrawFeeBips) / _bip();
     }
 
     /**
@@ -106,6 +105,10 @@ abstract contract VariableRewardsStrategy is YakStrategyV3 {
     }
 
     function _getMaxSlippageBips() internal view virtual returns (uint256) {
+        return 0;
+    }
+
+    function _getMaxPreviewInaccuracyBips() internal view virtual returns (uint256) {
         return 0;
     }
 
@@ -130,13 +133,20 @@ abstract contract VariableRewardsStrategy is YakStrategyV3 {
 
     function previewDeposit(uint256 _assets) public view override returns (uint256) {
         uint256 depositFee = _calculateDepositFee(_assets);
-        return convertToShares(_assets - depositFee);
+        uint256 maxPreviewInaccuracy = _calculateMaxPreviewInaccuracy(_assets - depositFee);
+        return convertToShares(_assets - depositFee - maxPreviewInaccuracy);
     }
 
     function previewMint(uint256 _shares) public view override returns (uint256) {
         uint256 assets = convertToAssets(_shares);
         uint256 depositFee = _calculateDepositFee(assets);
-        return assets + depositFee;
+        uint256 maxPreviewInaccuracy = _calculateMaxPreviewInaccuracy(assets - depositFee);
+        return assets + depositFee + maxPreviewInaccuracy;
+    }
+
+    function _calculateMaxPreviewInaccuracy(uint256 amount) internal view virtual returns (uint256) {
+        uint256 inaccuracyBips = _getMaxPreviewInaccuracyBips();
+        return (amount * inaccuracyBips) / BIPS_DIVISOR;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -150,19 +160,21 @@ abstract contract VariableRewardsStrategy is YakStrategyV3 {
     function previewWithdraw(uint256 _assets) public view override returns (uint256) {
         uint256 withdrawFee = _calculateWithdrawFee(_assets);
         uint256 maxSlippage = _calculateMaxSlippage(_assets - withdrawFee);
-        return convertToShares(_assets + withdrawFee + maxSlippage);
+        uint256 maxPreviewInaccuracy = _calculateMaxPreviewInaccuracy(_assets - withdrawFee - maxSlippage);
+        return convertToShares(_assets + withdrawFee + maxSlippage + maxPreviewInaccuracy);
     }
 
     function previewRedeem(uint256 _shares) public view override returns (uint256) {
         uint256 assets = convertToAssets(_shares);
         uint256 withdrawFee = _calculateWithdrawFee(assets);
         uint256 maxSlippage = _calculateMaxSlippage(assets - withdrawFee);
-        return assets - withdrawFee - maxSlippage;
+        uint256 maxPreviewInaccuracy = _calculateMaxPreviewInaccuracy(assets - withdrawFee - maxSlippage);
+        return assets - withdrawFee - maxSlippage - maxPreviewInaccuracy;
     }
 
     function _calculateMaxSlippage(uint256 amount) internal view virtual returns (uint256) {
         uint256 slippageBips = _getMaxSlippageBips();
-        return (amount * slippageBips) / SLIPPAGE_BIPS_DIVISOR;
+        return (amount * slippageBips) / BIPS_DIVISOR;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -193,7 +205,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV3 {
         uint256 depositTokenAmount = _convertRewardTokenToDepositToken(amount - devFee - reinvestFee);
 
         _stakeDepositTokens(depositTokenAmount);
-        emit Reinvest(totalDeposits(), totalSupply);
+        emit Reinvest(totalAssets(), totalSupply);
     }
 
     function _convertRewardsIntoWAVAX() private returns (uint256) {
@@ -285,7 +297,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV3 {
             balanceAfter - balanceBefore >= _minReturnAmountAccepted,
             "VariableRewardsStrategy::Emergency withdraw minimum return amount not reached"
         );
-        emit Reinvest(totalDeposits(), totalSupply);
+        emit Reinvest(totalAssets(), totalSupply);
         if (DEPOSITS_ENABLED == true) {
             updateDepositsEnabled(false);
         }

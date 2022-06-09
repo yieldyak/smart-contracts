@@ -57,6 +57,12 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
                               INTERNAL HOOKS
     //////////////////////////////////////////////////////////////*/
 
+    function _calculateDepositFee(
+        uint256 /*_assets*/
+    ) internal view virtual returns (uint256) {
+        return 0;
+    }
+
     /**
      * @notice Deploys assets to underlying farm.
      * @dev Do not issue shares
@@ -69,6 +75,10 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
      * @return withdraw amount after fees and actual slippage
      */
     function withdraw(uint256 _assets, uint256 _shares) internal virtual returns (uint256);
+
+    function beforeDeposit() internal virtual {}
+
+    function beforeWithdraw() internal virtual {}
 
     /*//////////////////////////////////////////////////////////////
                         DEPOSIT/WITHDRAWAL
@@ -98,8 +108,12 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
      */
     function deposit(uint256 _assets, address _receiver) public override returns (uint256 shares) {
         require(_assets <= maxDeposit(_receiver), "YakBase::Deposit more than max");
+        uint256 minReceive = previewDeposit(_assets);
 
-        shares = previewDeposit(_assets);
+        beforeDeposit();
+        uint256 depositFee = _calculateDepositFee(_assets);
+        shares = convertToShares(_assets - depositFee);
+        require(shares >= minReceive, "YakBase::Internal state outdated");
         IERC20(asset).safeTransferFrom(msg.sender, address(this), _assets);
 
         _mint(_receiver, shares);
@@ -114,8 +128,13 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
      */
     function mint(uint256 _shares, address _receiver) public override returns (uint256 assets) {
         require(_shares <= maxMint(_receiver), "YakBase::Mint more than max");
+        uint256 maxCosts = previewMint(_shares);
 
-        assets = previewMint(_shares);
+        beforeDeposit();
+        assets = convertToAssets(_shares);
+        uint256 depositFee = _calculateDepositFee(assets);
+        assets = assets + depositFee;
+        require(assets <= maxCosts, "YakBase::Internal state outdated");
         IERC20(asset).safeTransferFrom(msg.sender, address(this), assets);
 
         _mint(_receiver, _shares);
@@ -137,6 +156,9 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
         require(_assets > 0, "YakBase::Withdraw amount too low");
         require(_assets <= maxWithdraw(_owner), "YakBase::Withdraw more than max");
 
+        uint256 minReceive = previewWithdraw(_assets);
+
+        beforeWithdraw();
         shares = convertToShares(_assets);
         if (msg.sender != _owner) {
             uint256 allowed = allowance[_owner][msg.sender];
@@ -145,8 +167,6 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
                 allowance[_owner][msg.sender] = allowed - shares;
             }
         }
-
-        uint256 minReceive = previewWithdraw(_assets);
         uint256 received = withdraw(_assets, shares);
         require(received >= minReceive, "YakBase::Slippage too high");
 
@@ -164,6 +184,10 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
         require(_shares > 0, "YakBase::Redeem amount too low");
         require(_shares <= maxRedeem(_owner), "YakBase::Redeem more than max");
 
+        uint256 minReceive = previewRedeem(_shares);
+
+        beforeWithdraw();
+        assets = convertToAssets(_shares);
         if (msg.sender != _owner) {
             uint256 allowed = allowance[_owner][msg.sender];
 
@@ -171,9 +195,6 @@ abstract contract YakBase is IERC4626, ERC20, Ownable {
                 allowance[_owner][msg.sender] = allowed - _shares;
             }
         }
-
-        uint256 minReceive = previewRedeem(_shares);
-        assets = convertToAssets(_shares);
         uint256 received = withdraw(assets, _shares);
         require(received >= minReceive, "YakBase::Slippage too high");
 

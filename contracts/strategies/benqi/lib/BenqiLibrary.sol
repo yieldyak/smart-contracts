@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "../../../lib/SafeMath.sol";
 import "./Exponential.sol";
 import "../interfaces/IBenqiUnitroller.sol";
 import "../interfaces/IBenqiERC20Delegator.sol";
 
 library BenqiLibrary {
-    using SafeMath for uint256;
-
     function calculateReward(
         IBenqiUnitroller rewardController,
         IBenqiERC20Delegator tokenDelegator,
@@ -16,10 +13,9 @@ library BenqiLibrary {
         address account
     ) internal view returns (uint256) {
         uint256 rewardAccrued = rewardController.rewardAccrued(tokenIndex, account);
-        return
-            rewardAccrued.add(supplyAccrued(rewardController, tokenDelegator, tokenIndex, account)).add(
-                borrowAccrued(rewardController, tokenDelegator, tokenIndex, account)
-            );
+        uint256 supplyRewardAccrued = supplyAccrued(rewardController, tokenDelegator, tokenIndex, account);
+        uint256 borrowRewardAccrued = borrowAccrued(rewardController, tokenDelegator, tokenIndex, account);
+        return rewardAccrued + supplyRewardAccrued + borrowRewardAccrued;
     }
 
     function supplyAccrued(
