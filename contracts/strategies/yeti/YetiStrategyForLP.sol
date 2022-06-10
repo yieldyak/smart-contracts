@@ -18,33 +18,31 @@ contract YetiStrategyForLP is VariableRewardsStrategy {
     CurveSwap.Settings private zapSettings;
 
     constructor(
-        string memory _name,
-        address _depositToken,
         CurveSwap.Settings memory _zapSettings,
-        RewardSwapPairs[] memory _rewardSwapPairs,
         address _stakingContract,
         address _voterProxy,
-        address _timelock,
+        RewardSwapPairs[] memory _rewardSwapPairs,
+        BaseSettings memory _baseSettings,
         StrategySettings memory _strategySettings
-    ) VariableRewardsStrategy(_name, _depositToken, _rewardSwapPairs, _timelock, _strategySettings) {
+    ) VariableRewardsStrategy(_rewardSwapPairs, _baseSettings, _strategySettings) {
         stakingContract = _stakingContract;
         proxy = IYetiVoterProxy(_voterProxy);
         zapSettings = _zapSettings;
     }
 
     function _depositToStakingContract(uint256 _amount) internal override {
-        depositToken.safeTransfer(address(proxy), _amount);
-        proxy.deposit(stakingContract, address(depositToken), _amount);
+        IERC20(asset).safeTransfer(address(proxy), _amount);
+        proxy.deposit(stakingContract, asset, _amount);
     }
 
     function _withdrawFromStakingContract(uint256 _amount) internal override returns (uint256 _withdrawAmount) {
-        proxy.withdraw(stakingContract, address(depositToken), _amount);
+        proxy.withdraw(stakingContract, asset, _amount);
         return _amount;
     }
 
     function _emergencyWithdraw() internal override {
-        depositToken.approve(address(proxy), 0);
-        proxy.emergencyWithdraw(stakingContract, address(depositToken));
+        IERC20(asset).approve(address(proxy), 0);
+        proxy.emergencyWithdraw(stakingContract, asset);
     }
 
     /**
@@ -62,11 +60,10 @@ contract YetiStrategyForLP is VariableRewardsStrategy {
     }
 
     function _convertRewardTokenToDepositToken(uint256 _fromAmount) internal override returns (uint256 toAmount) {
-        return
-            CurveSwap.zapToFactory3AssetsPoolLP(_fromAmount, address(rewardToken), address(depositToken), zapSettings);
+        return CurveSwap.zapToFactory3AssetsPoolLP(_fromAmount, address(rewardToken), asset, zapSettings);
     }
 
-    function totalDeposits() public view override returns (uint256) {
+    function totalAssets() public view override returns (uint256) {
         return proxy.poolBalance(stakingContract);
     }
 }

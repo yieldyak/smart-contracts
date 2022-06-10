@@ -2,90 +2,54 @@
 
 pragma solidity 0.8.13;
 
-import "../MasterChefStrategy.sol";
+import "../VariableRewardsStrategy.sol";
 
 import "./interfaces/IKassandraPool.sol";
 import "./interfaces/IKassandraStaking.sol";
 
-contract KassandraIndexStrategy is MasterChefStrategy {
-    using SafeMath for uint256;
-
-    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+contract KassandraIndexStrategy is VariableRewardsStrategy {
+    address private constant KACY = 0xf32398dae246C5f672B52A54e9B413dFFcAe1A44;
 
     IKassandraStaking public stakingContract;
     IKassandraPool public kassandraPool;
+    uint256 public immutable PID;
 
     constructor(
-        string memory _name,
-        address _depositToken,
-        address _poolRewardToken,
-        address _swapPairPoolReward,
         address _stakingContract,
         uint256 _pid,
-        address _timelock,
+        RewardSwapPairs[] memory _rewardSwapPairs,
+        BaseSettings memory _baseSettings,
         StrategySettings memory _strategySettings
-    )
-        MasterChefStrategy(
-            _name,
-            _depositToken,
-            address(WAVAX), /*rewardToken=*/
-            _poolRewardToken,
-            _swapPairPoolReward,
-            address(0),
-            _timelock,
-            _pid,
-            _strategySettings
-        )
-    {
+    ) VariableRewardsStrategy(_rewardSwapPairs, _baseSettings, _strategySettings) {
         stakingContract = IKassandraStaking(_stakingContract);
-        kassandraPool = IKassandraPool(_depositToken);
+        kassandraPool = IKassandraPool(_baseSettings.asset);
+        PID = _pid;
     }
 
-    function _getDepositFeeBips(
-        uint256 /* pid */
-    ) internal pure override returns (uint256) {
-        return 0;
+    function _depositToStakingContract(uint256 _amount) internal override {
+        IERC20(asset).approve(address(stakingContract), _amount);
+        stakingContract.stake(PID, _amount, address(this), address(this));
+        IERC20(asset).approve(address(stakingContract), 0);
     }
 
-    function _getWithdrawFeeBips(
-        uint256 /* pid */
-    ) internal pure override returns (uint256) {
-        return 0;
+    function _withdrawFromStakingContract(uint256 _amount) internal override returns (uint256 _withdrawAmount) {
+        stakingContract.withdraw(PID, _amount);
+        return _amount;
     }
 
-    function _depositMasterchef(uint256 _pid, uint256 _amount) internal override {
-        depositToken.approve(address(stakingContract), _amount);
-        stakingContract.stake(_pid, _amount, address(this), address(this));
+    function _pendingRewards() internal view override returns (Reward[] memory) {
+        uint256 pendingReward = stakingContract.earned(PID, address(this));
+        Reward[] memory pendingRewards = new Reward[](1);
+        pendingRewards[0] = Reward({reward: KACY, amount: pendingReward});
+        return pendingRewards;
     }
 
-    function _withdrawMasterchef(uint256 _pid, uint256 _amount) internal override {
-        stakingContract.withdraw(_pid, _amount);
+    function _getRewards() internal override {
+        stakingContract.getReward(PID);
     }
 
-    function _pendingRewards(uint256 _pid, address _user)
-        internal
-        view
-        override
-        returns (
-            uint256,
-            uint256,
-            address
-        )
-    {
-        uint256 pendingReward = stakingContract.earned(_pid, address(_user));
-        return (pendingReward, 0, address(0));
-    }
-
-    function _getRewards(uint256 _pid) internal override {
-        stakingContract.getReward(_pid);
-    }
-
-    function _getDepositBalance(uint256 pid, address user) internal view override returns (uint256 amount) {
-        return stakingContract.balanceOf(pid, user);
-    }
-
-    function _bip() internal pure override returns (uint256) {
-        return 10000;
+    function totalAssets() public view override returns (uint256) {
+        return stakingContract.balanceOf(PID, address(this));
     }
 
     function _convertRewardTokenToDepositToken(uint256 fromAmount) internal override returns (uint256 toAmount) {
@@ -93,8 +57,8 @@ contract KassandraIndexStrategy is MasterChefStrategy {
         return kassandraPool.joinswapExternAmountIn(address(WAVAX), fromAmount, 0);
     }
 
-    function _emergencyWithdraw(uint256 _pid) internal override {
-        depositToken.approve(address(stakingContract), 0);
-        stakingContract.exit(_pid);
+    function _emergencyWithdraw() internal override {
+        IERC20(asset).approve(address(stakingContract), 0);
+        stakingContract.exit(PID);
     }
 }

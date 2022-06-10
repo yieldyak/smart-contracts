@@ -20,15 +20,13 @@ contract VectorStrategyForDexLP is VariableRewardsStrategyForLP {
     IBoosterFeeCollector public boosterFeeCollector;
 
     constructor(
-        string memory _name,
-        address _depositToken,
-        SwapPairs memory _swapPairs,
-        RewardSwapPairs[] memory _rewardSwapPairs,
         address _stakingContract,
         address _boosterFeeCollector,
-        address _timelock,
+        SwapPairs memory _swapPairs,
+        RewardSwapPairs[] memory _rewardSwapPairs,
+        BaseSettings memory _baseSettings,
         StrategySettings memory _strategySettings
-    ) VariableRewardsStrategyForLP(_name, _depositToken, _swapPairs, _rewardSwapPairs, _timelock, _strategySettings) {
+    ) VariableRewardsStrategyForLP(_swapPairs, _rewardSwapPairs, _baseSettings, _strategySettings) {
         vectorMainStaking = IVectorMainStakingJoe(_stakingContract);
         boosterFeeCollector = IBoosterFeeCollector(_boosterFeeCollector);
     }
@@ -39,21 +37,21 @@ contract VectorStrategyForDexLP is VariableRewardsStrategyForLP {
 
     function _depositToStakingContract(uint256 _amount) internal override {
         IVectorJoePoolHelper vectorPoolHelper = _vectorPoolHelper();
-        depositToken.approve(address(vectorPoolHelper), _amount);
+        IERC20(asset).approve(address(vectorPoolHelper), _amount);
         vectorPoolHelper.deposit(_amount);
-        depositToken.approve(address(vectorPoolHelper), 0);
+        IERC20(asset).approve(address(vectorPoolHelper), 0);
     }
 
     function _withdrawFromStakingContract(uint256 _amount) internal override returns (uint256 _withdrawAmount) {
-        uint256 balanceBefore = depositToken.balanceOf(address(this));
+        uint256 balanceBefore = IERC20(asset).balanceOf(address(this));
         _vectorPoolHelper().withdraw(_amount);
-        uint256 balanceAfter = depositToken.balanceOf(address(this));
+        uint256 balanceAfter = IERC20(asset).balanceOf(address(this));
         return balanceAfter.sub(balanceBefore);
     }
 
     function _emergencyWithdraw() internal override {
         IVectorJoePoolHelper vectorPoolHelper = _vectorPoolHelper();
-        depositToken.approve(address(vectorPoolHelper), 0);
+        IERC20(asset).approve(address(vectorPoolHelper), 0);
         vectorPoolHelper.withdraw(totalDeposits());
     }
 
@@ -86,12 +84,12 @@ contract VectorStrategyForDexLP is VariableRewardsStrategyForLP {
         JOE.safeTransfer(address(boosterFeeCollector), boostFee);
     }
 
-    function totalDeposits() public view override returns (uint256) {
+    function totalAssets() public view override returns (uint256) {
         return _vectorPoolHelper().balanceOf(address(this));
     }
 
     function _vectorPoolHelper() private view returns (IVectorJoePoolHelper) {
-        (, , , , , address helper) = vectorMainStaking.getPoolInfo(address(depositToken));
+        (, , , , , address helper) = vectorMainStaking.getPoolInfo(asset);
         return IVectorJoePoolHelper(helper);
     }
 }

@@ -32,7 +32,7 @@ contract EchidnaVoter is Ownable, IEchidnaVoter, ERC20 {
         _;
     }
 
-    constructor(address _owner) ERC20("Yield Yak ECD", "yyECD") {
+    constructor(address _owner) ERC20("Yield Yak ECD", "yyECD", 18) {
         transferOwnership(_owner);
     }
 

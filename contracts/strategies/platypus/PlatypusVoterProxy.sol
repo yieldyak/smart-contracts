@@ -164,7 +164,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         uint256 _depositFee
     ) external override onlyStrategy(_stakingContract, _pid) {
         uint256 liquidity = _depositTokenToAsset(_asset, _amount, _depositFee);
-        IERC20(_token).safeApprove(_pool, _amount);
+        IERC20(_token).approve(_pool, _amount);
         IPlatypusPool(_pool).deposit(address(_token), _amount, address(platypusVoter), type(uint256).max);
         platypusVoter.safeExecute(
             _asset,

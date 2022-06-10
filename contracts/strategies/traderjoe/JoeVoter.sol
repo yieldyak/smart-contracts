@@ -2,6 +2,7 @@
 pragma solidity 0.8.13;
 
 import "../../interfaces/IWAVAX.sol";
+import "../../interfaces/IERC20.sol";
 import "../../lib/Ownable.sol";
 import "../../lib/ERC20.sol";
 
@@ -28,7 +29,7 @@ contract JoeVoter is IJoeVoter, Ownable, ERC20 {
         _;
     }
 
-    constructor(address _owner, address _stakingContract) ERC20("Yield Yak JOE", "yyJOE") {
+    constructor(address _owner, address _stakingContract) ERC20("Yield Yak JOE", "yyJOE", 18) {
         stakingContract = IVeJoeStaking(_stakingContract);
         transferOwnership(_owner);
     }

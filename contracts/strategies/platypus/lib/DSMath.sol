@@ -15,24 +15,20 @@
 
 // SPDX-License-Identifier: MIT
 
-import "../../../lib/SafeMath.sol";
-
 pragma solidity 0.8.13;
 
 library DSMath {
-    using SafeMath for uint256;
-
     uint256 public constant WAD = 10**18;
     uint256 public constant RAY = 10**27;
 
     //rounds to zero if x*y < WAD / 2
     function wmul(uint256 x, uint256 y) internal pure returns (uint256) {
-        return ((x.mul(y)).add((WAD.div(2)))).div(WAD);
+        return ((x * y) + (WAD / 2)) / WAD;
     }
 
     //rounds to zero if x*y < WAD / 2
     function wdiv(uint256 x, uint256 y) internal pure returns (uint256) {
-        return ((x.mul(WAD)).add((y.div(2)))).div(y);
+        return ((x * WAD) + (y / 2)) / y;
     }
 
     function reciprocal(uint256 x) internal pure returns (uint256) {
@@ -55,12 +51,12 @@ library DSMath {
     //    floor[(n-1) / 2] = floor[n / 2].
     //
     function rpow(uint256 x, uint256 n) internal pure returns (uint256 z) {
-        z = n.mod(2) != 0 ? x : RAY;
+        z = n % 2 != 0 ? x : RAY;
 
-        for (n = n.div(2); n != 0; n = n.div(2)) {
+        for (n /= 2; n != 0; n /= 2) {
             x = rmul(x, x);
 
-            if (n.mod(2) != 0) {
+            if (n % 2 != 0) {
                 z = rmul(z, x);
             }
         }
@@ -68,6 +64,6 @@ library DSMath {
 
     //rounds to zero if x*y < WAD / 2
     function rmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = ((x.mul(y)).add((RAY.div(2)))).div(RAY);
+        z = ((x * y) + (RAY / 2)) / RAY;
     }
 }

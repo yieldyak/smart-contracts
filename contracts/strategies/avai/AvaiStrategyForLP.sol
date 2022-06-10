@@ -2,85 +2,60 @@
 
 pragma solidity 0.8.13;
 
-import "./interfaces/IAvaiPodLeader.sol";
+import "../VariableRewardsStrategyForLP.sol";
 import "../../interfaces/IERC20.sol";
-import "../../interfaces/IPair.sol";
-import "../../lib/DexLibrary.sol";
-import "../MasterChefStrategyForLP.sol";
 
-contract AvaiStrategyForLP is MasterChefStrategyForLP {
-    using SafeMath for uint256;
+import "./interfaces/IAvaiPodLeader.sol";
+
+contract AvaiStrategyForLP is VariableRewardsStrategyForLP {
+    address private constant ORCA = 0x8B1d98A91F853218ddbb066F20b8c63E782e2430;
 
     IAvaiPodLeader public podLeader;
-    address public swapPairRewardToken;
+    uint256 public immutable PID;
 
     constructor(
-        string memory _name,
-        address _depositToken,
-        address _rewardToken,
-        address _nativeRewardToken,
-        SwapPairs memory _swapPairs,
-        address _stakingRewards,
+        address _stakingContract,
         uint256 _pid,
-        address _timelock,
+        SwapPairs memory _swapPairs,
+        RewardSwapPairs[] memory _rewardSwapPairs,
+        BaseSettings memory _baseSettings,
         StrategySettings memory _strategySettings
-    )
-        MasterChefStrategyForLP(
-            _name,
-            _depositToken,
-            _rewardToken,
-            _nativeRewardToken,
-            _swapPairs,
-            _timelock,
-            _pid,
-            _strategySettings
-        )
-    {
-        podLeader = IAvaiPodLeader(_stakingRewards);
+    ) VariableRewardsStrategyForLP(_swapPairs, _rewardSwapPairs, _baseSettings, _strategySettings) {
+        podLeader = IAvaiPodLeader(_stakingContract);
+        PID = _pid;
     }
 
-    function _depositMasterchef(uint256 _pid, uint256 _amount) internal override {
-        podLeader.deposit(_pid, _amount);
+    function _depositToStakingContract(uint256 _amount) internal override {
+        podLeader.deposit(PID, _amount);
     }
 
-    function _withdrawMasterchef(uint256 _pid, uint256 _amount) internal override {
-        podLeader.withdraw(_pid, _amount);
+    function _withdrawFromStakingContract(uint256 _amount) internal override returns (uint256 _withdrawAmount) {
+        podLeader.withdraw(PID, _amount);
+        return _amount;
     }
 
-    function _emergencyWithdraw(uint256 _pid) internal override {
-        podLeader.emergencyWithdraw(_pid);
+    function _emergencyWithdraw() internal override {
+        podLeader.emergencyWithdraw(PID);
     }
 
-    function _pendingRewards(uint256 _pid, address _user)
-        internal
-        view
-        override
-        returns (
-            uint256,
-            uint256,
-            address
-        )
-    {
-        return (podLeader.pendingRewards(_pid, _user), 0, address(0));
+    function _pendingRewards() internal view override returns (Reward[] memory) {
+        Reward[] memory pendingRewards = new Reward[](1);
+        pendingRewards[0] = Reward({reward: ORCA, amount: podLeader.pendingRewards(PID, address(this))});
+        return pendingRewards;
     }
 
-    function _getRewards(uint256 _pid) internal override {
-        podLeader.deposit(_pid, 0);
+    function _getRewards() internal override {
+        podLeader.deposit(PID, 0);
     }
 
-    function _getDepositBalance(uint256 pid, address user) internal view override returns (uint256 amount) {
-        (amount, ) = podLeader.userInfo(pid, user);
+    function totalAssets() public view override returns (uint256) {
+        (uint256 amount, ) = podLeader.userInfo(PID, address(this));
+        return amount;
     }
 
-    function _getDepositFeeBips(uint256 pid) internal view override returns (uint256) {
-        (, , , , , uint256 fees) = podLeader.poolInfo(pid);
+    function _getDepositFeeBips() internal view override returns (uint256) {
+        (, , , , , uint256 fees) = podLeader.poolInfo(PID);
         return fees;
-    }
-
-    function _getWithdrawFeeBips(
-        uint256 /*pid*/
-    ) internal pure override returns (uint256) {
-        return 0;
     }
 
     function _bip() internal pure override returns (uint256) {

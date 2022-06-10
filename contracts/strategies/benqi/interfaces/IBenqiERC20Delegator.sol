@@ -39,4 +39,6 @@ interface IBenqiERC20Delegator is IERC20 {
         );
 
     function getCash() external returns (uint256);
+
+    function accrueInterest() external returns (uint256);
 }
