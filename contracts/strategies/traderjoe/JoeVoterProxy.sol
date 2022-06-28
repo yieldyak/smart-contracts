@@ -2,7 +2,6 @@
 pragma solidity 0.8.13;
 
 import "../../lib/SafeERC20.sol";
-import "../../lib/SafeMath.sol";
 
 import "./interfaces/IJoeVoter.sol";
 import "./interfaces/IJoeVoterProxy.sol";
@@ -32,7 +31,6 @@ library SafeProxy {
  * use a new proxy.
  */
 contract JoeVoterProxy is IJoeVoterProxy {
-    using SafeMath for uint256;
     using SafeProxy for IJoeVoter;
     using SafeERC20 for IERC20;
 
@@ -175,7 +173,7 @@ contract JoeVoterProxy is IJoeVoterProxy {
         if (stakerFee > 0 && stakerFeeReceiver > address(0)) {
             stakingFee = stakerFee;
         }
-        return boostFee.add(stakingFee);
+        return boostFee + stakingFee;
     }
 
     /**
@@ -235,9 +233,9 @@ contract JoeVoterProxy is IJoeVoterProxy {
             _pid,
             address(voter)
         );
-        uint256 reinvestFee = pendingJoe.mul(this.reinvestFeeBips()).div(BIPS_DIVISOR);
+        uint256 reinvestFee = (pendingJoe * this.reinvestFeeBips()) / BIPS_DIVISOR;
 
-        return (pendingJoe.sub(reinvestFee), bonusTokenAddress, pendingBonusToken);
+        return (pendingJoe - reinvestFee, bonusTokenAddress, pendingBonusToken);
     }
 
     function poolBalance(address _stakingContract, uint256 _pid) external view override returns (uint256 balance) {
@@ -284,8 +282,10 @@ contract JoeVoterProxy is IJoeVoterProxy {
     }
 
     function _distributeReward(address _extraToken) private {
-        if (_extraToken == WAVAX) {
-            voter.wrapAvaxBalance();
+        voter.wrapAvaxBalance();
+        uint256 wavaxBalance = IERC20(WAVAX).balanceOf(address(voter));
+        if (wavaxBalance > 0) {
+            voter.safeExecute(WAVAX, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, wavaxBalance));
         }
 
         uint256 pendingJoe = IERC20(JOE).balanceOf(address(voter));
@@ -293,14 +293,14 @@ contract JoeVoterProxy is IJoeVoterProxy {
         if (pendingJoe > 0) {
             uint256 boostFee = 0;
             if (boosterFee > 0 && boosterFeeReceiver > address(0) && voter.depositsEnabled()) {
-                boostFee = pendingJoe.mul(boosterFee).div(BIPS_DIVISOR);
+                boostFee = (pendingJoe * boosterFee) / BIPS_DIVISOR;
                 voter.depositFromBalance(boostFee);
                 IERC20(address(voter)).safeTransfer(boosterFeeReceiver, boostFee);
             }
 
             uint256 stakingFee = 0;
             if (stakerFee > 0 && stakerFeeReceiver > address(0)) {
-                stakingFee = pendingJoe.mul(stakerFee).div(BIPS_DIVISOR);
+                stakingFee = (pendingJoe * stakerFee) / BIPS_DIVISOR;
                 voter.safeExecute(
                     JOE,
                     0,
@@ -308,7 +308,7 @@ contract JoeVoterProxy is IJoeVoterProxy {
                 );
             }
 
-            uint256 reward = pendingJoe.sub(boostFee).sub(stakingFee);
+            uint256 reward = pendingJoe - boostFee - stakingFee;
             voter.safeExecute(JOE, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, reward));
         }
 
