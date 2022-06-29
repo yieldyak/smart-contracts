@@ -2,13 +2,14 @@
 pragma solidity 0.8.13;
 
 import "../../lib/SafeERC20.sol";
-import "../../lib/SafeMath.sol";
 
 import "./interfaces/IPlatypusVoter.sol";
 import "./interfaces/IMasterPlatypus.sol";
 import "./interfaces/IMasterPlatypusV2.sol";
 import "./interfaces/IPlatypusPool.sol";
 import "./interfaces/IPlatypusAsset.sol";
+import "./interfaces/IPlatypusNFT.sol";
+import "./interfaces/IVePTP.sol";
 import "./interfaces/IPlatypusStrategy.sol";
 import "./interfaces/IPlatypusVoterProxy.sol";
 
@@ -34,7 +35,6 @@ library SafeProxy {
  * use a new proxy.
  */
 contract PlatypusVoterProxy is IPlatypusVoterProxy {
-    using SafeMath for uint256;
     using SafeProxy for IPlatypusVoter;
     using SafeERC20 for IERC20;
 
@@ -53,6 +53,9 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
     address public stakerFeeReceiver;
     address public boosterFeeReceiver;
     address public constant PTP = 0x22d4002028f537599bE9f666d1c4Fa138522f9c8;
+    address public constant PLATYPUS_NFT = 0x6A04a578247e15e3c038AcF2686CA00A624a5aa0;
+    IVePTP public constant vePTP = IVePTP(0x5857019c749147EEE22b1Fe63500F237F3c1B692);
+
     IPlatypusVoter public immutable override platypusVoter;
     address public devAddr;
 
@@ -143,6 +146,38 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         stakerFeeReceiver = _stakerFeeReceiver;
     }
 
+    function swapNFT(uint256 id) external onlyDev returns (uint256 unstakedId) {
+        if (IERC721(PLATYPUS_NFT).ownerOf(id) != address(platypusVoter)) {
+            IERC721(PLATYPUS_NFT).transferFrom(msg.sender, address(platypusVoter), id);
+        }
+
+        (, , unstakedId) = vePTP.users(address(platypusVoter));
+
+        platypusVoter.safeExecute(
+            PLATYPUS_NFT,
+            0,
+            abi.encodeWithSignature("approve(address,uint256)", address(vePTP), id)
+        );
+        platypusVoter.safeExecute(address(vePTP), 0, abi.encodeWithSignature("stakeNft(uint256)", id));
+
+        if (unstakedId > 0) {
+            sweepNFT(unstakedId);
+        }
+    }
+
+    function unstakeNFT() external onlyDev returns (uint256 unstakedId) {
+        (, , unstakedId) = vePTP.users(address(platypusVoter));
+        platypusVoter.safeExecute(address(vePTP), 0, abi.encodeWithSignature("unstakeNft()"));
+    }
+
+    function sweepNFT(uint256 id) public onlyDev {
+        platypusVoter.safeExecute(
+            PLATYPUS_NFT,
+            0,
+            abi.encodeWithSignature("transferFrom(address,address,uint256)", address(platypusVoter), msg.sender, id)
+        );
+    }
+
     /**
      * @notice Deposit function
      * @dev Restricted to strategy with _pid
@@ -189,11 +224,11 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         uint256 _depositFee
     ) private view returns (uint256 liquidity) {
         if (IPlatypusAsset(_asset).liability() == 0) {
-            liquidity = _amount.sub(_depositFee);
+            liquidity = _amount - _depositFee;
         } else {
-            liquidity = ((_amount.sub(_depositFee)).mul(IPlatypusAsset(_asset).totalSupply())).div(
-                IPlatypusAsset(_asset).liability()
-            );
+            liquidity =
+                ((_amount - _depositFee) * IPlatypusAsset(_asset).totalSupply()) /
+                IPlatypusAsset(_asset).liability();
         }
     }
 
@@ -211,7 +246,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         if (stakerFee > 0 && stakerFeeReceiver > address(0)) {
             stakingFee = stakerFee;
         }
-        return boostFee.add(stakingFee);
+        return boostFee + stakingFee;
     }
 
     /**
@@ -243,7 +278,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
     ) private view returns (uint256) {
         uint256 totalDeposits = _poolBalance(_stakingContract, _pid);
         (uint256 balance, , ) = IMasterPlatypus(_stakingContract).userInfo(_pid, address(platypusVoter));
-        return _amount.mul(balance).div(totalDeposits);
+        return (_amount * balance) / totalDeposits;
     }
 
     /**
@@ -274,9 +309,9 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
             abi.encodeWithSignature("withdraw(uint256,uint256)", _pid, liquidity)
         );
         platypusVoter.safeExecute(_asset, 0, abi.encodeWithSignature("approve(address,uint256)", _pool, liquidity));
-        uint256 minimumReceive = liquidity.sub(_calculateWithdrawFee(_pool, _token, liquidity));
-        uint256 slippage = minimumReceive.mul(_maxSlippage).div(BIPS_DIVISOR);
-        minimumReceive = minimumReceive.sub(slippage);
+        uint256 minimumReceive = liquidity - _calculateWithdrawFee(_pool, _token, liquidity);
+        uint256 slippage = (minimumReceive * _maxSlippage) / BIPS_DIVISOR;
+        minimumReceive = minimumReceive - slippage;
         bytes memory result = platypusVoter.safeExecute(
             _pool,
             0,
@@ -381,7 +416,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
             assetBalance
         );
         require(enoughCash, "PlatypusVoterProxy::This shouldn't happen");
-        return expectedAmount.add(fee);
+        return expectedAmount + fee;
     }
 
     /**
@@ -410,14 +445,14 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         if (pendingPtp > 0) {
             uint256 boostFee = 0;
             if (boosterFee > 0 && boosterFeeReceiver > address(0) && platypusVoter.depositsEnabled()) {
-                boostFee = pendingPtp.mul(boosterFee).div(BIPS_DIVISOR);
+                boostFee = (pendingPtp * boosterFee) / BIPS_DIVISOR;
                 platypusVoter.depositFromBalance(boostFee);
                 IERC20(address(platypusVoter)).safeTransfer(boosterFeeReceiver, boostFee);
             }
 
             uint256 stakingFee = 0;
             if (stakerFee > 0 && stakerFeeReceiver > address(0)) {
-                stakingFee = pendingPtp.mul(stakerFee).div(BIPS_DIVISOR);
+                stakingFee = (pendingPtp * stakerFee) / BIPS_DIVISOR;
                 platypusVoter.safeExecute(
                     PTP,
                     0,
@@ -425,7 +460,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
                 );
             }
 
-            uint256 reward = pendingPtp.sub(boostFee).sub(stakingFee);
+            uint256 reward = pendingPtp - boostFee - stakingFee;
             platypusVoter.safeExecute(PTP, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, reward));
         }
 
@@ -443,7 +478,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
     }
 
     function toUint256(bytes memory _bytes, uint256 _start) internal pure returns (uint256) {
-        require(_bytes.length >= _start.add(32), "toUint256_outOfBounds");
+        require(_bytes.length >= _start + 32, "toUint256_outOfBounds");
         uint256 tempUint;
 
         assembly {
