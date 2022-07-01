@@ -31,7 +31,7 @@ contract GmxProxy is IGmxProxy {
     uint256 internal constant BIPS_DIVISOR = 10000;
 
     address internal constant GMX = 0x62edc0692BD897D2295872a9FFCac5425011c661;
-    address internal constant fsGLP = 0x5643F4b25E36478eE1E90418d5343cb6591BcB9d;
+    address internal constant sGLP = 0x0b82a1aD2138E9f62454ac41b702B64e0b73d57b;
     address internal constant WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
 
     address public devAddr;
@@ -50,14 +50,14 @@ contract GmxProxy is IGmxProxy {
 
     modifier onlyStrategy() {
         require(
-            approvedStrategies[fsGLP] == msg.sender || approvedStrategies[GMX] == msg.sender,
+            approvedStrategies[sGLP] == msg.sender || approvedStrategies[GMX] == msg.sender,
             "GmxProxy:onlyGLPStrategy"
         );
         _;
     }
 
     modifier onlyGLPStrategy() {
-        require(approvedStrategies[fsGLP] == msg.sender, "GmxProxy:onlyGLPStrategy");
+        require(approvedStrategies[sGLP] == msg.sender, "GmxProxy:onlyGLPStrategy");
         _;
     }
 
@@ -105,7 +105,7 @@ contract GmxProxy is IGmxProxy {
     }
 
     function _withdrawGlp(uint256 _amount) private {
-        gmxDepositor.safeExecute(fsGLP, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, _amount));
+        gmxDepositor.safeExecute(sGLP, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, _amount));
     }
 
     function stakeGmx(uint256 _amount) external override onlyGMXStrategy {
