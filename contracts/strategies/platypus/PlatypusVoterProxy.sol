@@ -161,7 +161,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         platypusVoter.safeExecute(address(vePTP), 0, abi.encodeWithSignature("stakeNft(uint256)", id));
 
         if (unstakedId > 0) {
-            sweepNFT(unstakedId);
+            sweepNFT(--unstakedId);
         }
     }
 
