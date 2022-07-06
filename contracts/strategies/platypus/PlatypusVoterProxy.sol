@@ -146,12 +146,16 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         stakerFeeReceiver = _stakerFeeReceiver;
     }
 
-    function swapNFT(uint256 id) external onlyDev returns (uint256 unstakedId) {
+    /**
+     * @notice Stake NFT 
+     * @dev Restricted to devAddr.
+     * @dev The currently staked NFT will be automatically unstaked and remain on voter. Use "sweepNFT" to get it back.
+     * @param id id of the NFT to be staked
+     */
+    function stakeNFT(uint256 id) external onlyDev {
         if (IERC721(PLATYPUS_NFT).ownerOf(id) != address(platypusVoter)) {
             IERC721(PLATYPUS_NFT).transferFrom(msg.sender, address(platypusVoter), id);
         }
-
-        (, , unstakedId) = vePTP.users(address(platypusVoter));
 
         platypusVoter.safeExecute(
             PLATYPUS_NFT,
@@ -159,17 +163,22 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
             abi.encodeWithSignature("approve(address,uint256)", address(vePTP), id)
         );
         platypusVoter.safeExecute(address(vePTP), 0, abi.encodeWithSignature("stakeNft(uint256)", id));
-
-        if (unstakedId > 0) {
-            sweepNFT(--unstakedId);
-        }
     }
 
-    function unstakeNFT() external onlyDev returns (uint256 unstakedId) {
-        (, , unstakedId) = vePTP.users(address(platypusVoter));
+    /**
+     * @notice Unstake the currently staked NFT 
+     * @dev Restricted to devAddr.
+     * @dev The unstaked NFT will remain on voter. Use "sweepNFT" to get it back.
+     */
+    function unstakeNFT() external onlyDev {
         platypusVoter.safeExecute(address(vePTP), 0, abi.encodeWithSignature("unstakeNft()"));
     }
 
+    /**
+     * @notice Sweep NFT
+     * @dev Restricted to devAddr.
+     * @param id id of the NFT to be swept
+     */
     function sweepNFT(uint256 id) public onlyDev {
         platypusVoter.safeExecute(
             PLATYPUS_NFT,
