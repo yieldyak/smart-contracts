@@ -48,4 +48,6 @@ interface IJoeVoterProxy {
     function approveStrategy(address _stakingContract, address _strategy) external;
 
     function reinvestFeeBips() external view returns (uint256);
+
+    function devAddr() external view returns (address);
 }
