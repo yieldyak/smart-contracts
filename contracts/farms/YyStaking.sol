@@ -8,7 +8,7 @@ import "../lib/SafeERC20.sol";
 /**
  * @title YY Staking
  * @author Yield Yak
- * @notice YyStaking is a contract that allows ERC20 dpeosits and receives rewards from token balances which may be
+ * @notice YyStaking is a contract that allows ERC20 deposits and receives rewards from token balances which may be
  * transferred in without an additional function call. The contract is based on StableJoeStaking from Trader Joe.
  * Users deposit X and receive a share of what has been sent based on their participation of the total deposits.
  * It is similar to a MasterChef, but we allow for claiming of different reward tokens.
