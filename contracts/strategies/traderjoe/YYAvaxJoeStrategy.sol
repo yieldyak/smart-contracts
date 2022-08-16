@@ -12,7 +12,7 @@ contract YYAvaxJoeStrategy is VariableRewardsStrategy {
     address public immutable swapPairWavaxOther;
 
     address public constant JOE = 0x6e84a6216eA6dACC71eE8E6b0a5B7322EEbC0fDd;
-    address public constant yyAVAX = 0x6026a85e11BD895c934Af02647E8C7b4Ea2D9808;
+    address public constant yyAVAX = 0xF7D9281e8e363584973F946201b82ba72C965D27;
 
     constructor(
         string memory _name,
@@ -29,6 +29,10 @@ contract YYAvaxJoeStrategy is VariableRewardsStrategy {
         PID = _pid;
         swapPairWavaxOther = _swapPairWavaxOther;
         withdrawalPool = ISwap(_withdrawalPool);
+    }
+
+    receive() external payable {
+        require(msg.sender == address(withdrawalPool) || msg.sender == address(WAVAX), "not allowed");
     }
 
     function _depositToStakingContract(uint256 _amount) internal override {
@@ -48,7 +52,7 @@ contract YYAvaxJoeStrategy is VariableRewardsStrategy {
         pendingRewards[0] = Reward({reward: address(JOE), amount: pendingJoe});
         pendingRewards[1] = Reward({
             reward: address(WAVAX),
-            amount: withdrawalPool.calculateSwap(1, 0, pendingBonusToken)
+            amount: pendingBonusToken > 0 ? withdrawalPool.calculateSwap(1, 0, pendingBonusToken) : 0
         });
 
         return pendingRewards;
@@ -83,7 +87,8 @@ contract YYAvaxJoeStrategy is VariableRewardsStrategy {
     }
 
     function _swapThroughWithdrawalPool(uint256 _amountIn) internal returns (uint256) {
-        return withdrawalPool.swap(0, 1, _amountIn, 0, type(uint256).max);
+        WAVAX.withdraw(_amountIn);
+        return withdrawalPool.swap{value: _amountIn}(0, 1, _amountIn, 0, type(uint256).max);
     }
 
     function _swapThroughPair(uint256 _amountIn, address _toToken) internal returns (uint256) {
