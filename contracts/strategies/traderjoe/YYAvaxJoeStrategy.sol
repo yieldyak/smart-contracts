@@ -3,6 +3,7 @@ pragma solidity 0.8.13;
 
 import "./../VariableRewardsStrategy.sol";
 import "./interfaces/IJoeChef.sol";
+import "./../yak/interfaces/IgAvax.sol";
 import "./../yak/interfaces/ISwap.sol";
 
 contract YYAvaxJoeStrategy is VariableRewardsStrategy {
@@ -13,6 +14,7 @@ contract YYAvaxJoeStrategy is VariableRewardsStrategy {
 
     address public constant JOE = 0x6e84a6216eA6dACC71eE8E6b0a5B7322EEbC0fDd;
     address public constant yyAVAX = 0xF7D9281e8e363584973F946201b82ba72C965D27;
+    address public constant gAvax = 0x6026a85e11BD895c934Af02647E8C7b4Ea2D9808;
 
     constructor(
         string memory _name,
@@ -29,10 +31,29 @@ contract YYAvaxJoeStrategy is VariableRewardsStrategy {
         PID = _pid;
         swapPairWavaxOther = _swapPairWavaxOther;
         withdrawalPool = ISwap(_withdrawalPool);
+        IgAVAX(gAvax).setApprovalForAll(address(withdrawalPool), true);
     }
 
     receive() external payable {
         require(msg.sender == address(withdrawalPool) || msg.sender == address(WAVAX), "not allowed");
+    }
+
+    function onERC1155Received(
+        address,
+        address,
+        uint256,
+        uint256,
+        bytes memory
+    ) public virtual returns (bytes4) {
+        return this.onERC1155Received.selector;
+    }
+
+    function setAllowances() public onlyDev {
+        IgAVAX(gAvax).setApprovalForAll(address(withdrawalPool), true);
+    }
+
+    function revokeAllowance() public onlyDev {
+        IgAVAX(gAvax).setApprovalForAll(address(withdrawalPool), false);
     }
 
     function _depositToStakingContract(uint256 _amount) internal override {
@@ -60,7 +81,10 @@ contract YYAvaxJoeStrategy is VariableRewardsStrategy {
 
     function _getRewards() internal override {
         joeChef.deposit(PID, 0);
-        withdrawalPool.swap(1, 0, IERC20(yyAVAX).balanceOf(address(this)), 0, type(uint256).max);
+        uint256 yyAVAXBalance = IERC20(yyAVAX).balanceOf(address(this));
+        if (yyAVAXBalance > 0) {
+            withdrawalPool.swap{value: 0}(1, 0, yyAVAXBalance, 0, type(uint256).max);
+        }
     }
 
     function _convertRewardTokenToDepositToken(uint256 _fromAmount) internal override returns (uint256 toAmount) {
@@ -78,7 +102,7 @@ contract YYAvaxJoeStrategy is VariableRewardsStrategy {
 
         uint256 amountOutToken1 = amountIn;
         if (address(WAVAX) != token1) {
-            amountOutToken1 = token0 == yyAVAX
+            amountOutToken1 = token1 == yyAVAX
                 ? _swapThroughWithdrawalPool(amountIn)
                 : _swapThroughPair(amountIn, token1);
         }
