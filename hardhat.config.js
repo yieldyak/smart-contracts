@@ -9,14 +9,18 @@ const dotenv = require("dotenv");
 const {task} = require("hardhat/config");
 dotenv.config();
 
-const AVALANCHE_MAINNET_URL = process.env.AVALANCHE_MAINNET_URL;
-const AVALANCHE_FUJI_URL = process.env.AVALANCHE_FUJI_URL;
+const MAINNET_URL = process.env.MAINNET_URL;
+const TESTNET_URL = process.env.TESTNET_URL;
+const MAINNET_CHAIN_ID = parseInt(process.env.MAINNET_CHAIN_ID);
+const TESTNET_CHAIN_ID = parseInt(process.env.TESTNET_CHAIN_ID);
+
+const DEPLOYMENTS_PATH = process.env.DEPLOYMENTS_PATH;
 
 const PK_USER = process.env.PK_USER;
 const PK_OWNER = process.env.PK_OWNER;
 const PK_TEST = process.env.PK_TEST;
 
-const SNOWTRACE_API_KEY = process.env.SNOWTRACE_API_KEY;
+const EXPLORER_API_KEY = process.env.EXPLORER_API_KEY;
 
 // require scripts
 const farmData = require("./scripts/farm-data");
@@ -66,7 +70,7 @@ module.exports = {
     },
     paths: {
         deploy: "deploy",
-        deployments: "deployments",
+        deployments: DEPLOYMENTS_PATH,
     },
     abiExporter: {
         path: "./abis",
@@ -74,29 +78,28 @@ module.exports = {
         flat: true,
     },
     etherscan: {
-        apiKey: SNOWTRACE_API_KEY,
+        apiKey: EXPLORER_API_KEY,
     },
     networks: {
         hardhat: {
-            chainId: 43114,
-            // gasPrice: 25000000000,
+            chainId: MAINNET_CHAIN_ID,
             throwOnTransactionFailures: false,
             loggingEnabled: true,
             forking: {
-                url: AVALANCHE_MAINNET_URL,
+                url: MAINNET_URL,
                 enabled: true,
             },
         },
         mainnet: {
-            chainId: 43114,
+            chainId: MAINNET_CHAIN_ID,
             gasPrice: 25000000000,
-            url: AVALANCHE_MAINNET_URL,
+            url: MAINNET_URL,
             accounts: [PK_USER, PK_OWNER],
         },
-        fuji: {
-            chainId: 43113,
+        testnet: {
+            chainId: TESTNET_CHAIN_ID,
             gasPrice: 25000000000,
-            url: AVALANCHE_FUJI_URL,
+            url: TESTNET_URL,
             accounts: [PK_TEST],
         },
     },
