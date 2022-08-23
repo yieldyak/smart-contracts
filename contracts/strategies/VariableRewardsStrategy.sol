@@ -3,7 +3,7 @@ pragma solidity 0.8.13;
 
 import "../YakStrategyV2.sol";
 import "../interfaces/IPair.sol";
-import "./../interfaces/IWAVAX.sol";
+import "../interfaces/IWAVAX.sol";
 import "../lib/DexLibrary.sol";
 import "../lib/SafeERC20.sol";
 
@@ -11,10 +11,18 @@ import "../lib/SafeERC20.sol";
  * @notice VariableRewardsStrategy
  */
 abstract contract VariableRewardsStrategy is YakStrategyV2 {
-    using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    IWAVAX internal constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    IWAVAX internal immutable WAVAX;
+
+    struct VariableRewardsStrategySettings {
+        string name;
+        address platformToken;
+        address depositToken;
+        address rewardToken;
+        RewardSwapPairs[] rewardSwapPairs;
+        address timelock;
+    }
 
     struct Reward {
         address reward;
@@ -34,24 +42,21 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
     event AddReward(address rewardToken, address swapPair);
     event RemoveReward(address rewardToken);
 
-    constructor(
-        string memory _name,
-        address _depositToken,
-        RewardSwapPairs[] memory _rewardSwapPairs,
-        address _timelock,
-        StrategySettings memory _strategySettings
-    ) YakStrategyV2(_strategySettings) {
-        name = _name;
-        depositToken = IERC20(_depositToken);
-        rewardToken = IERC20(address(WAVAX));
+    constructor(VariableRewardsStrategySettings memory _settings, StrategySettings memory _strategySettings)
+        YakStrategyV2(_strategySettings)
+    {
+        name = _settings.name;
+        WAVAX = IWAVAX(_settings.platformToken);
+        depositToken = IERC20(_settings.depositToken);
+        rewardToken = IERC20(_settings.rewardToken);
         devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
 
-        for (uint256 i = 0; i < _rewardSwapPairs.length; i++) {
-            _addReward(_rewardSwapPairs[i].reward, _rewardSwapPairs[i].swapPair);
+        for (uint256 i = 0; i < _settings.rewardSwapPairs.length; i++) {
+            _addReward(_settings.rewardSwapPairs[i].reward, _settings.rewardSwapPairs[i].swapPair);
         }
 
         updateDepositsEnabled(true);
-        transferOwnership(_timelock);
+        transferOwnership(_settings.timelock);
         emit Reinvest(0, 0);
     }
 
@@ -68,7 +73,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         }
         rewardSwapPairs[_rewardToken] = _swapPair;
         supportedRewards.push(_rewardToken);
-        rewardCount = rewardCount.add(1);
+        rewardCount = rewardCount + 1;
         emit AddReward(_rewardToken, _swapPair);
     }
 
@@ -83,7 +88,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         }
         require(found, "VariableRewardsStrategy::Reward to delete not found!");
         supportedRewards.pop();
-        rewardCount = rewardCount.sub(1);
+        rewardCount = rewardCount - 1;
         emit RemoveReward(_rewardToken);
     }
 
@@ -139,7 +144,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
             "VariableRewardsStrategy::Deposit token transfer failed"
         );
         uint256 depositFee = _calculateDepositFee(_amount);
-        _mint(_account, getSharesForDepositTokens(_amount.sub(depositFee)));
+        _mint(_account, getSharesForDepositTokens(_amount - depositFee));
         _stakeDepositTokens(_amount);
         emit Deposit(_account, _amount);
     }
@@ -157,7 +162,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
      */
     function _calculateDepositFee(uint256 _amount) internal view virtual returns (uint256) {
         uint256 depositFeeBips = _getDepositFeeBips();
-        return _amount.mul(depositFeeBips).div(_bip());
+        return (_amount * depositFeeBips) / _bip();
     }
 
     function withdraw(uint256 _amount) external override {
@@ -165,7 +170,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         require(depositTokenAmount > 0, "VariableRewardsStrategy::Withdraw amount too low");
         uint256 withdrawAmount = _withdrawFromStakingContract(depositTokenAmount);
         uint256 withdrawFee = _calculateWithdrawFee(depositTokenAmount);
-        depositToken.safeTransfer(msg.sender, withdrawAmount.sub(withdrawFee));
+        depositToken.safeTransfer(msg.sender, withdrawAmount - withdrawFee);
         _burn(msg.sender, _amount);
         emit Withdraw(msg.sender, depositTokenAmount);
     }
@@ -185,15 +190,15 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
      */
     function _calculateWithdrawFee(uint256 _amount) internal view virtual returns (uint256) {
         uint256 withdrawFeeBips = _getWithdrawFeeBips();
-        return _amount.mul(withdrawFeeBips).div(_bip());
+        return (_amount * withdrawFeeBips) / _bip();
     }
 
     function reinvest() external override onlyEOA {
         _reinvest(false);
     }
 
-    function _convertRewardsIntoWAVAX() private returns (uint256) {
-        uint256 avaxAmount = WAVAX.balanceOf(address(this));
+    function _convertPoolRewardsToRewardToken() private returns (uint256) {
+        uint256 rewardTokenAmount = rewardToken.balanceOf(address(this));
         uint256 count = supportedRewards.length;
         for (uint256 i = 0; i < count; i++) {
             address reward = supportedRewards[i];
@@ -201,19 +206,19 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
                 uint256 balance = address(this).balance;
                 if (balance > 0) {
                     WAVAX.deposit{value: balance}();
-                    avaxAmount = avaxAmount.add(balance);
+                    rewardTokenAmount += balance;
                 }
-                continue;
+                if (address(rewardToken) == address(WAVAX)) continue;
             }
             uint256 amount = IERC20(reward).balanceOf(address(this));
             if (amount > 0) {
                 address swapPair = rewardSwapPairs[reward];
                 if (swapPair > address(0)) {
-                    avaxAmount = avaxAmount.add(DexLibrary.swap(amount, reward, address(rewardToken), IPair(swapPair)));
+                    rewardTokenAmount += DexLibrary.swap(amount, reward, address(rewardToken), IPair(swapPair));
                 }
             }
         }
-        return avaxAmount;
+        return rewardTokenAmount;
     }
 
     /**
@@ -222,22 +227,22 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
      */
     function _reinvest(bool userDeposit) private {
         _getRewards();
-        uint256 amount = _convertRewardsIntoWAVAX();
+        uint256 amount = _convertPoolRewardsToRewardToken();
         if (!userDeposit) {
             require(amount >= MIN_TOKENS_TO_REINVEST, "VariableRewardsStrategy::Reinvest amount too low");
         }
 
-        uint256 devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
+        uint256 devFee = (amount * DEV_FEE_BIPS) / BIPS_DIVISOR;
         if (devFee > 0) {
             rewardToken.safeTransfer(devAddr, devFee);
         }
 
-        uint256 reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
+        uint256 reinvestFee = (amount * REINVEST_REWARD_BIPS) / BIPS_DIVISOR;
         if (reinvestFee > 0) {
             rewardToken.safeTransfer(msg.sender, reinvestFee);
         }
 
-        uint256 depositTokenAmount = _convertRewardTokenToDepositToken(amount.sub(devFee).sub(reinvestFee));
+        uint256 depositTokenAmount = _convertRewardTokenToDepositToken(amount - devFee - reinvestFee);
 
         _stakeDepositTokens(depositTokenAmount);
         emit Reinvest(totalDeposits(), totalSupply);
@@ -250,19 +255,24 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
 
     function checkReward() public view override returns (uint256) {
         Reward[] memory rewards = _pendingRewards();
-        uint256 estimatedTotalReward = WAVAX.balanceOf(address(this));
-        estimatedTotalReward.add(address(this).balance);
+        uint256 estimatedTotalReward = rewardToken.balanceOf(address(this));
+        if (address(rewardToken) == address(WAVAX)) {
+            estimatedTotalReward += address(this).balance;
+        }
         for (uint256 i = 0; i < rewards.length; i++) {
             address reward = rewards[i].reward;
-            if (reward == address(WAVAX)) {
-                estimatedTotalReward = estimatedTotalReward.add(rewards[i].amount);
+            if (reward == address(rewardToken)) {
+                estimatedTotalReward += rewards[i].amount;
             } else {
                 uint256 balance = IERC20(reward).balanceOf(address(this));
-                uint256 amount = balance.add(rewards[i].amount);
+                uint256 amount = balance + rewards[i].amount;
                 address swapPair = rewardSwapPairs[rewards[i].reward];
                 if (amount > 0 && swapPair > address(0)) {
-                    estimatedTotalReward = estimatedTotalReward.add(
-                        DexLibrary.estimateConversionThroughPair(amount, reward, address(WAVAX), IPair(swapPair))
+                    estimatedTotalReward += DexLibrary.estimateConversionThroughPair(
+                        amount,
+                        reward,
+                        address(rewardToken),
+                        IPair(swapPair)
                     );
                 }
             }
@@ -277,7 +287,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
     function estimateDeployedBalance() external view override returns (uint256) {
         uint256 depositBalance = totalDeposits();
         uint256 withdrawFee = _calculateWithdrawFee(depositBalance);
-        return depositBalance.sub(withdrawFee);
+        return depositBalance - withdrawFee;
     }
 
     function rescueDeployedFunds(
@@ -288,7 +298,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         _emergencyWithdraw();
         uint256 balanceAfter = depositToken.balanceOf(address(this));
         require(
-            balanceAfter.sub(balanceBefore) >= _minReturnAmountAccepted,
+            balanceAfter - balanceBefore >= _minReturnAmountAccepted,
             "VariableRewardsStrategy::Emergency withdraw minimum return amount not reached"
         );
         emit Reinvest(totalDeposits(), totalSupply);

@@ -19,16 +19,13 @@ contract EchidnaStrategyForLP is VariableRewardsStrategy {
     uint256 public immutable PID;
 
     constructor(
-        string memory _name,
-        address _depositToken,
         address _swapPairWavaxPtp,
-        RewardSwapPairs[] memory _rewardSwapPairs,
         address _stakingContract,
         uint256 _pid,
         address _voterProxy,
-        address _timelock,
+        VariableRewardsStrategySettings memory _settings,
         StrategySettings memory _strategySettings
-    ) VariableRewardsStrategy(_name, _depositToken, _rewardSwapPairs, _timelock, _strategySettings) {
+    ) VariableRewardsStrategy(_settings, _strategySettings) {
         stakingContract = _stakingContract;
         PID = _pid;
         proxy = IEchidnaVoterProxy(_voterProxy);

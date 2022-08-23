@@ -19,16 +19,13 @@ contract SteakStrategyForLP is VariableRewardsStrategyForLP {
     IBoosterFeeCollector public boosterFeeCollector;
 
     constructor(
-        string memory _name,
-        address _depositToken,
         SwapPairs memory _swapPairs,
-        RewardSwapPairs[] memory _rewardSwapPairs,
         address _stakingContract,
         uint256 _pid,
         address _boosterFeeCollector,
-        address _timelock,
+        VariableRewardsStrategySettings memory _settings,
         StrategySettings memory _strategySettings
-    ) VariableRewardsStrategyForLP(_name, _depositToken, _swapPairs, _rewardSwapPairs, _timelock, _strategySettings) {
+    ) VariableRewardsStrategyForLP(_swapPairs, _settings, _strategySettings) {
         steakMasterChef = ISteakMasterChef(_stakingContract);
         boosterFeeCollector = IBoosterFeeCollector(_boosterFeeCollector);
         PID = _pid;

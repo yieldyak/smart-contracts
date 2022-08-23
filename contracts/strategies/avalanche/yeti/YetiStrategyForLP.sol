@@ -18,15 +18,12 @@ contract YetiStrategyForLP is VariableRewardsStrategy {
     CurveSwap.Settings private zapSettings;
 
     constructor(
-        string memory _name,
-        address _depositToken,
         CurveSwap.Settings memory _zapSettings,
-        RewardSwapPairs[] memory _rewardSwapPairs,
         address _stakingContract,
         address _voterProxy,
-        address _timelock,
+        VariableRewardsStrategySettings memory _settings,
         StrategySettings memory _strategySettings
-    ) VariableRewardsStrategy(_name, _depositToken, _rewardSwapPairs, _timelock, _strategySettings) {
+    ) VariableRewardsStrategy(_settings, _strategySettings) {
         stakingContract = _stakingContract;
         proxy = IYetiVoterProxy(_voterProxy);
         zapSettings = _zapSettings;

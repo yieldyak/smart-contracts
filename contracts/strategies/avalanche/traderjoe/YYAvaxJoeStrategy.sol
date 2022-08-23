@@ -17,16 +17,13 @@ contract YYAvaxJoeStrategy is VariableRewardsStrategy {
     address public constant gAvax = 0x6026a85e11BD895c934Af02647E8C7b4Ea2D9808;
 
     constructor(
-        string memory _name,
-        address _depositToken,
         address _stakingContract,
         uint256 _pid,
-        RewardSwapPairs[] memory _rewardSwapPairs,
         address _swapPairWavaxOther,
         address _withdrawalPool,
-        address _timelock,
+        VariableRewardsStrategySettings memory _settings,
         StrategySettings memory _strategySettings
-    ) VariableRewardsStrategy(_name, _depositToken, _rewardSwapPairs, _timelock, _strategySettings) {
+    ) VariableRewardsStrategy(_settings, _strategySettings) {
         joeChef = IJoeChef(_stakingContract);
         PID = _pid;
         swapPairWavaxOther = _swapPairWavaxOther;
