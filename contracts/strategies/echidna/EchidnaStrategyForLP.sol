@@ -19,16 +19,14 @@ contract EchidnaStrategyForLP is VariableRewardsStrategy {
     uint256 public immutable PID;
 
     constructor(
-        string memory _name,
-        address _depositToken,
         address _swapPairWavaxPtp,
-        RewardSwapPairs[] memory _rewardSwapPairs,
         address _stakingContract,
         uint256 _pid,
         address _voterProxy,
-        address _timelock,
+        RewardSwapPairs[] memory _rewardSwapPairs,
+        BaseSettings memory _baseSettings,
         StrategySettings memory _strategySettings
-    ) VariableRewardsStrategy(_name, _depositToken, _rewardSwapPairs, _timelock, _strategySettings) {
+    ) VariableRewardsStrategy(_rewardSwapPairs, _baseSettings, _strategySettings) {
         stakingContract = _stakingContract;
         PID = _pid;
         proxy = IEchidnaVoterProxy(_voterProxy);
@@ -36,20 +34,20 @@ contract EchidnaStrategyForLP is VariableRewardsStrategy {
     }
 
     function _depositToStakingContract(uint256 _amount) internal override {
-        depositToken.safeTransfer(address(proxy), _amount);
-        proxy.deposit(PID, stakingContract, address(depositToken), _amount);
+        IERC20(asset).safeTransfer(address(proxy), _amount);
+        proxy.deposit(PID, stakingContract, asset, _amount);
         proxy.distributeReward(stakingContract, PID);
     }
 
     function _withdrawFromStakingContract(uint256 _amount) internal override returns (uint256 _withdrawAmount) {
-        proxy.withdraw(PID, stakingContract, address(depositToken), _amount);
+        proxy.withdraw(PID, stakingContract, asset, _amount);
         proxy.distributeReward(stakingContract, PID);
         return _amount;
     }
 
     function _emergencyWithdraw() internal override {
-        depositToken.approve(address(proxy), 0);
-        proxy.emergencyWithdraw(PID, stakingContract, address(depositToken));
+        IERC20(asset).approve(address(proxy), 0);
+        proxy.emergencyWithdraw(PID, stakingContract, asset);
     }
 
     /**
@@ -71,17 +69,10 @@ contract EchidnaStrategyForLP is VariableRewardsStrategy {
     function _convertRewardTokenToDepositToken(uint256 _fromAmount) internal override returns (uint256 toAmount) {
         uint256 ptpAmount = DexLibrary.swap(_fromAmount, address(rewardToken), PTP, IPair(swapPairWavaxPtp));
 
-        return
-            DexLibrary.convertRewardTokensToDepositTokens(
-                ptpAmount,
-                PTP,
-                address(depositToken),
-                IPair(address(depositToken)),
-                IPair(address(depositToken))
-            );
+        return DexLibrary.convertRewardTokensToDepositTokens(ptpAmount, PTP, asset, IPair(asset), IPair(asset));
     }
 
-    function totalDeposits() public view override returns (uint256) {
+    function totalAssets() public view override returns (uint256) {
         return proxy.poolBalance(stakingContract, PID);
     }
 }

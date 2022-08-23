@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "../MasterChefStrategy.sol";
+import "../VariableRewardsStrategy.sol";
 import "../../interfaces/IERC20.sol";
 import "../../interfaces/IPair.sol";
 import "../../lib/DexLibrary.sol";
@@ -10,118 +10,85 @@ import "../curve/lib/CurveSwap.sol";
 import "./interfaces/IStargateLPStaking.sol";
 import "./interfaces/IStargateRouter.sol";
 
-contract StargateStrategyForLP is MasterChefStrategy {
-    using SafeMath for uint256;
+contract StargateStrategyForLP is VariableRewardsStrategy {
+    address private constant STARGATE = 0x2F6F07CDcf3588944Bf4C42aC74ff24bF56e7590;
 
-    struct Tokens {
-        address depositToken;
-        address underlyingToken;
-        address poolRewardToken;
+    struct StakingSettings {
+        address stakingContract;
+        uint256 pid;
+        address stargateRouter;
+        uint256 routerPid;
     }
 
-    address private constant WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
     address private immutable underlyingToken;
     address private immutable swapPairRewardTokenUnderlying;
-    uint256 private immutable routerPid;
 
     IStargateLPStaking public stakingContract;
+    uint256 public immutable PID;
     IStargateRouter public stargateRouter;
+    uint256 public immutable routerPid;
 
     constructor(
-        string memory _name,
-        Tokens memory _tokens,
-        address _swapPairPoolReward,
+        StakingSettings memory _stakingSettings,
+        address _underlyingToken,
         address _swapPairRewardTokenUnderlying,
-        address _stakingContract,
-        uint256 _pid,
-        address _stargateRouter,
-        uint256 _routerPid,
-        address _timelock,
+        RewardSwapPairs[] memory _rewardSwapPairs,
+        BaseSettings memory _baseSettings,
         StrategySettings memory _strategySettings
-    )
-        MasterChefStrategy(
-            _name,
-            _tokens.depositToken,
-            WAVAX, /*rewardToken=*/
-            _tokens.poolRewardToken,
-            _swapPairPoolReward,
-            address(0),
-            _timelock,
-            _pid,
-            _strategySettings
-        )
-    {
-        stakingContract = IStargateLPStaking(_stakingContract);
-        stargateRouter = IStargateRouter(_stargateRouter);
-        underlyingToken = _tokens.underlyingToken;
+    ) VariableRewardsStrategy(_rewardSwapPairs, _baseSettings, _strategySettings) {
+        stakingContract = IStargateLPStaking(_stakingSettings.stakingContract);
+        stargateRouter = IStargateRouter(_stakingSettings.stargateRouter);
+        underlyingToken = _underlyingToken;
         swapPairRewardTokenUnderlying = _swapPairRewardTokenUnderlying;
-        routerPid = _routerPid;
+        routerPid = _stakingSettings.routerPid;
+        PID = _stakingSettings.pid;
     }
 
-    function _depositMasterchef(uint256 _pid, uint256 _amount) internal override {
-        depositToken.approve(address(stakingContract), _amount);
-        stakingContract.deposit(_pid, _amount);
+    function _depositToStakingContract(uint256 _amount) internal override {
+        IERC20(asset).approve(address(stakingContract), _amount);
+        stakingContract.deposit(PID, _amount);
     }
 
-    function _withdrawMasterchef(uint256 _pid, uint256 _amount) internal override {
-        stakingContract.withdraw(_pid, _amount);
+    function _withdrawFromStakingContract(uint256 _amount) internal override returns (uint256 _withdrawAmount) {
+        stakingContract.withdraw(PID, _amount);
+        return _amount;
     }
 
-    function _emergencyWithdraw(uint256 _pid) internal override {
-        depositToken.approve(address(stakingContract), 0);
-        stakingContract.emergencyWithdraw(_pid);
+    function _emergencyWithdraw() internal override {
+        IERC20(asset).approve(address(stakingContract), 0);
+        stakingContract.emergencyWithdraw(PID);
     }
 
-    /**
-     * @notice Returns pending rewards
-     * @dev `rewarder` distributions are not considered
-     */
-    function _pendingRewards(uint256 _pid, address _user)
-        internal
-        view
-        override
-        returns (
-            uint256,
-            uint256,
-            address
-        )
-    {
-        uint256 pendingStargate = stakingContract.pendingStargate(_pid, _user);
-        return (pendingStargate, 0, address(0));
+    function _pendingRewards() internal view override returns (Reward[] memory) {
+        uint256 pendingStargate = stakingContract.pendingStargate(PID, address(this));
+        Reward[] memory pendingRewards = new Reward[](1);
+
+        pendingRewards[0] = Reward({reward: STARGATE, amount: pendingStargate});
+        return pendingRewards;
     }
 
-    function _getRewards(uint256 _pid) internal override {
-        stakingContract.deposit(_pid, 0);
+    function _getRewards() internal override {
+        stakingContract.deposit(PID, 0);
     }
 
-    function _getDepositBalance(uint256 _pid, address _user) internal view override returns (uint256 amount) {
-        (amount, ) = stakingContract.userInfo(_pid, _user);
+    function totalAssets() public view override returns (uint256) {
+        (uint256 amount, ) = stakingContract.userInfo(PID, address(this));
+        return amount;
     }
 
     function _convertRewardTokenToDepositToken(uint256 fromAmount) internal override returns (uint256 toAmount) {
-        uint256 amount = DexLibrary.swap(fromAmount, WAVAX, underlyingToken, IPair(swapPairRewardTokenUnderlying));
-        uint256 balanceBefore = depositToken.balanceOf(address(this));
+        uint256 amount = DexLibrary.swap(
+            fromAmount,
+            address(WAVAX),
+            underlyingToken,
+            IPair(swapPairRewardTokenUnderlying)
+        );
+        uint256 balanceBefore = IERC20(asset).balanceOf(address(this));
 
         IERC20(underlyingToken).approve(address(stargateRouter), amount);
         stargateRouter.addLiquidity(routerPid, amount, address(this));
         IERC20(underlyingToken).approve(address(stargateRouter), 0);
 
-        toAmount = depositToken.balanceOf(address(this)).sub(balanceBefore);
-    }
-
-    function _getDepositFeeBips(
-        uint256 /* pid */
-    ) internal pure override returns (uint256) {
-        return 0;
-    }
-
-    function _getWithdrawFeeBips(
-        uint256 /* pid */
-    ) internal pure override returns (uint256) {
-        return 0;
-    }
-
-    function _bip() internal pure override returns (uint256) {
-        return 10000;
+        toAmount = IERC20(asset).balanceOf(address(this)) - balanceBefore;
     }
 }
