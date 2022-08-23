@@ -21,24 +21,12 @@ contract BenqiStrategyQiV2 is VariableRewardsStrategyForSA {
     uint256 private redeemLimitSafetyMargin;
 
     constructor(
-        string memory _name,
-        address _depositToken,
         address _swapPairDepositToken,
-        RewardSwapPairs[] memory _rewardSwapPairs,
         address _rewardController,
         address _tokenDelegator,
-        address _timelock,
+        VariableRewardsStrategySettings memory _settings,
         StrategySettings memory _strategySettings
-    )
-        VariableRewardsStrategyForSA(
-            _name,
-            _depositToken,
-            _swapPairDepositToken,
-            _rewardSwapPairs,
-            _timelock,
-            _strategySettings
-        )
-    {
+    ) VariableRewardsStrategyForSA(_swapPairDepositToken, _settings, _strategySettings) {
         rewardController = IBenqiUnitroller(_rewardController);
         tokenDelegator = IBenqiERC20Delegator(_tokenDelegator);
         _enterMarket();

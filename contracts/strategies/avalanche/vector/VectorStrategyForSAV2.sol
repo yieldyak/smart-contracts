@@ -20,24 +20,12 @@ contract VectorStrategyForSAV2 is VariableRewardsStrategyForSA {
     IBoosterFeeCollector public boosterFeeCollector;
 
     constructor(
-        string memory _name,
-        address _depositToken,
         address _swapPairDepositToken,
-        RewardSwapPairs[] memory _rewardSwapPairs,
         address _stakingContract,
         address _boosterFeeCollector,
-        address _timelock,
+        VariableRewardsStrategySettings memory _settings,
         StrategySettings memory _strategySettings
-    )
-        VariableRewardsStrategyForSA(
-            _name,
-            _depositToken,
-            _swapPairDepositToken,
-            _rewardSwapPairs,
-            _timelock,
-            _strategySettings
-        )
-    {
+    ) VariableRewardsStrategyForSA(_swapPairDepositToken, _settings, _strategySettings) {
         vectorMainStaking = IVectorMainStaking(_stakingContract);
         boosterFeeCollector = IBoosterFeeCollector(_boosterFeeCollector);
     }

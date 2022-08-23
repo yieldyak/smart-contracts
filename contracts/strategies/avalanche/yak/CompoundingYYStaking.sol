@@ -14,16 +14,13 @@ contract CompoundingYYStaking is VariableRewardsStrategy {
     address public preSwapToken;
 
     constructor(
-        string memory _name,
-        address _depositToken,
         address _preSwapToken,
         address _swapPairPreSwap,
         address _swapPairToken,
-        RewardSwapPairs[] memory _rewardSwapPairs,
         address _stakingContract,
-        address _timelock,
+        VariableRewardsStrategySettings memory _settings,
         StrategySettings memory _strategySettings
-    ) VariableRewardsStrategy(_name, _depositToken, _rewardSwapPairs, _timelock, _strategySettings) {
+    ) VariableRewardsStrategy(_settings, _strategySettings) {
         swapPairPreSwap = _swapPairPreSwap;
         swapPairToken = _swapPairToken;
         preSwapToken = _preSwapToken;

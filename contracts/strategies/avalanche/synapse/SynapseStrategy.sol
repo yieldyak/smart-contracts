@@ -20,18 +20,15 @@ contract SynapseStrategy is VariableRewardsStrategy {
     uint256 public immutable tokenCount;
 
     constructor(
-        string memory _name,
-        address _depositToken,
-        RewardSwapPairs[] memory _rewardSwapPairs,
         address _swapDepositToken,
         address _swapPairDepositToken,
         uint256 _tokenCount,
         address _swapContract,
         address _stakingContract,
         uint256 _pid,
-        address _timelock,
+        VariableRewardsStrategySettings memory _settings,
         StrategySettings memory _strategySettings
-    ) VariableRewardsStrategy(_name, _depositToken, _rewardSwapPairs, _timelock, _strategySettings) {
+    ) VariableRewardsStrategy(_settings, _strategySettings) {
         PID = _pid;
         swapDepositToken = _swapDepositToken;
         swapPairDepositToken = _swapPairDepositToken;
