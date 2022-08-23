@@ -1,19 +1,41 @@
 // SPDX-License-Identifier: MIT
+
 pragma solidity 0.8.13;
 
-import "../YakStrategyV2.sol";
-import "../interfaces/IPair.sol";
-import "./../interfaces/IWAVAX.sol";
-import "../lib/DexLibrary.sol";
+import "../../../YakStrategyV2.sol";
+import "../../../lib/DexLibrary.sol";
+import "../../../lib/SafeERC20.sol";
+import "../../../interfaces/IERC20.sol";
+import "../../../interfaces/IPair.sol";
+import "../../../interfaces/IWAVAX.sol";
 
-/**
- * @notice Adapter strategy for MasterChef.
- */
-abstract contract MasterChefStrategy is YakStrategyV2 {
+import "./interfaces/IMasterPlatypus.sol";
+import "./interfaces/IPlatypusPool.sol";
+import "./interfaces/IPlatypusVoterProxy.sol";
+import "./interfaces/IPlatypusAsset.sol";
+import "./lib/DSMath.sol";
+
+contract PlatypusStrategy is YakStrategyV2 {
     using SafeMath for uint256;
+    using DSMath for uint256;
+    using SafeERC20 for IERC20;
+
+    struct SwapPairs {
+        address swapPairToken; // swap rewardToken to depositToken
+        address swapPairPoolReward;
+        address swapPairExtraReward;
+    }
 
     IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    uint256 internal constant WAD = 10**18;
+    uint256 internal constant RAY = 10**27;
 
+    IMasterPlatypus public immutable masterchef;
+    IPlatypusAsset public immutable asset;
+    IPlatypusPool public pool;
+    IPlatypusVoterProxy public proxy;
+    uint256 public maxSlippage;
+    address private swapPairToken;
     uint256 public immutable PID;
     address private poolRewardToken;
     IPair private swapPairPoolReward;
@@ -23,66 +45,81 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
     constructor(
         string memory _name,
         address _depositToken,
-        address _ecosystemToken,
         address _poolRewardToken,
-        address _swapPairPoolReward,
-        address _swapPairExtraReward,
-        address _timelock,
+        SwapPairs memory swapPairs,
+        uint256 _maxSlippage,
+        address _pool,
+        address _stakingContract,
+        address _voterProxy,
         uint256 _pid,
+        address _timelock,
         StrategySettings memory _strategySettings
     ) YakStrategyV2(_strategySettings) {
         name = _name;
         depositToken = IERC20(_depositToken);
-        rewardToken = IERC20(_ecosystemToken);
+        rewardToken = IERC20(address(WAVAX));
         PID = _pid;
         devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
 
-        assignSwapPairSafely(_ecosystemToken, _poolRewardToken, _swapPairPoolReward);
-        _setExtraRewardSwapPair(_swapPairExtraReward);
+        masterchef = IMasterPlatypus(_stakingContract);
+        pool = IPlatypusPool(_pool);
+        asset = IPlatypusAsset(pool.assetOf(_depositToken));
+        proxy = IPlatypusVoterProxy(_voterProxy);
+        maxSlippage = _maxSlippage;
+
+        assignSwapPairSafely(swapPairs.swapPairToken, _poolRewardToken, swapPairs.swapPairPoolReward);
+        _setExtraRewardSwapPair(swapPairs.swapPairExtraReward);
         updateDepositsEnabled(true);
         transferOwnership(_timelock);
         emit Reinvest(0, 0);
     }
 
+    function setPlatypusVoterProxy(address _voterProxy) external onlyOwner {
+        proxy = IPlatypusVoterProxy(_voterProxy);
+    }
+
     /**
-     * @notice Initialization helper for Pair deposit tokens
-     * @dev Checks that selected Pairs are valid for trading reward tokens
-     * @dev Assigns values to IPair(swapPairToken0) and IPair(swapPairToken1)
+     * @notice Update max slippage for withdrawal
+     * @dev Function name matches interface for FeeCollector
      */
+    function updateMaxSwapSlippage(uint256 slippageBips) public onlyDev {
+        maxSlippage = slippageBips;
+    }
+
+    /**
+     * @notice Update extra reward swap pair (if applicable)
+     * @dev Function name matches interface for FeeCollector
+     */
+    function setExtraRewardSwapPair(address _extraTokenSwapPair) external onlyDev {
+        _setExtraRewardSwapPair(_extraTokenSwapPair);
+    }
+
     function assignSwapPairSafely(
-        address _ecosystemToken,
+        address _swapPairToken,
         address _poolRewardToken,
         address _swapPairPoolReward
     ) private {
-        if (_poolRewardToken != _ecosystemToken) {
-            if (_poolRewardToken == IPair(_swapPairPoolReward).token0()) {
-                require(
-                    IPair(_swapPairPoolReward).token1() == _ecosystemToken,
-                    "Swap pair 'swapPairPoolReward' does not contain ecosystem token"
-                );
-            } else if (_poolRewardToken == IPair(_swapPairPoolReward).token1()) {
-                require(
-                    IPair(_swapPairPoolReward).token0() == _ecosystemToken,
-                    "Swap pair 'swapPairPoolReward' does not contain ecosystem token"
-                );
-            } else {
-                revert("Swap pair 'swapPairPoolReward' does not contain pool reward token");
-            }
+        require(
+            DexLibrary.checkSwapPairCompatibility(IPair(_swapPairToken), address(depositToken), address(rewardToken)),
+            "swap token does not match deposit and reward token"
+        );
+        swapPairToken = _swapPairToken;
+
+        if (_poolRewardToken != address(rewardToken)) {
+            DexLibrary.checkSwapPairCompatibility(IPair(_swapPairPoolReward), address(rewardToken), _poolRewardToken);
         }
         poolRewardToken = _poolRewardToken;
         swapPairPoolReward = IPair(_swapPairPoolReward);
-    }
-
-    function setExtraRewardSwapPair(address _extraTokenSwapPair) external onlyDev {
-        _setExtraRewardSwapPair(_extraTokenSwapPair);
     }
 
     function _setExtraRewardSwapPair(address _extraTokenSwapPair) internal {
         if (_extraTokenSwapPair > address(0)) {
             if (IPair(_extraTokenSwapPair).token0() == address(rewardToken)) {
                 extraToken = IPair(_extraTokenSwapPair).token1();
-            } else {
+            } else if (IPair(_extraTokenSwapPair).token1() == address(rewardToken)) {
                 extraToken = IPair(_extraTokenSwapPair).token0();
+            } else {
+                revert("PlatypusStrategy::_setExtraRewardSwapPair Swap pair does not contain reward token");
             }
             swapPairExtraReward = _extraTokenSwapPair;
         } else {
@@ -123,7 +160,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
     }
 
     function _deposit(address account, uint256 amount) internal {
-        require(DEPOSITS_ENABLED == true, "MasterChefStrategyV1::_deposit");
+        require(DEPOSITS_ENABLED == true, "PlatypusStrategy::_deposit");
         if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
             (
                 uint256 poolTokenAmount,
@@ -134,28 +171,41 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
             if (estimatedTotalReward > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
                 _reinvest(rewardTokenBalance, poolTokenAmount, extraTokenAmount);
             }
+        } else {
+            proxy.claimReward(address(masterchef), PID);
         }
-        require(depositToken.transferFrom(msg.sender, address(this), amount), "MasterChefStrategyV1::transfer failed");
-        uint256 depositFeeBips = _getDepositFeeBips(PID);
-        uint256 depositFee = amount.mul(depositFeeBips).div(_bip());
+        depositToken.safeTransferFrom(msg.sender, address(this), amount);
+        uint256 depositFee = _calculateDepositFee(amount);
         _mint(account, getSharesForDepositTokens(amount.sub(depositFee)));
-        _stakeDepositTokens(amount);
-        emit Deposit(account, amount);
+        _stakeDepositTokens(amount, depositFee);
+        emit Deposit(account, amount.sub(depositFee));
+    }
+
+    function _depositMasterchef(
+        uint256 _pid,
+        uint256 _amount,
+        uint256 _fee
+    ) internal {
+        depositToken.safeTransfer(address(proxy), _amount);
+        proxy.deposit(_pid, address(masterchef), address(pool), address(depositToken), address(asset), _amount, _fee);
     }
 
     function withdraw(uint256 amount) external override {
         uint256 depositTokenAmount = getDepositTokensForShares(amount);
-        require(depositTokenAmount > 0, "MasterChefStrategyV1::withdraw");
-        _withdrawDepositTokens(depositTokenAmount);
-        uint256 withdrawFeeBips = _getWithdrawFeeBips(PID);
-        uint256 withdrawFee = depositTokenAmount.mul(withdrawFeeBips).div(_bip());
-        _safeTransfer(address(depositToken), msg.sender, depositTokenAmount.sub(withdrawFee));
+        require(depositTokenAmount > 0, "PlatypusStrategy::withdraw");
+        proxy.claimReward(address(masterchef), PID);
+        uint256 withdrawalAmount = proxy.withdraw(
+            PID,
+            address(masterchef),
+            address(pool),
+            address(depositToken),
+            address(asset),
+            maxSlippage,
+            depositTokenAmount
+        );
+        depositToken.safeTransfer(msg.sender, withdrawalAmount);
         _burn(msg.sender, amount);
         emit Withdraw(msg.sender, depositTokenAmount);
-    }
-
-    function _withdrawDepositTokens(uint256 amount) private {
-        _withdrawMasterchef(PID, amount);
     }
 
     function reinvest() external override onlyEOA {
@@ -165,7 +215,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
             uint256 rewardTokenBalance,
             uint256 estimatedTotalReward
         ) = _checkReward();
-        require(estimatedTotalReward >= MIN_TOKENS_TO_REINVEST, "MasterChefStrategyV1::reinvest");
+        require(estimatedTotalReward >= MIN_TOKENS_TO_REINVEST, "PlatypusStrategy::reinvest");
         _reinvest(rewardTokenBalance, poolTokenAmount, extraTokenAmount);
     }
 
@@ -203,44 +253,40 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
         uint256 poolTokenAmount,
         uint256 extraTokenAmount
     ) private {
-        _getRewards(PID);
+        proxy.claimReward(address(masterchef), PID);
         uint256 amount = rewardTokenBalance.add(_convertPoolTokensIntoReward(poolTokenAmount));
         amount.add(_convertExtraTokensIntoReward(rewardTokenBalance, extraTokenAmount));
 
         uint256 devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
-            _safeTransfer(address(rewardToken), devAddr, devFee);
+            rewardToken.safeTransfer(devAddr, devFee);
         }
 
         uint256 reinvestFee = amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
         if (reinvestFee > 0) {
-            _safeTransfer(address(rewardToken), msg.sender, reinvestFee);
+            rewardToken.safeTransfer(msg.sender, reinvestFee);
         }
 
         uint256 depositTokenAmount = _convertRewardTokenToDepositToken(amount.sub(devFee).sub(reinvestFee));
 
-        _stakeDepositTokens(depositTokenAmount);
+        uint256 depositFee = _calculateDepositFee(depositTokenAmount);
+        _stakeDepositTokens(depositTokenAmount, depositFee);
+
         emit Reinvest(totalDeposits(), totalSupply);
     }
 
-    function _stakeDepositTokens(uint256 amount) private {
-        require(amount > 0, "MasterChefStrategyV1::_stakeDepositTokens");
-        _depositMasterchef(PID, amount);
+    function _convertRewardTokenToDepositToken(uint256 fromAmount) internal returns (uint256 toAmount) {
+        toAmount = DexLibrary.swap(fromAmount, address(rewardToken), address(depositToken), IPair(swapPairToken));
     }
 
-    /**
-     * @notice Safely transfer using an anonymous ERC20 token
-     * @dev Requires token to return true on transfer
-     * @param token address
-     * @param to recipient address
-     * @param value amount
-     */
-    function _safeTransfer(
-        address token,
-        address to,
-        uint256 value
-    ) private {
-        require(IERC20(token).transfer(to, value), "MasterChefStrategyV1::TRANSFER_FROM_FAILED");
+    function _stakeDepositTokens(uint256 amount, uint256 depositFee) private {
+        require(amount.sub(depositFee) > 0, "PlatypusStrategy::_stakeDepositTokens");
+        _depositMasterchef(PID, amount, depositFee);
+    }
+
+    function checkReward() public view override returns (uint256) {
+        (, , , uint256 estimatedTotalReward) = _checkReward();
+        return estimatedTotalReward;
     }
 
     function _checkReward()
@@ -255,8 +301,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
     {
         uint256 poolTokenBalance = IERC20(poolRewardToken).balanceOf(address(this));
         (uint256 pendingPoolTokenAmount, uint256 pendingExtraTokenAmount, address extraTokenAddress) = _pendingRewards(
-            PID,
-            address(this)
+            PID
         );
         uint256 poolTokenAmount = poolTokenBalance.add(pendingPoolTokenAmount);
 
@@ -287,9 +332,77 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
         return (poolTokenAmount, pendingExtraTokenAmount, rewardTokenBalance, estimatedTotalReward);
     }
 
-    function checkReward() public view override returns (uint256) {
-        (, , , uint256 estimatedTotalReward) = _checkReward();
-        return estimatedTotalReward;
+    function _pendingRewards(uint256 _pid)
+        internal
+        view
+        returns (
+            uint256,
+            uint256,
+            address
+        )
+    {
+        (uint256 pendingPtp, uint256 pendingBonusToken, address bonusTokenAddress) = proxy.pendingRewards(
+            address(masterchef),
+            _pid
+        );
+        uint256 reinvestFeeBips = proxy.reinvestFeeBips();
+        uint256 boostFee = pendingPtp.mul(reinvestFeeBips).div(BIPS_DIVISOR);
+
+        return (pendingPtp.sub(boostFee), pendingBonusToken, bonusTokenAddress);
+    }
+
+    function _calculateDepositFee(uint256 amount) internal view returns (uint256 fee) {
+        return
+            _depositFee(
+                pool.getSlippageParamK(),
+                pool.getSlippageParamN(),
+                pool.getC1(),
+                pool.getXThreshold(),
+                asset.cash(),
+                asset.liability(),
+                amount
+            );
+    }
+
+    function _depositFee(
+        uint256 k,
+        uint256 n,
+        uint256 c1,
+        uint256 xThreshold,
+        uint256 cash,
+        uint256 liability,
+        uint256 amount
+    ) internal pure returns (uint256) {
+        // cover case where the asset has no liquidity yet
+        if (liability == 0) {
+            return 0;
+        }
+
+        uint256 covBefore = cash.wdiv(liability);
+        if (covBefore <= 10**18) {
+            return 0;
+        }
+
+        uint256 covAfter = (cash.add(amount)).wdiv(liability.add(amount));
+        uint256 slippageBefore = _slippageFunc(k, n, c1, xThreshold, covBefore);
+        uint256 slippageAfter = _slippageFunc(k, n, c1, xThreshold, covAfter);
+
+        // (Li + Di) * g(cov_after) - Li * g(cov_before)
+        return ((liability.add(amount)).wmul(slippageAfter)).sub(liability.wmul(slippageBefore));
+    }
+
+    function _slippageFunc(
+        uint256 k,
+        uint256 n,
+        uint256 c1,
+        uint256 xThreshold,
+        uint256 x
+    ) internal pure returns (uint256) {
+        if (x < xThreshold) {
+            return c1.sub(x);
+        } else {
+            return k.wdiv((((x.mul(RAY)).div(WAD)).rpow(n).mul(WAD)).div(RAY)); // k / (x ** n)
+        }
     }
 
     /**
@@ -297,57 +410,27 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
      * @return deposit tokens after withdraw fee
      */
     function estimateDeployedBalance() external view override returns (uint256) {
-        uint256 depositBalance = totalDeposits();
-        uint256 withdrawFeeBips = _getWithdrawFeeBips(PID);
-        uint256 withdrawFee = depositBalance.mul(withdrawFeeBips).div(_bip());
-        return depositBalance.sub(withdrawFee);
+        uint256 balance = totalDeposits();
+        if (balance == 0) {
+            return 0;
+        }
+        (uint256 expectedAmount, , ) = pool.quotePotentialWithdraw(address(depositToken), balance);
+        return expectedAmount;
     }
 
     function totalDeposits() public view override returns (uint256) {
-        uint256 depositBalance = _getDepositBalance(PID, address(this));
+        uint256 depositBalance = proxy.poolBalance(address(masterchef), PID);
         return depositBalance;
     }
 
     function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external override onlyOwner {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
-        _emergencyWithdraw(PID);
+        proxy.emergencyWithdraw(PID, address(masterchef), address(pool), address(depositToken), address(asset));
         uint256 balanceAfter = depositToken.balanceOf(address(this));
-        require(
-            balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
-            "MasterChefStrategyV1::rescueDeployedFunds"
-        );
+        require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "PlatypusStrategy::rescueDeployedFunds");
         emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
             updateDepositsEnabled(false);
         }
     }
-
-    /* VIRTUAL */
-    function _convertRewardTokenToDepositToken(uint256 fromAmount) internal virtual returns (uint256 toAmount);
-
-    function _depositMasterchef(uint256 pid, uint256 amount) internal virtual;
-
-    function _withdrawMasterchef(uint256 pid, uint256 amount) internal virtual;
-
-    function _emergencyWithdraw(uint256 pid) internal virtual;
-
-    function _getRewards(uint256 pid) internal virtual;
-
-    function _pendingRewards(uint256 pid, address user)
-        internal
-        view
-        virtual
-        returns (
-            uint256 poolTokenAmount,
-            uint256 extraTokenAmount,
-            address extraTokenAddress
-        );
-
-    function _getDepositBalance(uint256 pid, address user) internal view virtual returns (uint256 amount);
-
-    function _getDepositFeeBips(uint256 pid) internal view virtual returns (uint256);
-
-    function _getWithdrawFeeBips(uint256 pid) internal view virtual returns (uint256);
-
-    function _bip() internal view virtual returns (uint256);
 }
