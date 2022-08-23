@@ -1,20 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "../YakStrategyV2.sol";
-import "../interfaces/IPair.sol";
-import "./../interfaces/IWAVAX.sol";
-import "../lib/DexLibrary.sol";
-import "../lib/SafeERC20.sol";
+import "../../../YakStrategyV2.sol";
+import "../../../lib/DexLibrary.sol";
+import "../../../lib/SafeERC20.sol";
+import "../../../interfaces/IPair.sol";
+
+import "./interfaces/IKyberPair.sol";
+import "./interfaces/IKyberFairLaunchV2.sol";
+import "./interfaces/IKyberRewardLockerV2.sol";
+import "./lib/KyberDexLibrary.sol";
 
 /**
- * @notice VariableRewardsStrategy
+ * @notice KyberStrategy
  */
-abstract contract VariableRewardsStrategy is YakStrategyV2 {
+contract KyberStrategy is YakStrategyV2 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     IWAVAX internal constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    address internal constant KNC = 0x39fC9e94Caeacb435842FADeDeCB783589F50f5f;
 
     struct Reward {
         address reward;
@@ -26,10 +31,22 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         address swapPair;
     }
 
+    struct SwapPairs {
+        address token0;
+        address token1;
+    }
+
+    IKyberFairLaunchV2 public immutable stakingContract;
+    IKyberRewardLockerV2 public immutable rewardLocker;
+    uint256 public immutable PID;
+
     // reward -> swapPair
     mapping(address => address) public rewardSwapPairs;
     address[] public supportedRewards;
     uint256 public rewardCount;
+
+    address private swapPairToken0;
+    address private swapPairToken1;
 
     event AddReward(address rewardToken, address swapPair);
     event RemoveReward(address rewardToken);
@@ -37,7 +54,10 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
     constructor(
         string memory _name,
         address _depositToken,
+        SwapPairs memory _swapPairs,
         RewardSwapPairs[] memory _rewardSwapPairs,
+        address _stakingContract,
+        uint256 _pid,
         address _timelock,
         StrategySettings memory _strategySettings
     ) YakStrategyV2(_strategySettings) {
@@ -45,14 +65,54 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         depositToken = IERC20(_depositToken);
         rewardToken = IERC20(address(WAVAX));
         devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
+        stakingContract = IKyberFairLaunchV2(_stakingContract);
+        rewardLocker = IKyberRewardLockerV2(IKyberFairLaunchV2(_stakingContract).rewardLocker());
+        PID = _pid;
 
         for (uint256 i = 0; i < _rewardSwapPairs.length; i++) {
             _addReward(_rewardSwapPairs[i].reward, _rewardSwapPairs[i].swapPair);
         }
+        assignSwapPairSafely(_swapPairs);
 
         updateDepositsEnabled(true);
         transferOwnership(_timelock);
         emit Reinvest(0, 0);
+    }
+
+    /**
+     * @notice Initialization helper for Pair deposit tokens
+     * @dev Checks that selected Pairs are valid for trading reward tokens
+     * @dev Assigns values to IPair(swapPairToken0) and IPair(swapPairToken1)
+     */
+    function assignSwapPairSafely(SwapPairs memory _swapPairs) private {
+        if (
+            address(WAVAX) != IPair(address(depositToken)).token0() &&
+            address(WAVAX) != IPair(address(depositToken)).token1()
+        ) {
+            // deployment checks for non-pool2
+            require(_swapPairs.token0 > address(0), "Swap pair 0 is necessary but not supplied");
+            require(_swapPairs.token1 > address(0), "Swap pair 1 is necessary but not supplied");
+            swapPairToken0 = _swapPairs.token0;
+            swapPairToken1 = _swapPairs.token1;
+            require(
+                IPair(swapPairToken0).token0() == address(WAVAX) || IPair(swapPairToken0).token1() == address(WAVAX),
+                "Swap pair supplied does not have the reward token as one of it's pair"
+            );
+            require(
+                IPair(swapPairToken0).token0() == IPair(address(depositToken)).token0() ||
+                    IPair(swapPairToken0).token1() == IPair(address(depositToken)).token0(),
+                "Swap pair 0 supplied does not match the pair in question"
+            );
+            require(
+                IPair(swapPairToken1).token0() == IPair(address(depositToken)).token1() ||
+                    IPair(swapPairToken1).token1() == IPair(address(depositToken)).token1(),
+                "Swap pair 1 supplied does not match the pair in question"
+            );
+        } else if (address(WAVAX) == IPair(address(depositToken)).token0()) {
+            swapPairToken1 = address(depositToken);
+        } else if (address(WAVAX) == IPair(address(depositToken)).token1()) {
+            swapPairToken0 = address(depositToken);
+        }
     }
 
     function addReward(address _rewardToken, address _swapPair) public onlyDev {
@@ -62,7 +122,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
     function _addReward(address _rewardToken, address _swapPair) internal {
         if (_rewardToken != address(rewardToken)) {
             require(
-                DexLibrary.checkSwapPairCompatibility(IPair(_swapPair), _rewardToken, address(rewardToken)),
+                KyberDexLibrary.checkSwapPairCompatibility(IKyberPair(_swapPair), _rewardToken, address(rewardToken)),
                 "VariableRewardsStrategy::Swap pair does not contain reward token"
             );
         }
@@ -87,12 +147,11 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         emit RemoveReward(_rewardToken);
     }
 
-    function calculateDepositFee(uint256 _amount) public view returns (uint256) {
-        return _calculateDepositFee(_amount);
-    }
-
-    function calculateWithdrawFee(uint256 _amount) public view returns (uint256) {
-        return _calculateWithdrawFee(_amount);
+    receive() external payable {
+        require(
+            msg.sender == address(rewardLocker) || msg.sender == owner() || msg.sender == address(devAddr),
+            "not allowed"
+        );
     }
 
     /**
@@ -138,54 +197,18 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
             depositToken.transferFrom(msg.sender, address(this), _amount),
             "VariableRewardsStrategy::Deposit token transfer failed"
         );
-        uint256 depositFee = _calculateDepositFee(_amount);
-        _mint(_account, getSharesForDepositTokens(_amount.sub(depositFee)));
+        _mint(_account, getSharesForDepositTokens(_amount));
         _stakeDepositTokens(_amount);
         emit Deposit(_account, _amount);
-    }
-
-    /**
-     * @notice Withdraw fee bips from underlying farm
-     */
-    function _getDepositFeeBips() internal view virtual returns (uint256) {
-        return 0;
-    }
-
-    /**
-     * @notice Calculate deposit fee of underlying farm
-     * @dev Override if deposit fee is calculated dynamically
-     */
-    function _calculateDepositFee(uint256 _amount) internal view virtual returns (uint256) {
-        uint256 depositFeeBips = _getDepositFeeBips();
-        return _amount.mul(depositFeeBips).div(_bip());
     }
 
     function withdraw(uint256 _amount) external override {
         uint256 depositTokenAmount = getDepositTokensForShares(_amount);
         require(depositTokenAmount > 0, "VariableRewardsStrategy::Withdraw amount too low");
-        uint256 withdrawAmount = _withdrawFromStakingContract(depositTokenAmount);
-        uint256 withdrawFee = _calculateWithdrawFee(depositTokenAmount);
-        depositToken.safeTransfer(msg.sender, withdrawAmount.sub(withdrawFee));
+        stakingContract.withdraw(PID, depositTokenAmount);
+        depositToken.safeTransfer(msg.sender, depositTokenAmount);
         _burn(msg.sender, _amount);
         emit Withdraw(msg.sender, depositTokenAmount);
-    }
-
-    /**
-     * @notice Withdraw fee bips from underlying farm
-     * @dev Important: Do not override if withdraw fee is deducted from the amount returned by _withdrawFromStakingContract
-     */
-    function _getWithdrawFeeBips() internal view virtual returns (uint256) {
-        return 0;
-    }
-
-    /**
-     * @notice Calculate withdraw fee of underlying farm
-     * @dev Override if withdraw fee is calculated dynamically
-     * @dev Important: Do not override if withdraw fee is deducted from the amount returned by _withdrawFromStakingContract
-     */
-    function _calculateWithdrawFee(uint256 _amount) internal view virtual returns (uint256) {
-        uint256 withdrawFeeBips = _getWithdrawFeeBips();
-        return _amount.mul(withdrawFeeBips).div(_bip());
     }
 
     function reinvest() external override onlyEOA {
@@ -209,7 +232,12 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
             if (amount > 0) {
                 address swapPair = rewardSwapPairs[reward];
                 if (swapPair > address(0)) {
-                    avaxAmount = avaxAmount.add(DexLibrary.swap(amount, reward, address(rewardToken), IPair(swapPair)));
+                    if (reward == KNC) {
+                        amount = KyberDexLibrary.swap(amount, reward, address(rewardToken), IKyberPair(swapPair));
+                    } else {
+                        amount = DexLibrary.swap(amount, reward, address(rewardToken), IPair(swapPair));
+                    }
+                    avaxAmount = avaxAmount.add(amount);
                 }
             }
         }
@@ -221,7 +249,9 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
      * @dev Reverts if the expected amount of tokens are not returned from the staking contract
      */
     function _reinvest(bool userDeposit) private {
-        _getRewards();
+        stakingContract.harvest(PID);
+        rewardLocker.vestCompletedSchedulesForMultipleTokens(stakingContract.getRewardTokens());
+
         uint256 amount = _convertRewardsIntoWAVAX();
         if (!userDeposit) {
             require(amount >= MIN_TOKENS_TO_REINVEST, "VariableRewardsStrategy::Reinvest amount too low");
@@ -243,9 +273,32 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         emit Reinvest(totalDeposits(), totalSupply);
     }
 
+    function _convertRewardTokenToDepositToken(uint256 _fromAmount) internal virtual returns (uint256 toAmount) {
+        toAmount = KyberDexLibrary.convertRewardTokensToDepositTokens(
+            _fromAmount,
+            address(rewardToken),
+            address(depositToken),
+            IKyberPair(swapPairToken0),
+            IKyberPair(swapPairToken1)
+        );
+    }
+
     function _stakeDepositTokens(uint256 _amount) private {
         require(_amount > 0, "VariableRewardsStrategy::Stake amount too low");
-        _depositToStakingContract(_amount);
+        depositToken.approve(address(stakingContract), _amount);
+        stakingContract.deposit(PID, _amount, false);
+        depositToken.approve(address(stakingContract), 0);
+    }
+
+    function _pendingRewards() internal view virtual returns (Reward[] memory) {
+        address[] memory rewardTokens = stakingContract.getRewardTokens();
+        uint256[] memory amounts = stakingContract.pendingRewards(PID, address(this));
+        Reward[] memory pendingRewards = new Reward[](rewardTokens.length);
+        for (uint256 i = 0; i < rewardTokens.length; i++) {
+            address reward = rewardTokens[i] > address(0) ? rewardTokens[i] : address(WAVAX);
+            pendingRewards[i] = Reward({reward: reward, amount: amounts[i]});
+        }
+        return pendingRewards;
     }
 
     function checkReward() public view override returns (uint256) {
@@ -261,13 +314,31 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
                 uint256 amount = balance.add(rewards[i].amount);
                 address swapPair = rewardSwapPairs[rewards[i].reward];
                 if (amount > 0 && swapPair > address(0)) {
-                    estimatedTotalReward = estimatedTotalReward.add(
-                        DexLibrary.estimateConversionThroughPair(amount, reward, address(WAVAX), IPair(swapPair))
-                    );
+                    if (reward == KNC) {
+                        amount = KyberDexLibrary.estimateConversionThroughPair(
+                            amount,
+                            reward,
+                            address(WAVAX),
+                            IKyberPair(swapPair)
+                        );
+                    } else {
+                        amount = DexLibrary.estimateConversionThroughPair(
+                            amount,
+                            reward,
+                            address(WAVAX),
+                            IPair(swapPair)
+                        );
+                    }
+                    estimatedTotalReward = estimatedTotalReward.add(amount);
                 }
             }
         }
         return estimatedTotalReward;
+    }
+
+    function totalDeposits() public view override returns (uint256) {
+        (uint256 amount, , ) = stakingContract.getUserInfo(PID, address(this));
+        return amount;
     }
 
     /**
@@ -275,9 +346,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
      * @return deposit tokens after withdraw fee
      */
     function estimateDeployedBalance() external view override returns (uint256) {
-        uint256 depositBalance = totalDeposits();
-        uint256 withdrawFee = _calculateWithdrawFee(depositBalance);
-        return depositBalance.sub(withdrawFee);
+        return totalDeposits();
     }
 
     function rescueDeployedFunds(
@@ -285,7 +354,8 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         bool /*_disableDeposits*/
     ) external override onlyOwner {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
-        _emergencyWithdraw();
+        depositToken.approve(address(stakingContract), 0);
+        stakingContract.emergencyWithdraw(PID);
         uint256 balanceAfter = depositToken.balanceOf(address(this));
         require(
             balanceAfter.sub(balanceBefore) >= _minReturnAmountAccepted,
@@ -296,21 +366,4 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
             updateDepositsEnabled(false);
         }
     }
-
-    function _bip() internal view virtual returns (uint256) {
-        return 10000;
-    }
-
-    /* VIRTUAL */
-    function _convertRewardTokenToDepositToken(uint256 _fromAmount) internal virtual returns (uint256 toAmount);
-
-    function _depositToStakingContract(uint256 _amount) internal virtual;
-
-    function _withdrawFromStakingContract(uint256 _amount) internal virtual returns (uint256 withdrawAmount);
-
-    function _emergencyWithdraw() internal virtual;
-
-    function _getRewards() internal virtual;
-
-    function _pendingRewards() internal view virtual returns (Reward[] memory);
 }
