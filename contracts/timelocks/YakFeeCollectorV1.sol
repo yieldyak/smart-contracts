@@ -27,6 +27,12 @@ interface IStrategy {
 
     function addReward(address rewardToken, address swapPair) external;
 
+    function addReward(
+        address rewardToken,
+        address swapPair,
+        uint256 swapFee
+    ) external;
+
     // Benqi
     function updateLeverage(
         uint256 _leverageLevel,
@@ -179,5 +185,15 @@ contract YakFeeCollectorV1 is AccessControl {
     ) external {
         require(hasRole(DEV_ROLE, msg.sender), "execute::auth");
         IStrategy(strategy).addReward(rewardToken, swapPair);
+    }
+
+    function addReward(
+        address strategy,
+        address rewardToken,
+        address swapPair,
+        uint256 swapFee
+    ) external {
+        require(hasRole(DEV_ROLE, msg.sender), "execute::auth");
+        IStrategy(strategy).addReward(rewardToken, swapPair, swapFee);
     }
 }
