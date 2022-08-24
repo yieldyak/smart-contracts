@@ -20,7 +20,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         address platformToken;
         address depositToken;
         address rewardToken;
-        RewardSwapPairs[] rewardSwapPairs;
+        RewardSwapPair[] rewardSwapPairs;
         address timelock;
     }
 
@@ -29,13 +29,14 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         uint256 amount;
     }
 
-    struct RewardSwapPairs {
+    struct RewardSwapPair {
         address reward;
         address swapPair;
+        uint256 swapFee;
     }
 
     // reward -> swapPair
-    mapping(address => address) public rewardSwapPairs;
+    mapping(address => RewardSwapPair) public rewardSwapPairs;
     address[] public supportedRewards;
     uint256 public rewardCount;
 
@@ -52,7 +53,11 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
 
         for (uint256 i = 0; i < _settings.rewardSwapPairs.length; i++) {
-            _addReward(_settings.rewardSwapPairs[i].reward, _settings.rewardSwapPairs[i].swapPair);
+            _addReward(
+                _settings.rewardSwapPairs[i].reward,
+                _settings.rewardSwapPairs[i].swapPair,
+                _settings.rewardSwapPairs[i].swapFee
+            );
         }
 
         updateDepositsEnabled(true);
@@ -61,17 +66,29 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
     }
 
     function addReward(address _rewardToken, address _swapPair) public onlyDev {
-        _addReward(_rewardToken, _swapPair);
+        _addReward(_rewardToken, _swapPair, DexLibrary.DEFAULT_SWAP_FEE);
     }
 
-    function _addReward(address _rewardToken, address _swapPair) internal {
+    function addReward(
+        address _rewardToken,
+        address _swapPair,
+        uint256 _swapFee
+    ) public onlyDev {
+        _addReward(_rewardToken, _swapPair, _swapFee);
+    }
+
+    function _addReward(
+        address _rewardToken,
+        address _swapPair,
+        uint256 _swapFee
+    ) internal {
         if (_rewardToken != address(rewardToken)) {
             require(
                 DexLibrary.checkSwapPairCompatibility(IPair(_swapPair), _rewardToken, address(rewardToken)),
                 "VariableRewardsStrategy::Swap pair does not contain reward token"
             );
         }
-        rewardSwapPairs[_rewardToken] = _swapPair;
+        rewardSwapPairs[_rewardToken] = RewardSwapPair({reward: _rewardToken, swapPair: _swapPair, swapFee: _swapFee});
         supportedRewards.push(_rewardToken);
         rewardCount = rewardCount + 1;
         emit AddReward(_rewardToken, _swapPair);
@@ -212,9 +229,15 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
             }
             uint256 amount = IERC20(reward).balanceOf(address(this));
             if (amount > 0) {
-                address swapPair = rewardSwapPairs[reward];
+                address swapPair = rewardSwapPairs[reward].swapPair;
                 if (swapPair > address(0)) {
-                    rewardTokenAmount += DexLibrary.swap(amount, reward, address(rewardToken), IPair(swapPair));
+                    rewardTokenAmount += DexLibrary.swap(
+                        amount,
+                        reward,
+                        address(rewardToken),
+                        IPair(swapPair),
+                        rewardSwapPairs[reward].swapFee
+                    );
                 }
             }
         }
@@ -266,13 +289,14 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
             } else {
                 uint256 balance = IERC20(reward).balanceOf(address(this));
                 uint256 amount = balance + rewards[i].amount;
-                address swapPair = rewardSwapPairs[rewards[i].reward];
+                address swapPair = rewardSwapPairs[rewards[i].reward].swapPair;
                 if (amount > 0 && swapPair > address(0)) {
                     estimatedTotalReward += DexLibrary.estimateConversionThroughPair(
                         amount,
                         reward,
                         address(rewardToken),
-                        IPair(swapPair)
+                        IPair(swapPair),
+                        rewardSwapPairs[rewards[i].reward].swapFee
                     );
                 }
             }
