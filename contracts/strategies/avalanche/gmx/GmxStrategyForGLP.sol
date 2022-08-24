@@ -4,6 +4,7 @@ pragma solidity 0.8.13;
 
 import "../../../YakStrategyV2.sol";
 import "../../../lib/SafeERC20.sol";
+import "./../../../lib/SafeMath.sol";
 import "../../../interfaces/IWAVAX.sol";
 
 import "./interfaces/IGmxProxy.sol";

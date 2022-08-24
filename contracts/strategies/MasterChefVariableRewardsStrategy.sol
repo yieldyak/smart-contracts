@@ -4,6 +4,7 @@ pragma solidity 0.8.13;
 import "../YakStrategyV2.sol";
 import "../interfaces/IPair.sol";
 import "./../interfaces/IWAVAX.sol";
+import "./../lib/SafeMath.sol";
 import "../lib/DexLibrary.sol";
 
 /**
