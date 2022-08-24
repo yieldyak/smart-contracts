@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "./SafeMath.sol";
 import "./SafeERC20.sol";
 import "../interfaces/IPair.sol";
 
 library DexLibrary {
-    using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     bytes private constant zeroBytes = new bytes(0);
@@ -72,7 +70,7 @@ library DexLibrary {
         IPair swapPairToken0,
         IPair swapPairToken1
     ) internal returns (uint256) {
-        uint256 amountIn = amount.div(2);
+        uint256 amountIn = amount / 2;
         require(amountIn > 0, "DexLibrary::_convertRewardTokensToDepositTokens");
 
         address token0 = IPair(depositToken).token0();
@@ -127,7 +125,7 @@ library DexLibrary {
         uint256 reserve0,
         uint256 reserve1
     ) private pure returns (uint256) {
-        return amountIn.mul(reserve1).div(reserve0);
+        return (amountIn * reserve1) / reserve0;
     }
 
     /**
@@ -154,9 +152,9 @@ library DexLibrary {
         uint256 reserveIn,
         uint256 reserveOut
     ) internal pure returns (uint256) {
-        uint256 amountInWithFee = amountIn.mul(997);
-        uint256 numerator = amountInWithFee.mul(reserveOut);
-        uint256 denominator = reserveIn.mul(1000).add(amountInWithFee);
-        return numerator.div(denominator);
+        uint256 amountInWithFee = amountIn * 997;
+        uint256 numerator = amountInWithFee * reserveOut;
+        uint256 denominator = reserveIn * 1000 + amountInWithFee;
+        return numerator / denominator;
     }
 }

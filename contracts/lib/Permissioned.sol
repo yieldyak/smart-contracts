@@ -2,11 +2,8 @@
 pragma solidity 0.8.13;
 
 import "./Ownable.sol";
-import "./SafeMath.sol";
 
 abstract contract Permissioned is Ownable {
-    using SafeMath for uint256;
-
     uint256 public numberOfAllowedDepositors;
     mapping(address => bool) public allowedDepositors;
 
@@ -27,7 +24,7 @@ abstract contract Permissioned is Ownable {
     function allowDepositor(address depositor) external onlyOwner {
         require(allowedDepositors[depositor] == false, "Permissioned::allowDepositor");
         allowedDepositors[depositor] = true;
-        numberOfAllowedDepositors = numberOfAllowedDepositors.add(1);
+        numberOfAllowedDepositors = numberOfAllowedDepositors + 1;
         emit AllowDepositor(depositor);
     }
 
@@ -39,7 +36,7 @@ abstract contract Permissioned is Ownable {
         require(numberOfAllowedDepositors > 0, "Permissioned::removeDepositor, no allowed depositors");
         require(allowedDepositors[depositor] == true, "Permissioned::removeDepositor, not allowed");
         allowedDepositors[depositor] = false;
-        numberOfAllowedDepositors = numberOfAllowedDepositors.sub(1);
+        numberOfAllowedDepositors = numberOfAllowedDepositors - 1;
         emit RemoveDepositor(depositor);
     }
 }
