@@ -107,6 +107,24 @@ contract YetiVoterProxy is IYetiVoterProxy {
     }
 
     /**
+     * @notice Move veYeti
+     * @dev Restricted to devAddr
+     * @param _from rewarder where to reduce
+     * @param _to rewarder where to add
+     * @param _amount to move
+     */
+    function moveVeYeti(
+        address _from,
+        address _to,
+        uint256 _amount
+    ) external onlyDev {
+        IVeYeti.RewarderUpdate[] memory rewarderUpdates = new IVeYeti.RewarderUpdate[](2);
+        rewarderUpdates[0] = IVeYeti.RewarderUpdate({rewarder: _from, amount: _amount, isIncrease: false});
+        rewarderUpdates[1] = IVeYeti.RewarderUpdate({rewarder: _to, amount: _amount, isIncrease: true});
+        voter.updateVeYeti(rewarderUpdates);
+    }
+
+    /**
      * @notice Deposit function
      * @dev Restricted to strategy with _pid
      * @param _stakingContract Masterchef
@@ -188,7 +206,13 @@ contract YetiVoterProxy is IYetiVoterProxy {
                 abi.encodeWithSignature("transfer(address,uint256)", msg.sender, reward)
             );
             if (boostFee > 0) {
-                voter.depositFromBalance(boostFee);
+                IVeYeti.RewarderUpdate[] memory rewarderUpdates = new IVeYeti.RewarderUpdate[](1);
+                rewarderUpdates[0] = IVeYeti.RewarderUpdate({
+                    rewarder: _stakingContract,
+                    amount: boostFee,
+                    isIncrease: true
+                });
+                voter.depositFromBalance(boostFee, rewarderUpdates);
                 IERC20(address(voter)).safeTransfer(boosterFeeReceiver, boostFee);
             }
         }
