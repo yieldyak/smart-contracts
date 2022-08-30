@@ -32,7 +32,6 @@ contract BenqiStrategyV3 is YakStrategyV2 {
 
     constructor(
         string memory _name,
-        address _depositToken,
         address _rewardController,
         address _tokenDelegator,
         address _rewardToken0,
@@ -44,12 +43,10 @@ contract BenqiStrategyV3 is YakStrategyV2 {
         StrategySettings memory _strategySettings
     ) YakStrategyV2(_strategySettings) {
         name = _name;
-        depositToken = IERC20(_depositToken);
         rewardController = IBenqiUnitroller(_rewardController);
         tokenDelegator = IBenqiERC20Delegator(_tokenDelegator);
         rewardToken0 = IERC20(_rewardToken0);
         rewardToken1 = IERC20(_rewardToken1);
-        rewardToken = rewardToken1;
         minMinting = _leverageSettings.minMinting;
         _updateLeverage(
             _leverageSettings.leverageLevel,

@@ -22,8 +22,6 @@ contract MarginswapStrategyV1 is YakStrategyV2 {
 
     constructor(
         string memory _name,
-        address _depositToken,
-        address _rewardToken,
         address _stakingContract,
         address _fundContract,
         address _swapPairWAVAXMfi,
@@ -32,8 +30,6 @@ contract MarginswapStrategyV1 is YakStrategyV2 {
         StrategySettings memory _strategySettings
     ) YakStrategyV2(_strategySettings) {
         name = _name;
-        depositToken = IERC20(_depositToken);
-        rewardToken = IERC20(_rewardToken);
         stakingContract = ILending(_stakingContract);
         fundContract = _fundContract;
         swapPairWAVAXMfi = IPair(_swapPairWAVAXMfi);

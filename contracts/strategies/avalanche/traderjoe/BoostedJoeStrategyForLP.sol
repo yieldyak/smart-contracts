@@ -16,8 +16,6 @@ contract BoostedJoeStrategyForLP is MasterChefStrategyForLP {
 
     constructor(
         string memory _name,
-        address _depositToken,
-        address _rewardToken,
         address _nativeRewardToken,
         SwapPairs memory _swapPairs,
         address _stakingContract,
@@ -25,18 +23,7 @@ contract BoostedJoeStrategyForLP is MasterChefStrategyForLP {
         address _voterProxy,
         address _timelock,
         StrategySettings memory _strategySettings
-    )
-        MasterChefStrategyForLP(
-            _name,
-            _depositToken,
-            _rewardToken,
-            _nativeRewardToken,
-            _swapPairs,
-            _timelock,
-            _pid,
-            _strategySettings
-        )
-    {
+    ) MasterChefStrategyForLP(_name, _nativeRewardToken, _swapPairs, _timelock, _pid, _strategySettings) {
         stakingContract = _stakingContract;
         proxy = IJoeVoterProxy(_voterProxy);
     }

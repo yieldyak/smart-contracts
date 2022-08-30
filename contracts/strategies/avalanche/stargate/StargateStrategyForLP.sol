@@ -41,8 +41,6 @@ contract StargateStrategyForLP is MasterChefStrategy {
     )
         MasterChefStrategy(
             _name,
-            _tokens.depositToken,
-            WAVAX, /*rewardToken=*/
             _tokens.poolRewardToken,
             _swapPairPoolReward,
             address(0),

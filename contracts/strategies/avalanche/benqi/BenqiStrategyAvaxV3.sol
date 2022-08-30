@@ -43,11 +43,9 @@ contract BenqiStrategyAvaxV3 is YakStrategyV2Payable, ReentrancyGuard {
         StrategySettings memory _strategySettings
     ) YakStrategyV2(_strategySettings) {
         name = _name;
-        depositToken = IERC20(address(0));
         rewardController = IBenqiUnitroller(_rewardController);
         tokenDelegator = IBenqiAVAXDelegator(_tokenDelegator);
         rewardToken0 = IERC20(_rewardToken0);
-        rewardToken = IERC20(address(WAVAX));
         minMinting = _minMinting;
         _updateLeverage(
             _leverageLevel,

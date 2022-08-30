@@ -11,13 +11,15 @@ import "./YakERC20.sol";
  */
 abstract contract YakStrategyV2 is YakERC20, Ownable, Permissioned {
     struct StrategySettings {
+        address depositToken;
+        address rewardToken;
         uint256 minTokensToReinvest;
         uint256 devFeeBips;
         uint256 reinvestRewardBips;
     }
 
-    IERC20 public depositToken;
-    IERC20 public rewardToken;
+    IERC20 public immutable depositToken;
+    IERC20 public immutable rewardToken;
     address public devAddr;
 
     uint256 public MIN_TOKENS_TO_REINVEST;
@@ -60,6 +62,8 @@ abstract contract YakStrategyV2 is YakERC20, Ownable, Permissioned {
     }
 
     constructor(StrategySettings memory _strategySettings) {
+        depositToken = IERC20(_strategySettings.depositToken);
+        rewardToken = IERC20(_strategySettings.rewardToken);
         updateMinTokensToReinvest(_strategySettings.minTokensToReinvest);
         updateDevFee(_strategySettings.devFeeBips);
         updateReinvestReward(_strategySettings.reinvestRewardBips);

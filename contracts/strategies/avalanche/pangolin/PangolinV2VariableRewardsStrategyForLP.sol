@@ -22,8 +22,6 @@ contract PangolinV2VariableRewardsStrategyForLP is MasterChefVariableRewardsStra
 
     constructor(
         string memory _name,
-        address _depositToken,
-        address _rewardToken,
         address _poolRewardToken,
         SwapPairs memory _swapPairs,
         ExtraReward[] memory _extraRewards,
@@ -34,8 +32,6 @@ contract PangolinV2VariableRewardsStrategyForLP is MasterChefVariableRewardsStra
     )
         MasterChefVariableRewardsStrategyForLP(
             _name,
-            _depositToken,
-            _rewardToken,
             _poolRewardToken,
             _swapPairs,
             _extraRewards,

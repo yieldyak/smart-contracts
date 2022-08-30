@@ -13,8 +13,6 @@ contract CompoundingJoeV3 is MasterChefVariableRewardsStrategyForSA {
 
     constructor(
         string memory _name,
-        address _depositToken,
-        address _rewardToken,
         address _poolRewardToken,
         address _swapPairToken,
         ExtraReward[] memory _extraRewards,
@@ -24,8 +22,6 @@ contract CompoundingJoeV3 is MasterChefVariableRewardsStrategyForSA {
     )
         MasterChefVariableRewardsStrategyForSA(
             _name,
-            _depositToken,
-            _rewardToken,
             _poolRewardToken,
             _swapPairToken,
             _extraRewards,

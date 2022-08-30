@@ -68,7 +68,6 @@ contract AaveV3StrategyAvaxV1 is YakStrategyV2Payable, ReentrancyGuard {
         name = _name;
         rewardController = IAaveV3IncentivesController(_rewardController);
         tokenDelegator = ILendingPoolAaveV3(_tokenDelegator);
-        rewardToken = IERC20(address(WAVAX));
         _updateLeverage(
             _leverageSettings.leverageLevel,
             _leverageSettings.safetyFactor,

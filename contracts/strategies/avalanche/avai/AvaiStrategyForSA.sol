@@ -18,7 +18,6 @@ contract AvaiStrategyForSA is MasterChefStrategyForSA {
 
     constructor(
         string memory _name,
-        address _depositToken,
         address _swapPairToken, // swap rewardToken to depositToken
         address _poolRewardToken,
         address _swapPairPoolReward,
@@ -30,8 +29,6 @@ contract AvaiStrategyForSA is MasterChefStrategyForSA {
     )
         MasterChefStrategyForSA(
             _name,
-            _depositToken,
-            address(WAVAX), /*rewardToken=*/
             _poolRewardToken,
             _swapPairPoolReward,
             _swapPairExtraReward,

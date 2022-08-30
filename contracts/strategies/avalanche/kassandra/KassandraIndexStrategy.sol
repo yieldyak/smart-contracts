@@ -17,28 +17,15 @@ contract KassandraIndexStrategy is MasterChefStrategy {
 
     constructor(
         string memory _name,
-        address _depositToken,
         address _poolRewardToken,
         address _swapPairPoolReward,
         address _stakingContract,
         uint256 _pid,
         address _timelock,
         StrategySettings memory _strategySettings
-    )
-        MasterChefStrategy(
-            _name,
-            _depositToken,
-            address(WAVAX), /*rewardToken=*/
-            _poolRewardToken,
-            _swapPairPoolReward,
-            address(0),
-            _timelock,
-            _pid,
-            _strategySettings
-        )
-    {
+    ) MasterChefStrategy(_name, _poolRewardToken, _swapPairPoolReward, address(0), _timelock, _pid, _strategySettings) {
         stakingContract = IKassandraStaking(_stakingContract);
-        kassandraPool = IKassandraPool(_depositToken);
+        kassandraPool = IKassandraPool(_strategySettings.depositToken);
     }
 
     function _getDepositFeeBips(

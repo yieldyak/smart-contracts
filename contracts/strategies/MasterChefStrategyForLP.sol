@@ -23,8 +23,6 @@ abstract contract MasterChefStrategyForLP is MasterChefStrategy {
 
     constructor(
         string memory _name,
-        address _depositToken,
-        address _ecosystemToken,
         address _poolRewardToken,
         SwapPairs memory _swapPairs,
         address _timelock,
@@ -33,8 +31,6 @@ abstract contract MasterChefStrategyForLP is MasterChefStrategy {
     )
         MasterChefStrategy(
             _name,
-            _depositToken,
-            _ecosystemToken,
             _poolRewardToken,
             _swapPairs.poolReward,
             _swapPairs.extraReward,
@@ -43,7 +39,7 @@ abstract contract MasterChefStrategyForLP is MasterChefStrategy {
             _strategySettings
         )
     {
-        assignSwapPairSafely(_swapPairs, _ecosystemToken, _poolRewardToken);
+        assignSwapPairSafely(_swapPairs, _strategySettings.rewardToken, _poolRewardToken);
     }
 
     /**

@@ -23,8 +23,6 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
 
     constructor(
         string memory _name,
-        address _depositToken,
-        address _ecosystemToken,
         address _poolRewardToken,
         address _swapPairPoolReward,
         address _swapPairExtraReward,
@@ -33,12 +31,10 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
         StrategySettings memory _strategySettings
     ) YakStrategyV2(_strategySettings) {
         name = _name;
-        depositToken = IERC20(_depositToken);
-        rewardToken = IERC20(_ecosystemToken);
         PID = _pid;
         devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
 
-        assignSwapPairSafely(_ecosystemToken, _poolRewardToken, _swapPairPoolReward);
+        assignSwapPairSafely(_strategySettings.rewardToken, _poolRewardToken, _swapPairPoolReward);
         _setExtraRewardSwapPair(_swapPairExtraReward);
         updateDepositsEnabled(true);
         transferOwnership(_timelock);

@@ -21,28 +21,15 @@ contract MoreMoneyStrategy is MasterChefStrategy {
 
     constructor(
         string memory _name,
-        address _depositToken,
         address _poolRewardToken,
         address _swapPairPoolReward,
         address _stakingContract,
         CurveSwap.Settings memory _curveSwapSettings,
         address _timelock,
         StrategySettings memory _strategySettings
-    )
-        MasterChefStrategy(
-            _name,
-            _depositToken,
-            address(WAVAX), /*rewardToken=*/
-            _poolRewardToken,
-            _swapPairPoolReward,
-            address(0),
-            _timelock,
-            0,
-            _strategySettings
-        )
-    {
+    ) MasterChefStrategy(_name, _poolRewardToken, _swapPairPoolReward, address(0), _timelock, 0, _strategySettings) {
         stakingContract = IMoreMoneyStakingRewards(_stakingContract);
-        curvePool = _depositToken;
+        curvePool = _strategySettings.depositToken;
         zapSettings = _curveSwapSettings;
         IERC20(zapSettings.zapToken).approve(zapSettings.zapContract, type(uint256).max);
     }

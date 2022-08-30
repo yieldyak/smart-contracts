@@ -15,8 +15,6 @@ abstract contract MasterChefStrategyForSA is MasterChefStrategy {
 
     constructor(
         string memory _name,
-        address _depositToken,
-        address _ecosystemToken,
         address _poolRewardToken,
         address _swapPairPoolReward,
         address _swapPairExtraReward,
@@ -27,8 +25,6 @@ abstract contract MasterChefStrategyForSA is MasterChefStrategy {
     )
         MasterChefStrategy(
             _name,
-            _depositToken,
-            _ecosystemToken,
             _poolRewardToken,
             _swapPairPoolReward,
             _swapPairExtraReward,

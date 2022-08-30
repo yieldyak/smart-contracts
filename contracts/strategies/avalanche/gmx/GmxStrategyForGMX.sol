@@ -20,7 +20,6 @@ contract GmxStrategyForGMX is MasterChefStrategyForSA {
 
     constructor(
         string memory _name,
-        address _depositToken,
         address _swapPairToken,
         address _gmxProxy,
         address _timelock,
@@ -28,8 +27,6 @@ contract GmxStrategyForGMX is MasterChefStrategyForSA {
     )
         MasterChefStrategyForSA(
             _name,
-            _depositToken,
-            address(WAVAX), /*rewardToken=*/
             address(WAVAX),
             _swapPairToken,
             address(0),
