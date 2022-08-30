@@ -122,9 +122,9 @@ library DexLibrary {
         address rewardToken,
         address depositToken,
         IPair swapPairToken0,
-        uint256 swapFeeBpsToken0,
+        uint256 swapFeeToken0,
         IPair swapPairToken1,
-        uint256 swapFeeBpsToken1
+        uint256 swapFeeToken1
     ) internal returns (uint256) {
         uint256 amountIn = amount / 2;
         require(amountIn > 0, "DexLibrary::_convertRewardTokensToDepositTokens");
@@ -132,13 +132,13 @@ library DexLibrary {
         address token0 = IPair(depositToken).token0();
         uint256 amountOutToken0 = amountIn;
         if (rewardToken != token0) {
-            amountOutToken0 = DexLibrary.swap(amountIn, rewardToken, token0, swapPairToken0, swapFeeBpsToken0);
+            amountOutToken0 = DexLibrary.swap(amountIn, rewardToken, token0, swapPairToken0, swapFeeToken0);
         }
 
         address token1 = IPair(depositToken).token1();
         uint256 amountOutToken1 = amountIn;
         if (rewardToken != token1) {
-            amountOutToken1 = DexLibrary.swap(amountIn, rewardToken, token1, swapPairToken1, swapFeeBpsToken1);
+            amountOutToken1 = DexLibrary.swap(amountIn, rewardToken, token1, swapPairToken1, swapFeeToken1);
         }
 
         return DexLibrary.addLiquidity(depositToken, amountOutToken0, amountOutToken1);
