@@ -15,26 +15,13 @@ contract KassandraStrategyForLP is MasterChefStrategyForLP {
 
     constructor(
         string memory _name,
-        address _depositToken,
-        address _rewardToken,
         address _poolRewardToken,
         SwapPairs memory _swapPairs,
         address _stakingContract,
         uint256 _pid,
         address _timelock,
         StrategySettings memory _strategySettings
-    )
-        MasterChefStrategyForLP(
-            _name,
-            _depositToken,
-            _rewardToken,
-            _poolRewardToken,
-            _swapPairs,
-            _timelock,
-            _pid,
-            _strategySettings
-        )
-    {
+    ) MasterChefStrategyForLP(_name, _poolRewardToken, _swapPairs, _timelock, _pid, _strategySettings) {
         stakingContract = IKassandraStaking(_stakingContract);
     }
 

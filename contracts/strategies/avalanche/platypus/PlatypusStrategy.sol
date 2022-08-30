@@ -56,8 +56,6 @@ contract PlatypusStrategy is YakStrategyV2 {
         StrategySettings memory _strategySettings
     ) YakStrategyV2(_strategySettings) {
         name = _name;
-        depositToken = IERC20(_depositToken);
-        rewardToken = IERC20(address(WAVAX));
         PID = _pid;
         devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
 

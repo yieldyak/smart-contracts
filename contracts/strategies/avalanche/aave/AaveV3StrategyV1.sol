@@ -56,7 +56,6 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
         string memory _name,
         address _rewardController,
         address _tokenDelegator,
-        address _depositToken,
         address _swapPairToken,
         RewardSwapPairs[] memory _rewardSwapPairs,
         address _avToken,
@@ -68,7 +67,6 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
         name = _name;
         rewardController = IAaveV3IncentivesController(_rewardController);
         tokenDelegator = ILendingPoolAaveV3(_tokenDelegator);
-        rewardToken = IERC20(address(WAVAX));
         _updateLeverage(
             _leverageSettings.leverageLevel,
             _leverageSettings.safetyFactor,
@@ -76,7 +74,6 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
             _leverageSettings.leverageBips
         );
         devAddr = msg.sender;
-        depositToken = IERC20(_depositToken);
         avToken = _avToken;
         avDebtToken = _avDebtToken;
         assignSwapPairSafely(_swapPairToken);

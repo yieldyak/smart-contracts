@@ -53,7 +53,6 @@ contract KyberStrategy is YakStrategyV2 {
 
     constructor(
         string memory _name,
-        address _depositToken,
         SwapPairs memory _swapPairs,
         RewardSwapPairs[] memory _rewardSwapPairs,
         address _stakingContract,
@@ -62,8 +61,6 @@ contract KyberStrategy is YakStrategyV2 {
         StrategySettings memory _strategySettings
     ) YakStrategyV2(_strategySettings) {
         name = _name;
-        depositToken = IERC20(_depositToken);
-        rewardToken = IERC20(address(WAVAX));
         devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
         stakingContract = IKyberFairLaunchV2(_stakingContract);
         rewardLocker = IKyberRewardLockerV2(IKyberFairLaunchV2(_stakingContract).rewardLocker());

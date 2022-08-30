@@ -23,14 +23,11 @@ contract GmxStrategyForGLP is YakStrategyV2 {
 
     constructor(
         string memory _name,
-        address _depositToken,
         address _gmxProxy,
         address _timelock,
         StrategySettings memory _strategySettings
     ) YakStrategyV2(_strategySettings) {
         name = _name;
-        depositToken = IERC20(_depositToken);
-        rewardToken = IERC20(address(WAVAX));
         proxy = IGmxProxy(_gmxProxy);
         devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
 

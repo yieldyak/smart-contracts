@@ -45,7 +45,6 @@ contract JoeLendingStrategyAvaxV2 is YakStrategyV2Payable, ReentrancyGuard {
         tokenDelegator = IJoeAVAXDelegator(_tokenDelegator);
         rewardToken0 = IERC20(_rewardToken0);
         rewardToken1 = IERC20(address(WAVAX));
-        rewardToken = rewardToken1;
         minMinting = _minMinting;
         _updateLeverage(_leverageLevel, _leverageBips);
         devAddr = msg.sender;

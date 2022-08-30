@@ -16,26 +16,13 @@ contract JoeStrategyForLP is MasterChefStrategyForLP {
 
     constructor(
         string memory _name,
-        address _depositToken,
-        address _rewardToken,
         address _nativeRewardToken,
         SwapPairs memory _swapPairs,
         address _stakingRewards,
         uint256 _pid,
         address _timelock,
         StrategySettings memory _strategySettings
-    )
-        MasterChefStrategyForLP(
-            _name,
-            _depositToken,
-            _rewardToken,
-            _nativeRewardToken,
-            _swapPairs,
-            _timelock,
-            _pid,
-            _strategySettings
-        )
-    {
+    ) MasterChefStrategyForLP(_name, _nativeRewardToken, _swapPairs, _timelock, _pid, _strategySettings) {
         joeChef = IJoeChef(_stakingRewards);
     }
 

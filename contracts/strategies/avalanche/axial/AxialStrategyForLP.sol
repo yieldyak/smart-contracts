@@ -30,7 +30,6 @@ contract AxialStrategyForLP is MasterChefStrategy {
 
     constructor(
         string memory _name,
-        address _depositToken,
         address _poolRewardToken,
         address _swapPairPoolReward,
         address _swapPairExtraReward,
@@ -42,8 +41,6 @@ contract AxialStrategyForLP is MasterChefStrategy {
     )
         MasterChefStrategy(
             _name,
-            _depositToken,
-            address(WAVAX), /*rewardToken=*/
             _poolRewardToken,
             _swapPairPoolReward,
             _swapPairExtraReward,
