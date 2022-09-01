@@ -18,8 +18,6 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
     struct VariableRewardsStrategySettings {
         string name;
         address platformToken;
-        address depositToken;
-        address rewardToken;
         RewardSwapPair[] rewardSwapPairs;
         address timelock;
     }

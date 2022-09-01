@@ -39,7 +39,7 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
         PID = _pid;
         platypusPool = IPlatypusPool(_platypusPool);
         echidnaBooster = IEchidnaBooster(_stakingContract);
-        platypusAsset = IPlatypusAsset(IPlatypusPool(_platypusPool).assetOf(_settings.depositToken));
+        platypusAsset = IPlatypusAsset(IPlatypusPool(_platypusPool).assetOf(_strategySettings.depositToken));
         boosterFeeCollector = IBoosterFeeCollector(_boosterFeeCollector);
     }
 
