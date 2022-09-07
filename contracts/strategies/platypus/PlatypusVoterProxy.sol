@@ -155,7 +155,9 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
 
         uint256[] memory pids = new uint256[](1);
         pids[0] = pid;
-        IMasterPlatypus(currentMasterPlatypus).migrate(pids);
+
+        platypusVoter.safeExecute(currentMasterPlatypus, 0, abi.encodeWithSignature("migrate(uint256[])", pids));
+
         approvedStrategies[_from][pid] = address(0);
         approveStrategy(newMasterPlatypus, _strategy);
     }
