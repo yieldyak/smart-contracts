@@ -12,6 +12,8 @@ import "./interfaces/IPlatypusNFT.sol";
 import "./interfaces/IVePTP.sol";
 import "./interfaces/IPlatypusStrategy.sol";
 import "./interfaces/IPlatypusVoterProxy.sol";
+import "./interfaces/IVotingGauge.sol";
+import "./interfaces/IBribe.sol";
 
 library SafeProxy {
     function safeExecute(
@@ -64,6 +66,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
     IPlatypusVoter public immutable override platypusVoter;
     address public devAddr;
     address public gaugeVoter;
+    IVotingGauge public votingGauge;
     uint256 public maxSupportedMasterPlatypusVersion;
 
     // strategy => masterchef
@@ -83,11 +86,13 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         address _platypusVoter,
         address _devAddr,
         address _gaugeVoter,
+        address _votingGauge,
         uint256 _maxSupportedMasterPlatypusVersion,
         FeeSettings memory _feeSettings
     ) {
         devAddr = _devAddr;
         gaugeVoter = _gaugeVoter;
+        votingGauge = IVotingGauge(_votingGauge);
         boosterFee = _feeSettings.boosterFeeBips;
         stakerFee = _feeSettings.stakerFeeBips;
         stakerFeeReceiver = _feeSettings.stakerFeeReceiver;
@@ -118,6 +123,14 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
      */
     function updateGaugeVoter(address newValue) external onlyDev {
         gaugeVoter = newValue;
+    }
+
+    /**
+     * @notice Update votingGauge
+     * @param newValue address
+     */
+    function updateVotingGauge(address newValue) external onlyDev {
+        votingGauge = IVotingGauge(newValue);
     }
 
     /**
@@ -598,7 +611,30 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         return tempUint;
     }
 
-    function vote() external {
+    function vote(address[] calldata _lpVote, int256[] calldata _deltas)
+        external
+        returns (Reward[] memory claimedBribes)
+    {
         require(msg.sender == gaugeVoter, "PlatypusVoterProxy::Unauthorized");
+        platypusVoter.safeExecute(
+            address(votingGauge),
+            0,
+            abi.encodeWithSignature("vote(address[],int256[])", _lpVote, _deltas)
+        );
+        claimedBribes = new Reward[](_lpVote.length);
+        for (uint256 i = 0; i < _lpVote.length; i++) {
+            IBribe bribe = IBribe(votingGauge.bribes(_lpVote[i]));
+            address rewardToken = bribe.rewardToken();
+            uint256 claimedAmount = IERC20(rewardToken).balanceOf(address(platypusVoter));
+            if (claimedAmount > 0) {
+                platypusVoter.safeExecute(
+                    rewardToken,
+                    0,
+                    abi.encodeWithSignature("transfer(address,uint256)", gaugeVoter, claimedAmount)
+                );
+            }
+            Reward memory reward = Reward({reward: rewardToken, amount: claimedAmount});
+            claimedBribes[i] = reward;
+        }
     }
 }

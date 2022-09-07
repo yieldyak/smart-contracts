@@ -12,9 +12,9 @@ interface IVePTP {
 
     function totalSupply() external view returns (uint256);
 
-    function balanceOf(address account) external view returns (uint256);
+    function balanceOf(address _account) external view returns (uint256);
 
-    function users(address user)
+    function users(address _user)
         external
         view
         returns (
@@ -22,4 +22,6 @@ interface IVePTP {
             uint256 lastRelease,
             uint256 stakedNftId
         );
+
+    function getVotes(address _account) external view returns (uint256);
 }
