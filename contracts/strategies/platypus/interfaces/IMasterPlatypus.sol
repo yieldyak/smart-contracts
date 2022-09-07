@@ -9,15 +9,15 @@ interface IMasterPlatypus {
         view
         returns (
             uint256 pendingPtp,
-            address bonusTokenAddress,
-            string memory bonusTokenSymbol,
-            uint256 pendingBonusToken
+            address[] memory bonusTokenAddresses,
+            string[] memory bonusTokenSymbols,
+            uint256[] memory pendingBonusTokens
         );
 
     function rewarderBonusTokenInfo(uint256 _pid)
         external
         view
-        returns (address bonusTokenAddress, string memory bonusTokenSymbol);
+        returns (address[] memory bonusTokenAddress, string[] memory bonusTokenSymbol);
 
     function massUpdatePools() external;
 
@@ -61,11 +61,13 @@ interface IMasterPlatypus {
         view
         returns (
             address _lpToken,
-            uint256 _allocPoint,
-            uint256 _lastRewardTimestamp,
-            uint256 _accPtpPerShare,
             address _rewarder,
             uint256 _sumOfFactors,
+            uint256 _accPtpPerShare,
             uint256 _accPtpPerFactorShare
         );
+
+    function newMasterPlatypus() external view returns (address);
+
+    function version() external view returns (uint256);
 }
