@@ -612,8 +612,8 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
     }
 
     function vote(
-        address[] calldata _lpVote,
-        int256[] calldata _deltas,
+        address[] memory _lpVote,
+        int256[] memory _deltas,
         address _bribeReceiver
     ) external returns (Reward[] memory claimedBribes) {
         address voter = gaugeVoter;
