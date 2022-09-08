@@ -7,7 +7,6 @@ import "../../lib/Ownable.sol";
 import "../../lib/ERC20.sol";
 
 import "./interfaces/IYetiVoter.sol";
-import "./interfaces/IVeYeti.sol";
 
 /**
  * @notice YetiVoter manages deposits for other strategies
@@ -18,7 +17,7 @@ contract YetiVoter is Ownable, IYetiVoter, ERC20 {
     IERC20 private constant YETI = IERC20(0x77777777777d4554c39223C354A05825b2E8Faa3);
 
     address public voterProxy;
-    address public currentYetiRewarder;
+    address public defaultYetiRewarder;
     bool public override depositsEnabled = true;
 
     modifier onlyProxy() {
@@ -58,12 +57,12 @@ contract YetiVoter is Ownable, IYetiVoter, ERC20 {
     }
 
     /**
-     * @notice Update Yeti rewarder for which this contract accumulates veYETI
+     * @notice Update Yeti rewarder for which this contract accumulates veYETI as default for user deposits
      * @dev Restricted to owner
      * @param _rewarder new address
      */
     function updateYetiRewarder(address _rewarder) external onlyOwner {
-        currentYetiRewarder = _rewarder;
+        defaultYetiRewarder = _rewarder;
     }
 
     /**
@@ -73,22 +72,34 @@ contract YetiVoter is Ownable, IYetiVoter, ERC20 {
     function deposit(uint256 _amount) external {
         require(depositsEnabled == true, "YetiVoter::deposits disabled");
         require(IERC20(YETI).transferFrom(msg.sender, address(this), _amount), "YetiVoter::transfer failed");
-        _deposit(_amount);
+        IVeYeti.RewarderUpdate[] memory rewarderUpdates = new IVeYeti.RewarderUpdate[](1);
+        rewarderUpdates[0] = IVeYeti.RewarderUpdate({rewarder: defaultYetiRewarder, amount: _amount, isIncrease: true});
+        _deposit(_amount, rewarderUpdates);
     }
 
-    function depositFromBalance(uint256 _amount) external override onlyProxy {
+    function depositFromBalance(uint256 _amount, IVeYeti.RewarderUpdate[] memory _rewarderUpdates)
+        external
+        override
+        onlyProxy
+    {
         require(depositsEnabled == true, "YetiVoter:deposits disabled");
-        _deposit(_amount);
+        _deposit(_amount, _rewarderUpdates);
     }
 
-    function _deposit(uint256 _amount) internal {
+    function _deposit(uint256 _amount, IVeYeti.RewarderUpdate[] memory _rewarderUpdates) internal {
         _mint(msg.sender, _amount);
 
         YETI.approve(VeYETI, _amount);
-        IVeYeti.RewarderUpdate[] memory rewarderUpdates = new IVeYeti.RewarderUpdate[](1);
-        rewarderUpdates[0] = IVeYeti.RewarderUpdate({rewarder: currentYetiRewarder, amount: _amount, isIncrease: true});
-        IVeYeti(VeYETI).update(rewarderUpdates);
+        _updateVeYeti(_rewarderUpdates);
         YETI.approve(VeYETI, 0);
+    }
+
+    function updateVeYeti(IVeYeti.RewarderUpdate[] memory _rewarderUpdates) external onlyProxy {
+        _updateVeYeti(_rewarderUpdates);
+    }
+
+    function _updateVeYeti(IVeYeti.RewarderUpdate[] memory _rewarderUpdates) internal {
+        IVeYeti(VeYETI).update(_rewarderUpdates);
     }
 
     /**
