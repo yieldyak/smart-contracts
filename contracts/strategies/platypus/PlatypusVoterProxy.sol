@@ -611,26 +611,32 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         return tempUint;
     }
 
-    function vote(address[] calldata _lpVote, int256[] calldata _deltas)
-        external
-        returns (Reward[] memory claimedBribes)
-    {
-        require(msg.sender == gaugeVoter, "PlatypusVoterProxy::Unauthorized");
+    function vote(
+        address[] calldata _lpVote,
+        int256[] calldata _deltas,
+        address _bribeReceiver
+    ) external returns (Reward[] memory claimedBribes) {
+        address voter = gaugeVoter;
+        require(msg.sender == voter, "PlatypusVoterProxy::Unauthorized");
+
+        IVotingGauge gauge = votingGauge;
         platypusVoter.safeExecute(
-            address(votingGauge),
+            address(gauge),
             0,
             abi.encodeWithSignature("vote(address[],int256[])", _lpVote, _deltas)
         );
+
+        _bribeReceiver = _bribeReceiver > address(0) ? _bribeReceiver : voter;
         claimedBribes = new Reward[](_lpVote.length);
         for (uint256 i = 0; i < _lpVote.length; i++) {
-            IBribe bribe = IBribe(votingGauge.bribes(_lpVote[i]));
+            IBribe bribe = IBribe(gauge.bribes(_lpVote[i]));
             address rewardToken = bribe.rewardToken();
             uint256 claimedAmount = IERC20(rewardToken).balanceOf(address(platypusVoter));
             if (claimedAmount > 0) {
                 platypusVoter.safeExecute(
                     rewardToken,
                     0,
-                    abi.encodeWithSignature("transfer(address,uint256)", gaugeVoter, claimedAmount)
+                    abi.encodeWithSignature("transfer(address,uint256)", _bribeReceiver, claimedAmount)
                 );
             }
             Reward memory reward = Reward({reward: rewardToken, amount: claimedAmount});
