@@ -37,4 +37,19 @@ interface IPlatypusPool {
     function getSlippageParamK() external view returns (uint256);
 
     function getSlippageParamN() external view returns (uint256);
+
+    function quotePotentialSwap(
+        address fromToken,
+        address toToken,
+        uint256 fromAmount
+    ) external view returns (uint256, uint256);
+
+    function swap(
+        address fromToken,
+        address toToken,
+        uint256 fromAmount,
+        uint256 minimumToAmount,
+        address to,
+        uint256 deadline
+    ) external returns (uint256 actualToAmount, uint256 haircut);
 }
