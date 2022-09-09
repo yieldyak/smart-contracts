@@ -6,7 +6,7 @@ import "../lib/AccessControl.sol";
 import "../lib/SafeERC20.sol";
 import "../lib/SafeMath.sol";
 
-import "../strategies/platypus/interfaces/IPlatypusVoter.sol";
+import "../strategies/avalanche/platypus/interfaces/IPlatypusVoter.sol";
 
 /**
  * @notice Role-based manager for collecting boost fees

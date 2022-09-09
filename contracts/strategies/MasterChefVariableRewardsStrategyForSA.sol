@@ -15,8 +15,6 @@ abstract contract MasterChefVariableRewardsStrategyForSA is MasterChefVariableRe
 
     constructor(
         string memory _name,
-        address _depositToken,
-        address _ecosystemToken,
         address _poolRewardToken,
         address _swapPairToken,
         ExtraReward[] memory _extraRewards,
@@ -27,8 +25,6 @@ abstract contract MasterChefVariableRewardsStrategyForSA is MasterChefVariableRe
     )
         MasterChefVariableRewardsStrategy(
             _name,
-            _depositToken,
-            _ecosystemToken,
             _poolRewardToken,
             _swapPairToken,
             _extraRewards,

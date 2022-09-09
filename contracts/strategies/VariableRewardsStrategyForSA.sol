@@ -12,26 +12,25 @@ abstract contract VariableRewardsStrategyForSA is VariableRewardsStrategy {
     address private swapPairDepositToken;
 
     constructor(
-        string memory _name,
-        address _depositToken,
         address _swapPairDepositToken,
-        RewardSwapPairs[] memory _rewardSwapPairs,
-        address _timelock,
+        VariableRewardsStrategySettings memory _settings,
         StrategySettings memory _strategySettings
-    ) VariableRewardsStrategy(_name, _depositToken, _rewardSwapPairs, _timelock, _strategySettings) {
+    ) VariableRewardsStrategy(_settings, _strategySettings) {
         assignSwapPairSafely(_swapPairDepositToken);
     }
 
     function assignSwapPairSafely(address _swapPairDepositToken) private {
-        require(
-            DexLibrary.checkSwapPairCompatibility(
-                IPair(_swapPairDepositToken),
-                address(depositToken),
-                address(rewardToken)
-            ),
-            "VariableRewardsStrategyForSA::swapPairDepositToken does not match deposit and reward token"
-        );
-        swapPairDepositToken = _swapPairDepositToken;
+        if (address(rewardToken) != address(depositToken)) {
+            require(
+                DexLibrary.checkSwapPairCompatibility(
+                    IPair(_swapPairDepositToken),
+                    address(depositToken),
+                    address(rewardToken)
+                ),
+                "VariableRewardsStrategyForSA::swapPairDepositToken does not match deposit and reward token"
+            );
+            swapPairDepositToken = _swapPairDepositToken;
+        }
     }
 
     function _convertRewardTokenToDepositToken(uint256 fromAmount)
@@ -40,11 +39,9 @@ abstract contract VariableRewardsStrategyForSA is VariableRewardsStrategy {
         override
         returns (uint256 toAmount)
     {
-        toAmount = DexLibrary.swap(
-            fromAmount,
-            address(rewardToken),
-            address(depositToken),
-            IPair(swapPairDepositToken)
-        );
+        if (address(rewardToken) == address(depositToken)) {
+            return fromAmount;
+        }
+        return DexLibrary.swap(fromAmount, address(rewardToken), address(depositToken), IPair(swapPairDepositToken));
     }
 }

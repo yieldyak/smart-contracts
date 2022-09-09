@@ -22,8 +22,6 @@ abstract contract MasterChefVariableRewardsStrategyForLP is MasterChefVariableRe
 
     constructor(
         string memory _name,
-        address _depositToken,
-        address _ecosystemToken,
         address _poolRewardToken,
         SwapPairs memory _swapPairs,
         ExtraReward[] memory _extraRewards,
@@ -34,8 +32,6 @@ abstract contract MasterChefVariableRewardsStrategyForLP is MasterChefVariableRe
     )
         MasterChefVariableRewardsStrategy(
             _name,
-            _depositToken,
-            _ecosystemToken,
             _poolRewardToken,
             _swapPairs.poolReward,
             _extraRewards,
@@ -45,7 +41,7 @@ abstract contract MasterChefVariableRewardsStrategyForLP is MasterChefVariableRe
             _strategySettings
         )
     {
-        assignSwapPairSafely(_swapPairs, _ecosystemToken, _poolRewardToken);
+        assignSwapPairSafely(_swapPairs, _strategySettings.rewardToken, _poolRewardToken);
     }
 
     /**
