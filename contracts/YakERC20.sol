@@ -1,12 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "./lib/SafeMath.sol";
 import "./interfaces/IERC20.sol";
 
 abstract contract YakERC20 {
-    using SafeMath for uint256;
-
     string public name = "Yield Yak";
     string public symbol = "YRT";
     uint8 public constant decimals = 18;
@@ -91,7 +88,7 @@ abstract contract YakERC20 {
         uint256 spenderAllowance = allowances[src][spender];
 
         if (spender != src && spenderAllowance != type(uint256).max) {
-            uint256 newAllowance = spenderAllowance.sub(amount, "transferFrom: transfer amount exceeds allowance");
+            uint256 newAllowance = spenderAllowance - amount;
             allowances[src][spender] = newAllowance;
 
             emit Approval(src, spender, newAllowance);
@@ -131,20 +128,20 @@ abstract contract YakERC20 {
     ) internal {
         require(to != address(0), "_transferTokens: cannot transfer to the zero address");
 
-        balances[from] = balances[from].sub(value, "_transferTokens: transfer exceeds from balance");
-        balances[to] = balances[to].add(value);
+        balances[from] = balances[from] - value;
+        balances[to] = balances[to] + value;
         emit Transfer(from, to, value);
     }
 
     function _mint(address to, uint256 value) internal {
-        totalSupply = totalSupply.add(value);
-        balances[to] = balances[to].add(value);
+        totalSupply = totalSupply + value;
+        balances[to] = balances[to] + value;
         emit Transfer(address(0), to, value);
     }
 
     function _burn(address from, uint256 value) internal {
-        balances[from] = balances[from].sub(value, "_burn: burn amount exceeds from balance");
-        totalSupply = totalSupply.sub(value, "_burn: burn amount exceeds total supply");
+        balances[from] = balances[from] - value;
+        totalSupply = totalSupply - value;
         emit Transfer(from, address(0), value);
     }
 

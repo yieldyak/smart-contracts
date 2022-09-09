@@ -18,13 +18,10 @@ abstract contract VariableRewardsStrategyForLP is VariableRewardsStrategy {
     address private swapPairToken1;
 
     constructor(
-        string memory _name,
-        address _depositToken,
         SwapPairs memory _swapPairs,
-        RewardSwapPairs[] memory _rewardSwapPairs,
-        address _timelock,
+        VariableRewardsStrategySettings memory _settings,
         StrategySettings memory _strategySettings
-    ) VariableRewardsStrategy(_name, _depositToken, _rewardSwapPairs, _timelock, _strategySettings) {
+    ) VariableRewardsStrategy(_settings, _strategySettings) {
         assignSwapPairSafely(_swapPairs);
     }
 
@@ -35,8 +32,8 @@ abstract contract VariableRewardsStrategyForLP is VariableRewardsStrategy {
      */
     function assignSwapPairSafely(SwapPairs memory _swapPairs) private {
         if (
-            address(WAVAX) != IPair(address(depositToken)).token0() &&
-            address(WAVAX) != IPair(address(depositToken)).token1()
+            address(rewardToken) != IPair(address(depositToken)).token0() &&
+            address(rewardToken) != IPair(address(depositToken)).token1()
         ) {
             // deployment checks for non-pool2
             require(_swapPairs.token0 > address(0), "Swap pair 0 is necessary but not supplied");
@@ -44,7 +41,8 @@ abstract contract VariableRewardsStrategyForLP is VariableRewardsStrategy {
             swapPairToken0 = _swapPairs.token0;
             swapPairToken1 = _swapPairs.token1;
             require(
-                IPair(swapPairToken0).token0() == address(WAVAX) || IPair(swapPairToken0).token1() == address(WAVAX),
+                IPair(swapPairToken0).token0() == address(rewardToken) ||
+                    IPair(swapPairToken0).token1() == address(rewardToken),
                 "Swap pair supplied does not have the reward token as one of it's pair"
             );
             require(
@@ -57,9 +55,9 @@ abstract contract VariableRewardsStrategyForLP is VariableRewardsStrategy {
                     IPair(swapPairToken1).token1() == IPair(address(depositToken)).token1(),
                 "Swap pair 1 supplied does not match the pair in question"
             );
-        } else if (address(WAVAX) == IPair(address(depositToken)).token0()) {
+        } else if (address(rewardToken) == IPair(address(depositToken)).token0()) {
             swapPairToken1 = address(depositToken);
-        } else if (address(WAVAX) == IPair(address(depositToken)).token1()) {
+        } else if (address(rewardToken) == IPair(address(depositToken)).token1()) {
             swapPairToken0 = address(depositToken);
         }
     }

@@ -1,17 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "./SafeMath.sol";
 import "./SafeERC20.sol";
 import "../interfaces/IPair.sol";
-import "../interfaces/IWAVAX.sol";
 
 library DexLibrary {
-    using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     bytes private constant zeroBytes = new bytes(0);
-    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    uint256 public constant DEFAULT_SWAP_FEE = 3;
 
     /**
      * @notice Swap directly through a Pair
@@ -27,11 +24,29 @@ library DexLibrary {
         address toToken,
         IPair pair
     ) internal returns (uint256) {
+        return DexLibrary.swap(amountIn, fromToken, toToken, pair, DEFAULT_SWAP_FEE);
+    }
+
+    /**
+     * @notice Swap directly through a Pair
+     * @param amountIn input amount
+     * @param fromToken address
+     * @param toToken address
+     * @param pair Pair used for swap
+     * @return output amount
+     */
+    function swap(
+        uint256 amountIn,
+        address fromToken,
+        address toToken,
+        IPair pair,
+        uint256 swapFee
+    ) internal returns (uint256) {
         (address token0, ) = sortTokens(fromToken, toToken);
         (uint112 reserve0, uint112 reserve1, ) = pair.getReserves();
         if (token0 != fromToken) (reserve0, reserve1) = (reserve1, reserve0);
         uint256 amountOut1 = 0;
-        uint256 amountOut2 = getAmountOut(amountIn, reserve0, reserve1);
+        uint256 amountOut2 = getAmountOut(amountIn, reserve0, reserve1, swapFee);
         if (token0 != fromToken) (amountOut1, amountOut2) = (amountOut2, amountOut1);
         IERC20(fromToken).safeTransfer(address(pair), amountIn);
         pair.swap(amountOut1, amountOut2, address(this), zeroBytes);
@@ -55,10 +70,20 @@ library DexLibrary {
         address toToken,
         IPair swapPair
     ) internal view returns (uint256) {
+        return DexLibrary.estimateConversionThroughPair(amountIn, fromToken, toToken, swapPair, DEFAULT_SWAP_FEE);
+    }
+
+    function estimateConversionThroughPair(
+        uint256 amountIn,
+        address fromToken,
+        address toToken,
+        IPair swapPair,
+        uint256 swapFee
+    ) internal view returns (uint256) {
         (address token0, ) = sortTokens(fromToken, toToken);
         (uint112 reserve0, uint112 reserve1, ) = swapPair.getReserves();
         if (token0 != fromToken) (reserve0, reserve1) = (reserve1, reserve0);
-        return getAmountOut(amountIn, reserve0, reserve1);
+        return getAmountOut(amountIn, reserve0, reserve1, swapFee);
     }
 
     /**
@@ -74,19 +99,46 @@ library DexLibrary {
         IPair swapPairToken0,
         IPair swapPairToken1
     ) internal returns (uint256) {
-        uint256 amountIn = amount.div(2);
+        return
+            DexLibrary.convertRewardTokensToDepositTokens(
+                amount,
+                rewardToken,
+                depositToken,
+                swapPairToken0,
+                DEFAULT_SWAP_FEE,
+                swapPairToken1,
+                DEFAULT_SWAP_FEE
+            );
+    }
+
+    /**
+     * @notice Converts reward tokens to deposit tokens
+     * @dev No price checks enforced
+     * @param amount reward tokens
+     * @return deposit tokens
+     */
+    function convertRewardTokensToDepositTokens(
+        uint256 amount,
+        address rewardToken,
+        address depositToken,
+        IPair swapPairToken0,
+        uint256 swapFeeToken0,
+        IPair swapPairToken1,
+        uint256 swapFeeToken1
+    ) internal returns (uint256) {
+        uint256 amountIn = amount / 2;
         require(amountIn > 0, "DexLibrary::_convertRewardTokensToDepositTokens");
 
         address token0 = IPair(depositToken).token0();
         uint256 amountOutToken0 = amountIn;
         if (rewardToken != token0) {
-            amountOutToken0 = DexLibrary.swap(amountIn, rewardToken, token0, swapPairToken0);
+            amountOutToken0 = DexLibrary.swap(amountIn, rewardToken, token0, swapPairToken0, swapFeeToken0);
         }
 
         address token1 = IPair(depositToken).token1();
         uint256 amountOutToken1 = amountIn;
         if (rewardToken != token1) {
-            amountOutToken1 = DexLibrary.swap(amountIn, rewardToken, token1, swapPairToken1);
+            amountOutToken1 = DexLibrary.swap(amountIn, rewardToken, token1, swapPairToken1, swapFeeToken1);
         }
 
         return DexLibrary.addLiquidity(depositToken, amountOutToken0, amountOutToken1);
@@ -129,7 +181,7 @@ library DexLibrary {
         uint256 reserve0,
         uint256 reserve1
     ) private pure returns (uint256) {
-        return amountIn.mul(reserve1).div(reserve0);
+        return (amountIn * reserve1) / reserve0;
     }
 
     /**
@@ -145,7 +197,6 @@ library DexLibrary {
 
     /**
      * @notice Given an input amount of an asset and pair reserves, returns maximum output amount of the other asset
-     * @dev Assumes swap fee is 0.30%
      * @param amountIn input asset
      * @param reserveIn size of input asset reserve
      * @param reserveOut size of output asset reserve
@@ -154,11 +205,12 @@ library DexLibrary {
     function getAmountOut(
         uint256 amountIn,
         uint256 reserveIn,
-        uint256 reserveOut
+        uint256 reserveOut,
+        uint256 swapFee
     ) internal pure returns (uint256) {
-        uint256 amountInWithFee = amountIn.mul(997);
-        uint256 numerator = amountInWithFee.mul(reserveOut);
-        uint256 denominator = reserveIn.mul(1000).add(amountInWithFee);
-        return numerator.div(denominator);
+        uint256 amountInWithFee = amountIn * (1000 - swapFee);
+        uint256 numerator = amountInWithFee * reserveOut;
+        uint256 denominator = reserveIn * 1000 + amountInWithFee;
+        return numerator / denominator;
     }
 }
