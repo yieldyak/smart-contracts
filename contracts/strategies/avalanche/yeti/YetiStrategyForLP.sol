@@ -29,7 +29,7 @@ contract YetiStrategyForLP is VariableRewardsStrategy {
         zapSettings = _zapSettings;
     }
 
-    function _depositToStakingContract(uint256 _amount) internal override {
+    function _depositToStakingContract(uint256 _amount, uint256) internal override {
         depositToken.safeTransfer(address(proxy), _amount);
         proxy.deposit(stakingContract, address(depositToken), _amount);
     }

@@ -38,7 +38,7 @@ contract SynapseStrategy is VariableRewardsStrategy {
         tokenCount = _tokenCount;
     }
 
-    function _depositToStakingContract(uint256 _amount) internal override {
+    function _depositToStakingContract(uint256 _amount, uint256) internal override {
         IERC20(address(depositToken)).approve(address(miniChef), _amount);
         miniChef.deposit(PID, _amount, address(this));
         IERC20(address(depositToken)).approve(address(miniChef), 0);
