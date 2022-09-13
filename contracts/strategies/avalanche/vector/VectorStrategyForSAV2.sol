@@ -34,7 +34,7 @@ contract VectorStrategyForSAV2 is VariableRewardsStrategyForSA {
         boosterFeeCollector = IBoosterFeeCollector(_collector);
     }
 
-    function _depositToStakingContract(uint256 _amount) internal override {
+    function _depositToStakingContract(uint256 _amount, uint256) internal override {
         IVectorPoolHelperV2 vectorPoolHelper = _vectorPoolHelper();
         depositToken.approve(address(vectorPoolHelper.mainStaking()), _amount);
         vectorPoolHelper.deposit(_amount);

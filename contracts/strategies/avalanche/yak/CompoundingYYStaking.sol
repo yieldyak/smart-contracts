@@ -41,7 +41,7 @@ contract CompoundingYYStaking is VariableRewardsStrategy {
         return stakingContract.depositFeePercent();
     }
 
-    function _depositToStakingContract(uint256 _amount) internal override {
+    function _depositToStakingContract(uint256 _amount, uint256) internal override {
         depositToken.approve(address(stakingContract), _amount);
         stakingContract.deposit(_amount);
         depositToken.approve(address(stakingContract), 0);

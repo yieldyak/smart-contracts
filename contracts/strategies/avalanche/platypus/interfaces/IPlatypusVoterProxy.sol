@@ -2,6 +2,7 @@
 pragma solidity 0.8.13;
 
 import "./IPlatypusVoter.sol";
+import "./../../../VariableRewardsStrategy.sol";
 
 interface IPlatypusVoterProxy {
     function withdraw(
@@ -40,6 +41,8 @@ interface IPlatypusVoterProxy {
             uint256,
             address
         );
+
+    function pendingRewards(uint256 _pid) external view returns (VariableRewardsStrategy.Reward[] memory);
 
     function poolBalance(address _stakingContract, uint256 _pid) external view returns (uint256);
 

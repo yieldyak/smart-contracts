@@ -158,7 +158,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         );
         uint256 depositFee = _calculateDepositFee(_amount);
         _mint(_account, getSharesForDepositTokens(_amount - depositFee));
-        _stakeDepositTokens(_amount);
+        _stakeDepositTokens(_amount, depositFee);
         emit Deposit(_account, _amount);
     }
 
@@ -263,13 +263,14 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
 
         uint256 depositTokenAmount = _convertRewardTokenToDepositToken(amount - devFee - reinvestFee);
 
-        _stakeDepositTokens(depositTokenAmount);
+        uint256 depositFee = _calculateDepositFee(depositTokenAmount);
+        _stakeDepositTokens(depositTokenAmount, depositFee);
         emit Reinvest(totalDeposits(), totalSupply);
     }
 
-    function _stakeDepositTokens(uint256 _amount) private {
+    function _stakeDepositTokens(uint256 _amount, uint256 _depositFee) private {
         require(_amount > 0, "VariableRewardsStrategy::Stake amount too low");
-        _depositToStakingContract(_amount);
+        _depositToStakingContract(_amount, _depositFee);
     }
 
     function checkReward() public view override returns (uint256) {
@@ -282,7 +283,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
             address reward = rewards[i].reward;
             if (reward == address(rewardToken)) {
                 estimatedTotalReward += rewards[i].amount;
-            } else {
+            } else if (reward > address(0)) {
                 uint256 balance = IERC20(reward).balanceOf(address(this));
                 uint256 amount = balance + rewards[i].amount;
                 address swapPair = rewardSwapPairs[rewards[i].reward].swapPair;
@@ -334,7 +335,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
     /* VIRTUAL */
     function _convertRewardTokenToDepositToken(uint256 _fromAmount) internal virtual returns (uint256 toAmount);
 
-    function _depositToStakingContract(uint256 _amount) internal virtual;
+    function _depositToStakingContract(uint256 _amount, uint256 _depositFee) internal virtual;
 
     function _withdrawFromStakingContract(uint256 _amount) internal virtual returns (uint256 withdrawAmount);
 
