@@ -32,7 +32,7 @@ contract BenqiStrategyQiV2 is VariableRewardsStrategyForSA {
         _enterMarket();
     }
 
-    function _depositToStakingContract(uint256 _amount) internal override {
+    function _depositToStakingContract(uint256 _amount, uint256) internal override {
         depositToken.approve(address(tokenDelegator), _amount);
         require(tokenDelegator.mint(_amount) == 0, "Deposit failed");
         depositToken.approve(address(tokenDelegator), 0);

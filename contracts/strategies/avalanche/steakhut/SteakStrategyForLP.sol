@@ -35,7 +35,7 @@ contract SteakStrategyForLP is VariableRewardsStrategyForLP {
         boosterFeeCollector = IBoosterFeeCollector(_collector);
     }
 
-    function _depositToStakingContract(uint256 _amount) internal override {
+    function _depositToStakingContract(uint256 _amount, uint256) internal override {
         depositToken.approve(address(steakMasterChef), _amount);
         steakMasterChef.deposit(PID, _amount);
         depositToken.approve(address(steakMasterChef), 0);

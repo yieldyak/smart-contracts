@@ -53,7 +53,7 @@ contract YYAvaxJoeStrategy is VariableRewardsStrategy {
         IgAVAX(gAvax).setApprovalForAll(address(withdrawalPool), false);
     }
 
-    function _depositToStakingContract(uint256 _amount) internal override {
+    function _depositToStakingContract(uint256 _amount, uint256) internal override {
         depositToken.approve(address(joeChef), _amount);
         joeChef.deposit(PID, _amount);
     }

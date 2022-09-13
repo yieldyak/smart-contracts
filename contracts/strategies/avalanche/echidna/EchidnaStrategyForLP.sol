@@ -32,7 +32,7 @@ contract EchidnaStrategyForLP is VariableRewardsStrategy {
         swapPairWavaxPtp = _swapPairWavaxPtp;
     }
 
-    function _depositToStakingContract(uint256 _amount) internal override {
+    function _depositToStakingContract(uint256 _amount, uint256) internal override {
         depositToken.safeTransfer(address(proxy), _amount);
         proxy.deposit(PID, stakingContract, address(depositToken), _amount);
         proxy.distributeReward(stakingContract, PID);

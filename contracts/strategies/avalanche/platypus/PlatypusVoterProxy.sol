@@ -11,7 +11,6 @@ import "./interfaces/IPlatypusAsset.sol";
 import "./interfaces/IPlatypusNFT.sol";
 import "./interfaces/IVePTP.sol";
 import "./interfaces/IPlatypusStrategy.sol";
-import "./interfaces/IPlatypusVoterProxy.sol";
 import "./interfaces/IVotingGauge.sol";
 import "./interfaces/IBribe.sol";
 
@@ -36,7 +35,7 @@ library SafeProxy {
  * strategy per Masterchef PID. In case of upgrade,
  * use a new proxy.
  */
-contract PlatypusVoterProxy is IPlatypusVoterProxy {
+contract PlatypusVoterProxy {
     using SafeProxy for IPlatypusVoter;
     using SafeERC20 for IERC20;
 
@@ -63,7 +62,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
     address public constant PLATYPUS_NFT = 0x6A04a578247e15e3c038AcF2686CA00A624a5aa0;
     IVePTP public constant vePTP = IVePTP(0x5857019c749147EEE22b1Fe63500F237F3c1B692);
 
-    IPlatypusVoter public immutable override platypusVoter;
+    IPlatypusVoter public immutable platypusVoter;
     address public devAddr;
     address public gaugeVoter;
     IVotingGauge public votingGauge;
@@ -140,7 +139,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
      * @param _stakingContract address
      * @param _strategy address
      */
-    function approveStrategy(address _stakingContract, address _strategy) public override onlyDev {
+    function approveStrategy(address _stakingContract, address _strategy) public onlyDev {
         uint256 pid = IPlatypusStrategy(_strategy).PID();
         require(
             approvedStrategies[_stakingContract][pid] == address(0),
@@ -271,7 +270,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         address _asset,
         uint256 _amount,
         uint256 _depositFee
-    ) external override {
+    ) external {
         address masterchef = stakingContract[msg.sender];
         require(approvedStrategies[masterchef][_pid] == msg.sender, "PlatypusVoterProxy::onlyStrategy");
 
@@ -309,7 +308,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
      * @notice Calculation of reinvest fee (boost + staking)
      * @return reinvest fee
      */
-    function reinvestFeeBips() public view override returns (uint256) {
+    function reinvestFeeBips() public view returns (uint256) {
         uint256 boostFee = 0;
         if (boosterFee > 0 && boosterFeeReceiver > address(0) && platypusVoter.depositsEnabled()) {
             boostFee = boosterFee;
@@ -374,7 +373,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         address _asset,
         uint256 _maxSlippage,
         uint256 _amount
-    ) external override returns (uint256) {
+    ) external returns (uint256) {
         address masterchef = stakingContract[msg.sender];
         require(approvedStrategies[masterchef][_pid] == msg.sender, "PlatypusVoterProxy::onlyStrategy");
 
@@ -418,7 +417,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
         address _pool,
         address _token,
         address _asset
-    ) external override {
+    ) external {
         address masterchef = stakingContract[msg.sender];
         require(approvedStrategies[masterchef][_pid] == msg.sender, "PlatypusVoterProxy::onlyStrategy");
 
@@ -456,7 +455,6 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
     )
         external
         view
-        override
         returns (
             uint256,
             uint256,
@@ -506,7 +504,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
     function poolBalance(
         address, /*_stakingContract*/
         uint256 _pid
-    ) external view override returns (uint256 balance) {
+    ) external view returns (uint256 balance) {
         address masterchef = stakingContract[msg.sender];
         return _poolBalance(masterchef, _pid);
     }
@@ -552,7 +550,7 @@ contract PlatypusVoterProxy is IPlatypusVoterProxy {
     function claimReward(
         address, /*_stakingContract*/
         uint256 _pid
-    ) external override {
+    ) external {
         address masterchef = stakingContract[msg.sender];
         require(approvedStrategies[masterchef][_pid] == msg.sender, "PlatypusVoterProxy::onlyStrategy");
 

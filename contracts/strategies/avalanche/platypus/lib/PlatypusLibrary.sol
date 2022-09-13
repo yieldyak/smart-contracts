@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "../../../../lib/SafeMath.sol";
 import "./DSMath.sol";
 import "../interfaces/IPlatypusPool.sol";
 import "../interfaces/IPlatypusAsset.sol";
 
 library PlatypusLibrary {
-    using SafeMath for uint256;
     using DSMath for uint256;
 
     uint256 internal constant WAD = 10**18;
@@ -38,23 +36,23 @@ library PlatypusLibrary {
         uint256 cash,
         uint256 liability,
         uint256 amount
-    ) private pure returns (uint256) {
+    ) internal pure returns (uint256) {
         // cover case where the asset has no liquidity yet
         if (liability == 0) {
             return 0;
         }
 
         uint256 covBefore = cash.wdiv(liability);
-        if (covBefore <= 10**18) {
+        if (covBefore <= WAD) {
             return 0;
         }
 
-        uint256 covAfter = (cash.add(amount)).wdiv(liability.add(amount));
+        uint256 covAfter = (cash + amount).wdiv(liability + amount);
         uint256 slippageBefore = _slippageFunc(k, n, c1, xThreshold, covBefore);
         uint256 slippageAfter = _slippageFunc(k, n, c1, xThreshold, covAfter);
 
         // (Li + Di) * g(cov_after) - Li * g(cov_before)
-        return ((liability.add(amount)).wmul(slippageAfter)) - (liability.wmul(slippageBefore));
+        return ((liability + amount).wmul(slippageAfter)) - (liability.wmul(slippageBefore));
     }
 
     function _slippageFunc(
@@ -63,11 +61,11 @@ library PlatypusLibrary {
         uint256 c1,
         uint256 xThreshold,
         uint256 x
-    ) private pure returns (uint256) {
+    ) internal pure returns (uint256) {
         if (x < xThreshold) {
-            return c1.sub(x);
+            return c1 - x;
         } else {
-            return k.wdiv((((x.mul(RAY)).div(WAD)).rpow(n).mul(WAD)).div(RAY)); // k / (x ** n)
+            return k.wdiv((((x * RAY) / WAD).rpow(n) * WAD) / RAY); // k / (x ** n)
         }
     }
 
@@ -77,11 +75,11 @@ library PlatypusLibrary {
         uint256 depositFee
     ) internal view returns (uint256 liquidity) {
         if (IPlatypusAsset(asset).liability() == 0) {
-            liquidity = amount.sub(depositFee);
+            liquidity = amount - depositFee;
         } else {
-            liquidity = ((amount.sub(depositFee)).mul(IPlatypusAsset(asset).totalSupply())).div(
-                IPlatypusAsset(asset).liability()
-            );
+            liquidity =
+                ((amount - depositFee) * IPlatypusAsset(asset).totalSupply()) /
+                IPlatypusAsset(asset).liability();
         }
     }
 }

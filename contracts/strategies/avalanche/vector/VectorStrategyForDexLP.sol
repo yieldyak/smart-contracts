@@ -34,7 +34,7 @@ contract VectorStrategyForDexLP is VariableRewardsStrategyForLP {
         boosterFeeCollector = IBoosterFeeCollector(_collector);
     }
 
-    function _depositToStakingContract(uint256 _amount) internal override {
+    function _depositToStakingContract(uint256 _amount, uint256) internal override {
         IVectorJoePoolHelper vectorPoolHelper = _vectorPoolHelper();
         depositToken.approve(address(vectorPoolHelper), _amount);
         vectorPoolHelper.deposit(_amount);

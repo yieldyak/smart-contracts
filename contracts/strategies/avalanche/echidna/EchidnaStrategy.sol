@@ -47,7 +47,7 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
         boosterFeeCollector = IBoosterFeeCollector(_collector);
     }
 
-    function _depositToStakingContract(uint256 _amount) internal override {
+    function _depositToStakingContract(uint256 _amount, uint256) internal override {
         uint256 depositFee = _calculateDepositFee(_amount);
         uint256 liquidity = PlatypusLibrary.depositTokenToAsset(address(platypusAsset), _amount, depositFee);
         depositToken.approve(address(platypusPool), _amount);
