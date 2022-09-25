@@ -467,9 +467,9 @@ contract PlatypusVoterProxy {
             uint256[] memory pendingBonusTokens
         ) = _pendingTokens(_pid);
 
-        if (pendingBonusTokens.length > 0 && bonusTokenAddresses.length > 0) {
+        if (pendingBonusTokens.length > 0 && bonusTokenAddresses.length > 0 && bonusTokenAddresses[0] != address(0)) {
             bonusTokens = pendingBonusTokens[0];
-            bonusTokenAddress = bonusTokenAddresses[0] == address(0) ? WAVAX : bonusTokenAddresses[0];
+            bonusTokenAddress = bonusTokenAddresses[0];
         }
 
         return (pendingPtp, bonusTokens, bonusTokenAddress);
