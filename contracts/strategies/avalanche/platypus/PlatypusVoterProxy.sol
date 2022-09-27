@@ -446,8 +446,8 @@ contract PlatypusVoterProxy {
      * @param
      * @param _pid PID
      * @return pendingPtp
-     * @return pendingBonusToken
-     * @return bonusTokenAddress
+     * @return bonusTokens pending bonus token
+     * @return bonusTokenAddress bonus token address
      */
     function pendingRewards(
         address, /*_stakingContract*/
@@ -457,32 +457,30 @@ contract PlatypusVoterProxy {
         view
         returns (
             uint256,
-            uint256,
-            address
+            uint256 bonusTokens,
+            address bonusTokenAddress
         )
     {
-        address masterchef = stakingContract[msg.sender];
         (
             uint256 pendingPtp,
             address[] memory bonusTokenAddresses,
-            ,
             uint256[] memory pendingBonusTokens
-        ) = IMasterPlatypus(masterchef).pendingTokens(_pid, address(platypusVoter));
+        ) = _pendingTokens(_pid);
 
-        uint256 bonusTokens = pendingBonusTokens.length > 0 ? pendingBonusTokens[0] : 0;
-        address bonusTokenAddress = bonusTokenAddresses.length > 0 ? bonusTokenAddresses[0] : address(0);
+        if (pendingBonusTokens.length > 0 && bonusTokenAddresses.length > 0 && bonusTokenAddresses[0] != address(0)) {
+            bonusTokens = pendingBonusTokens[0];
+            bonusTokenAddress = bonusTokenAddresses[0];
+        }
 
         return (pendingPtp, bonusTokens, bonusTokenAddress);
     }
 
     function pendingRewards(uint256 _pid) external view returns (Reward[] memory) {
-        address masterchef = stakingContract[msg.sender];
         (
             uint256 pendingPtp,
             address[] memory bonusTokenAddresses,
-            ,
             uint256[] memory pendingBonusTokens
-        ) = IMasterPlatypus(masterchef).pendingTokens(_pid, address(platypusVoter));
+        ) = _pendingTokens(_pid);
 
         uint256 feeBips = reinvestFeeBips();
         uint256 boostFee = (pendingPtp * feeBips) / BIPS_DIVISOR;
@@ -490,9 +488,26 @@ contract PlatypusVoterProxy {
         Reward[] memory rewards = new Reward[](bonusTokenAddresses.length + 1);
         rewards[0] = Reward({reward: address(PTP), amount: pendingPtp - boostFee});
         for (uint256 i = 0; i < bonusTokenAddresses.length; i++) {
-            rewards[i + 1] = Reward({reward: bonusTokenAddresses[i], amount: pendingBonusTokens[i]});
+            address bonusTokenAddress = bonusTokenAddresses[i] == address(0) ? WAVAX : bonusTokenAddresses[i];
+            rewards[i + 1] = Reward({reward: bonusTokenAddress, amount: pendingBonusTokens[i]});
         }
         return rewards;
+    }
+
+    function _pendingTokens(uint256 _pid)
+        internal
+        view
+        returns (
+            uint256 pendingPtp,
+            address[] memory bonusTokenAddresses,
+            uint256[] memory pendingBonusTokens
+        )
+    {
+        address masterchef = stakingContract[msg.sender];
+        (pendingPtp, bonusTokenAddresses, , pendingBonusTokens) = IMasterPlatypus(masterchef).pendingTokens(
+            _pid,
+            address(platypusVoter)
+        );
     }
 
     /**
@@ -582,6 +597,9 @@ contract PlatypusVoterProxy {
         (address[] memory bonusTokenAddresses, ) = IMasterPlatypus(masterchef).rewarderBonusTokenInfo(_pid);
 
         for (uint256 i = 0; i < bonusTokenAddresses.length; i++) {
+            if (bonusTokenAddresses[i] == address(0)) {
+                bonusTokenAddresses[i] = WAVAX;
+            }
             if (bonusTokenAddresses[i] == WAVAX) {
                 platypusVoter.wrapAvaxBalance();
             }
