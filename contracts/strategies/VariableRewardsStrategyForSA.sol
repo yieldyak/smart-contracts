@@ -19,7 +19,7 @@ abstract contract VariableRewardsStrategyForSA is VariableRewardsStrategy {
         assignSwapPairSafely(_swapPairDepositToken);
     }
 
-    function assignSwapPairSafely(address _swapPairDepositToken) private {
+    function assignSwapPairSafely(address _swapPairDepositToken) internal virtual {
         if (address(rewardToken) != address(depositToken)) {
             require(
                 DexLibrary.checkSwapPairCompatibility(
