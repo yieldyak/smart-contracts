@@ -2,8 +2,6 @@
 pragma solidity 0.8.13;
 
 import "./PlatypusStrategy.sol";
-import "./../yak/interfaces/IgAvax.sol";
-import "./../yak/interfaces/ISwap.sol";
 
 contract YYAvaxPlatypusStrategy is PlatypusStrategy {
     address public constant yyAVAX = 0xF7D9281e8e363584973F946201b82ba72C965D27;
