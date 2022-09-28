@@ -3,20 +3,23 @@
 pragma solidity 0.8.13;
 
 import "../../VariableRewardsStrategyForSA.sol";
-import "../../../lib/SafeERC20.sol";
-import "../../../lib/SafeMath.sol";
 import "../../../interfaces/IBoosterFeeCollector.sol";
 
 import "../platypus/lib/PlatypusLibrary.sol";
-import "../platypus/interfaces/IPlatypusPool.sol";
-import "../platypus/interfaces/IPlatypusAsset.sol";
 
 import "./interfaces/IEchidnaBooster.sol";
 import "./interfaces/IEchidnaRewardPool.sol";
 
 contract EchidnaStrategy is VariableRewardsStrategyForSA {
-    using SafeMath for uint256;
     using SafeERC20 for IERC20;
+
+    struct EchidnaStrategySettings {
+        address swapPairDepositToken;
+        address stakingContract;
+        address platypusPool;
+        uint256 pid;
+        address boosterFeeCollector;
+    }
 
     IERC20 private constant PTP = IERC20(0x22d4002028f537599bE9f666d1c4Fa138522f9c8);
 
@@ -28,19 +31,23 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
     IBoosterFeeCollector public boosterFeeCollector;
 
     constructor(
-        address _swapPairDepositToken,
-        address _stakingContract,
-        address _platypusPool,
-        uint256 _pid,
-        address _boosterFeeCollector,
-        VariableRewardsStrategySettings memory _settings,
+        EchidnaStrategySettings memory _echidnaStrategySettings,
+        VariableRewardsStrategySettings memory _variableRewardsStrategySettings,
         StrategySettings memory _strategySettings
-    ) VariableRewardsStrategyForSA(_swapPairDepositToken, _settings, _strategySettings) {
-        PID = _pid;
-        platypusPool = IPlatypusPool(_platypusPool);
-        echidnaBooster = IEchidnaBooster(_stakingContract);
-        platypusAsset = IPlatypusAsset(IPlatypusPool(_platypusPool).assetOf(_strategySettings.depositToken));
-        boosterFeeCollector = IBoosterFeeCollector(_boosterFeeCollector);
+    )
+        VariableRewardsStrategyForSA(
+            _echidnaStrategySettings.swapPairDepositToken,
+            _variableRewardsStrategySettings,
+            _strategySettings
+        )
+    {
+        PID = _echidnaStrategySettings.pid;
+        platypusPool = IPlatypusPool(_echidnaStrategySettings.platypusPool);
+        echidnaBooster = IEchidnaBooster(_echidnaStrategySettings.stakingContract);
+        platypusAsset = IPlatypusAsset(
+            IPlatypusPool(_echidnaStrategySettings.platypusPool).assetOf(_strategySettings.depositToken)
+        );
+        boosterFeeCollector = IBoosterFeeCollector(_echidnaStrategySettings.boosterFeeCollector);
     }
 
     function updateBoosterFeeCollector(address _collector) public onlyOwner {
@@ -64,7 +71,7 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
 
     function _withdrawFromStakingContract(uint256 _amount) internal override returns (uint256 _withdrawAmount) {
         uint256 lpBalance = _echidnaRewardPool().balanceOf(address(this));
-        uint256 liquidity = _amount.mul(lpBalance).div(totalDeposits());
+        uint256 liquidity = (_amount * lpBalance) / totalDeposits();
         liquidity = liquidity > lpBalance ? lpBalance : liquidity;
         echidnaBooster.withdraw(PID, liquidity, false, false, 0, type(uint256).max);
 
@@ -88,10 +95,10 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
 
     function _pendingRewards() internal view override returns (Reward[] memory) {
         IEchidnaRewardPool echidnaRewardPool = _echidnaRewardPool();
-        uint256 rewardCount = echidnaRewardPool.extraRewardsLength().add(1);
+        uint256 rewardCount = echidnaRewardPool.extraRewardsLength() + 1;
         Reward[] memory pendingRewards = new Reward[](rewardCount);
         (uint256 pendingPTP, uint256 boostFee) = _pendingPTP();
-        pendingRewards[0] = Reward({reward: address(PTP), amount: pendingPTP.sub(boostFee)});
+        pendingRewards[0] = Reward({reward: address(PTP), amount: pendingPTP - boostFee});
         for (uint256 i = 1; i < rewardCount; i++) {
             IEchidnaRewardPool extraRewardPool = IEchidnaRewardPool(echidnaRewardPool.extraRewards(i - 1));
             pendingRewards[i] = Reward({
@@ -121,11 +128,11 @@ contract EchidnaStrategy is VariableRewardsStrategyForSA {
             assetBalance
         );
         require(enoughCash, "EchidnaStrategy::This shouldn't happen");
-        return depositTokenBalance.add(fee);
+        return depositTokenBalance + fee;
     }
 
     function _echidnaRewardPool() internal view returns (IEchidnaRewardPool) {
-        (, , , address rewardPool, ) = IEchidnaBooster(address(echidnaBooster)).pools(PID);
+        (, , , address rewardPool, , ) = IEchidnaBooster(address(echidnaBooster)).pools(PID);
         return IEchidnaRewardPool(rewardPool);
     }
 }

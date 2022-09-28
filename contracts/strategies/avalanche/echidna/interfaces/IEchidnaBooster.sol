@@ -33,7 +33,8 @@ interface IEchidnaBooster {
             address _token,
             address _lpToken,
             address _rewardPool,
-            bool _shutdown
+            bool _shutdown,
+            address _legacyRewardPool
         );
 
     function masterPlatypus() external view returns (address);
