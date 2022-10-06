@@ -219,9 +219,11 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
                 uint256 balance = address(this).balance;
                 if (balance > 0) {
                     WAVAX.deposit{value: balance}();
-                    rewardTokenAmount += balance;
                 }
-                if (address(rewardToken) == address(WAVAX)) continue;
+                if (address(rewardToken) == address(WAVAX)) {
+                    rewardTokenAmount += balance;
+                    continue;
+                }
             }
             uint256 amount = IERC20(reward).balanceOf(address(this));
             if (amount > 0) {
