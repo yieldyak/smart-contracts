@@ -32,6 +32,10 @@ contract BenqiStrategyQiV2 is VariableRewardsStrategyForSA {
         _enterMarket();
     }
 
+    receive() external payable {
+        require(msg.sender == address(rewardController), "not allowed");
+    }
+
     function _depositToStakingContract(uint256 _amount, uint256) internal override {
         depositToken.approve(address(tokenDelegator), _amount);
         require(tokenDelegator.mint(_amount) == 0, "Deposit failed");
@@ -61,8 +65,8 @@ contract BenqiStrategyQiV2 is VariableRewardsStrategyForSA {
     function _getRewards() internal override {
         address[] memory markets = new address[](1);
         markets[0] = address(tokenDelegator);
-        for (uint256 i = 0; i < rewardCount; i++) {
-            rewardController.claimReward(0, address(this), markets);
+        for (uint8 i = 0; i < rewardCount; i++) {
+            rewardController.claimReward(i, address(this), markets);
         }
     }
 
