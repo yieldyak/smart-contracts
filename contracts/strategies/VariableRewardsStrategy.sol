@@ -146,9 +146,10 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
 
     function _deposit(address _account, uint256 _amount) internal {
         require(DEPOSITS_ENABLED == true, "VariableRewardsStrategy::Deposits disabled");
-        if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
+        uint256 maxPendingRewards = MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST;
+        if (maxPendingRewards > 0) {
             uint256 estimatedTotalReward = checkReward();
-            if (estimatedTotalReward > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
+            if (estimatedTotalReward > maxPendingRewards) {
                 _reinvest(true);
             }
         }
