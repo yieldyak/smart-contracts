@@ -134,6 +134,7 @@ abstract contract YakERC20 {
     }
 
     function _mint(address to, uint256 value) internal {
+        require(value > 0, "_mint::zero shares");
         totalSupply = totalSupply + value;
         balances[to] = balances[to] + value;
         emit Transfer(address(0), to, value);
