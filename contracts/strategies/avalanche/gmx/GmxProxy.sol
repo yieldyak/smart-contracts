@@ -128,17 +128,34 @@ contract GmxProxy is IGmxProxy {
         gmxDepositor.safeExecute(GMX, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, _amount));
     }
 
-    function _compoundEsGmx() private {
-        gmxDepositor.safeExecute(address(gmxRewardRouter), 0, abi.encodeWithSignature("compound()"));
-    }
-
     function pendingRewards(address _rewardTracker) external view override returns (uint256) {
-        return IGmxRewardTracker(_rewardTracker).claimable(address(gmxDepositor));
+        address feeGmxTracker = IGmxRewardRouter(gmxRewardRouter).feeGmxTracker();
+        if (_rewardTracker == feeGmxTracker) return 0;
+
+        return
+            IGmxRewardTracker(IGmxRewardRouter(gmxRewardRouter).feeGlpTracker()).claimable(address(gmxDepositor)) +
+            IGmxRewardTracker(feeGmxTracker).claimable(address(gmxDepositor));
     }
 
     function claimReward(address rewardTracker) external override onlyStrategy {
-        gmxDepositor.safeExecute(rewardTracker, 0, abi.encodeWithSignature("claim(address)", msg.sender));
-        _compoundEsGmx();
+        address feeGmxTracker = IGmxRewardRouter(gmxRewardRouter).feeGmxTracker();
+        if (rewardTracker == feeGmxTracker) return;
+        gmxDepositor.safeExecute(
+            gmxRewardRouter,
+            0,
+            abi.encodeWithSignature(
+                "handleRewards(bool,bool,bool,bool,bool,bool,bool)",
+                false,
+                false,
+                true,
+                true,
+                true,
+                true,
+                false
+            )
+        );
+        uint256 reward = IERC20(WAVAX).balanceOf(address(gmxDepositor));
+        gmxDepositor.safeExecute(WAVAX, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, reward));
     }
 
     function totalDeposits(address _rewardTracker) external view override returns (uint256) {
