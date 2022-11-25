@@ -71,6 +71,9 @@ contract GmxProxy is IGmxProxy {
         address _gmxRewardRouter,
         address _devAddr
     ) {
+        require(_gmxDepositor > address(0), "GmxProxy::Invalid depositor address provided");
+        require(_gmxRewardRouter > address(0), "GmxProxy::Invalid reward router address provided");
+        require(_devAddr > address(0), "GmxProxy::Invalid dev address provided");
         devAddr = _devAddr;
         gmxDepositor = IGmxDepositor(_gmxDepositor);
         gmxRewardRouter = _gmxRewardRouter;
@@ -79,6 +82,7 @@ contract GmxProxy is IGmxProxy {
     }
 
     function updateDevAddr(address newValue) public onlyDev {
+        require(newValue > address(0), "GmxProxy::Invalid dev address provided");
         devAddr = newValue;
     }
 
