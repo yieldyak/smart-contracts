@@ -5,14 +5,12 @@ import "./lib/Ownable.sol";
 import "./lib/Permissioned.sol";
 import "./interfaces/IERC20.sol";
 import "./YakERC20.sol";
-import "./lib/FixedPointMathLib.sol";
 import "./lib/SafeERC20.sol";
 
 /**
  * @notice YakStrategy should be inherited by new strategies
  */
 abstract contract YakStrategyV2 is YakERC20, Ownable, Permissioned {
-    using FixedPointMathLib for uint256;
     using SafeERC20 for IERC20;
 
     struct StrategySettings {
@@ -174,7 +172,7 @@ abstract contract YakStrategyV2 is YakERC20, Ownable, Permissioned {
         if (totalSupply == 0 || totalDeposits() == 0) {
             return amount;
         }
-        return amount.mulDivDown(totalSupply, totalDeposits());
+        return (amount * totalSupply) / totalDeposits();
     }
 
     /**
@@ -186,7 +184,7 @@ abstract contract YakStrategyV2 is YakERC20, Ownable, Permissioned {
         if (totalSupply == 0 || totalDeposits() == 0) {
             return 0;
         }
-        return amount.mulDivDown(totalDeposits(), totalSupply);
+        return (amount * totalDeposits()) / totalSupply;
     }
 
     /**
