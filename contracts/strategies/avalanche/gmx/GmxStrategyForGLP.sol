@@ -49,22 +49,16 @@ contract GmxStrategyForGLP is YakStrategyV2 {
     }
 
     /**
-     * @notice Deposit using Permit
-     * @param amount Amount of tokens to deposit
-     * @param deadline The time at which to expire the signature
-     * @param v The recovery byte of the signature
-     * @param r Half of the ECDSA signature pair
-     * @param s Half of the ECDSA signature pair
+     * @dev Permit not supported by fsGLP
      */
     function depositWithPermit(
-        uint256 amount,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external override {
-        depositToken.permit(msg.sender, address(this), amount, deadline, v, r, s);
-        _deposit(msg.sender, amount);
+        uint256,
+        uint256,
+        uint8,
+        bytes32,
+        bytes32
+    ) external pure override {
+        revert();
     }
 
     function depositFor(address account, uint256 amount) external override {

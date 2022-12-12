@@ -5,11 +5,14 @@ import "./lib/Ownable.sol";
 import "./lib/Permissioned.sol";
 import "./interfaces/IERC20.sol";
 import "./YakERC20.sol";
+import "./lib/SafeERC20.sol";
 
 /**
  * @notice YakStrategy should be inherited by new strategies
  */
 abstract contract YakStrategyV2 is YakERC20, Ownable, Permissioned {
+    using SafeERC20 for IERC20;
+
     struct StrategySettings {
         address depositToken;
         address rewardToken;
@@ -166,7 +169,7 @@ abstract contract YakStrategyV2 is YakERC20, Ownable, Permissioned {
      * @return receipt tokens
      */
     function getSharesForDepositTokens(uint256 amount) public view returns (uint256) {
-        if (totalSupply * totalDeposits() == 0) {
+        if (totalSupply == 0 || totalDeposits() == 0) {
             return amount;
         }
         return (amount * totalSupply) / totalDeposits();
@@ -178,7 +181,7 @@ abstract contract YakStrategyV2 is YakERC20, Ownable, Permissioned {
      * @return deposit tokens
      */
     function getDepositTokensForShares(uint256 amount) public view returns (uint256) {
-        if (totalSupply * totalDeposits() == 0) {
+        if (totalSupply == 0 || totalDeposits() == 0) {
             return 0;
         }
         return (amount * totalDeposits()) / totalSupply;
@@ -259,7 +262,7 @@ abstract contract YakStrategyV2 is YakERC20, Ownable, Permissioned {
      */
     function recoverERC20(address tokenAddress, uint256 tokenAmount) external onlyOwner {
         require(tokenAmount > 0);
-        require(IERC20(tokenAddress).transfer(msg.sender, tokenAmount));
+        IERC20(tokenAddress).safeTransfer(msg.sender, tokenAmount);
         emit Recovered(tokenAddress, tokenAmount);
     }
 

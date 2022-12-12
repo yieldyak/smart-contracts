@@ -39,6 +39,7 @@ contract GmxProxy is IGmxProxy {
 
     IGmxDepositor public immutable override gmxDepositor;
     address public immutable override gmxRewardRouter;
+    address public immutable glpMinter;
 
     address internal immutable gmxRewardTracker;
     address internal immutable glpManager;
@@ -69,16 +70,22 @@ contract GmxProxy is IGmxProxy {
     constructor(
         address _gmxDepositor,
         address _gmxRewardRouter,
+        address _gmxRewardRouterV2,
         address _devAddr
     ) {
+        require(_gmxDepositor > address(0), "GmxProxy::Invalid depositor address provided");
+        require(_gmxRewardRouter > address(0), "GmxProxy::Invalid reward router address provided");
+        require(_devAddr > address(0), "GmxProxy::Invalid dev address provided");
         devAddr = _devAddr;
         gmxDepositor = IGmxDepositor(_gmxDepositor);
         gmxRewardRouter = _gmxRewardRouter;
+        glpMinter = _gmxRewardRouterV2;
         gmxRewardTracker = IGmxRewardRouter(_gmxRewardRouter).stakedGmxTracker();
-        glpManager = IGmxRewardRouter(_gmxRewardRouter).glpManager();
+        glpManager = IGmxRewardRouter(_gmxRewardRouterV2).glpManager();
     }
 
     function updateDevAddr(address newValue) public onlyDev {
+        require(newValue > address(0), "GmxProxy::Invalid dev address provided");
         devAddr = newValue;
     }
 
@@ -92,7 +99,7 @@ contract GmxProxy is IGmxProxy {
         IERC20(WAVAX).safeTransfer(address(gmxDepositor), _amount);
         gmxDepositor.safeExecute(WAVAX, 0, abi.encodeWithSignature("approve(address,uint256)", glpManager, _amount));
         bytes memory result = gmxDepositor.safeExecute(
-            gmxRewardRouter,
+            glpMinter,
             0,
             abi.encodeWithSignature("mintAndStakeGlp(address,uint256,uint256,uint256)", WAVAX, _amount, 0, 0)
         );
