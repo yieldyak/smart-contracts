@@ -33,6 +33,7 @@ contract GmxProxy is IGmxProxy {
     address internal constant GMX = 0x62edc0692BD897D2295872a9FFCac5425011c661;
     address internal constant fsGLP = 0x5643F4b25E36478eE1E90418d5343cb6591BcB9d;
     address internal constant WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
+    address internal constant esGMX = 0xFf1489227BbAAC61a9209A08929E4c2a526DdD17;
 
     address public devAddr;
     mapping(address => address) public approvedStrategies;
@@ -93,6 +94,18 @@ contract GmxProxy is IGmxProxy {
         address depositToken = IYakStrategy(_strategy).depositToken();
         require(approvedStrategies[depositToken] == address(0), "GmxProxy::Strategy for deposit token already added");
         approvedStrategies[depositToken] = _strategy;
+    }
+
+    function stakeESGMX() external onlyDev {
+        gmxDepositor.safeExecute(
+            gmxRewardRouter,
+            0,
+            abi.encodeWithSignature("stakeEsGmx(uint256)", IERC20(esGMX).balanceOf(address(gmxDepositor)))
+        );
+    }
+
+    function stakedESGMX() public view returns (uint256) {
+        return IGmxRewardTracker(gmxRewardTracker).depositBalances(address(gmxDepositor), esGMX);
     }
 
     function buyAndStakeGlp(uint256 _amount) external override onlyGLPStrategy returns (uint256) {
