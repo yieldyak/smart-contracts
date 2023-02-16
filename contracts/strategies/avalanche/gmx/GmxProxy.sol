@@ -3,12 +3,14 @@ pragma solidity 0.8.13;
 
 import "../../../interfaces/IYakStrategy.sol";
 import "../../../lib/SafeERC20.sol";
-import "../../../lib/SafeMath.sol";
 
 import "./interfaces/IGmxDepositor.sol";
 import "./interfaces/IGmxRewardRouter.sol";
 import "./interfaces/IGmxRewardTracker.sol";
 import "./interfaces/IGmxProxy.sol";
+import "./interfaces/ILBPair.sol";
+import "./interfaces/IGlpManager.sol";
+import "./interfaces/IGmxVault.sol";
 
 library SafeProxy {
     function safeExecute(
@@ -24,16 +26,19 @@ library SafeProxy {
 }
 
 contract GmxProxy is IGmxProxy {
-    using SafeMath for uint256;
     using SafeProxy for IGmxDepositor;
     using SafeERC20 for IERC20;
 
     uint256 internal constant BIPS_DIVISOR = 10000;
 
-    address internal constant GMX = 0x62edc0692BD897D2295872a9FFCac5425011c661;
-    address internal constant fsGLP = 0x5643F4b25E36478eE1E90418d5343cb6591BcB9d;
     address internal constant WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
+    address internal constant USDC = 0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E;
+    address internal constant GMX = 0x62edc0692BD897D2295872a9FFCac5425011c661;
+    address internal constant sGLP = 0x5643F4b25E36478eE1E90418d5343cb6591BcB9d;
+    address internal constant GLP = 0x01234181085565ed162a948b6a5e88758CD7c7b8;
     address internal constant esGMX = 0xFf1489227BbAAC61a9209A08929E4c2a526DdD17;
+    address internal constant LB_PAIR = 0xB5352A39C11a81FE6748993D586EC448A01f08b5;
+    uint256 internal constant USDG_PRICE_PRECISION = 1e30;
 
     address public devAddr;
     mapping(address => address) public approvedStrategies;
@@ -44,6 +49,8 @@ contract GmxProxy is IGmxProxy {
 
     address internal immutable gmxRewardTracker;
     address internal immutable glpManager;
+    address internal immutable vault;
+    address internal immutable usdg;
 
     modifier onlyDev() {
         require(msg.sender == devAddr, "GmxProxy::onlyDev");
@@ -52,14 +59,14 @@ contract GmxProxy is IGmxProxy {
 
     modifier onlyStrategy() {
         require(
-            approvedStrategies[fsGLP] == msg.sender || approvedStrategies[GMX] == msg.sender,
+            approvedStrategies[sGLP] == msg.sender || approvedStrategies[GMX] == msg.sender,
             "GmxProxy:onlyGLPStrategy"
         );
         _;
     }
 
     modifier onlyGLPStrategy() {
-        require(approvedStrategies[fsGLP] == msg.sender, "GmxProxy:onlyGLPStrategy");
+        require(approvedStrategies[sGLP] == msg.sender, "GmxProxy:onlyGLPStrategy");
         _;
     }
 
@@ -83,6 +90,8 @@ contract GmxProxy is IGmxProxy {
         glpMinter = _gmxRewardRouterV2;
         gmxRewardTracker = IGmxRewardRouter(_gmxRewardRouter).stakedGmxTracker();
         glpManager = IGmxRewardRouter(_gmxRewardRouterV2).glpManager();
+        vault = IGlpManager(glpManager).vault();
+        usdg = IGmxVault(vault).usdg();
     }
 
     function updateDevAddr(address newValue) public onlyDev {
@@ -108,15 +117,36 @@ contract GmxProxy is IGmxProxy {
         return IGmxRewardTracker(gmxRewardTracker).depositBalances(address(gmxDepositor), esGMX);
     }
 
+    function vaultHasAvaxCapacity(uint256 _amountIn) internal view returns (bool) {
+        uint256 price = IGmxVault(vault).getMinPrice(WAVAX);
+        uint256 usdgAmount = (_amountIn * price) / USDG_PRICE_PRECISION;
+        usdgAmount = IGmxVault(vault).adjustForDecimals(usdgAmount, WAVAX, usdg);
+        uint256 vaultUsdgAmount = IGmxVault(vault).usdgAmounts(WAVAX);
+        uint256 maxUsdgAmount = IGmxVault(vault).maxUsdgAmounts(WAVAX);
+        return maxUsdgAmount == 0 || vaultUsdgAmount + usdgAmount < maxUsdgAmount;
+    }
+
+    function swapToUSDC(uint256 _amount) internal returns (uint256) {
+        IERC20(WAVAX).transfer(LB_PAIR, _amount);
+        (, uint256 amountYOut) = ILBPair(LB_PAIR).swap(true, address(gmxDepositor));
+        return amountYOut;
+    }
+
     function buyAndStakeGlp(uint256 _amount) external override onlyGLPStrategy returns (uint256) {
-        IERC20(WAVAX).safeTransfer(address(gmxDepositor), _amount);
-        gmxDepositor.safeExecute(WAVAX, 0, abi.encodeWithSignature("approve(address,uint256)", glpManager, _amount));
+        bool sufficientAvaxCapacity = vaultHasAvaxCapacity(_amount);
+        address token = sufficientAvaxCapacity ? WAVAX : USDC;
+        _amount = sufficientAvaxCapacity ? _amount : swapToUSDC(_amount);
+
+        if (sufficientAvaxCapacity) {
+            IERC20(WAVAX).transfer(address(gmxDepositor), _amount);
+        }
+
+        gmxDepositor.safeExecute(token, 0, abi.encodeWithSignature("approve(address,uint256)", glpManager, _amount));
         bytes memory result = gmxDepositor.safeExecute(
             glpMinter,
             0,
-            abi.encodeWithSignature("mintAndStakeGlp(address,uint256,uint256,uint256)", WAVAX, _amount, 0, 0)
+            abi.encodeWithSignature("mintAndStakeGlp(address,uint256,uint256,uint256)", token, _amount, 0, 0)
         );
-        gmxDepositor.safeExecute(WAVAX, 0, abi.encodeWithSignature("approve(address,uint256)", glpManager, 0));
         return toUint256(result, 0);
     }
 
@@ -125,7 +155,7 @@ contract GmxProxy is IGmxProxy {
     }
 
     function _withdrawGlp(uint256 _amount) private {
-        gmxDepositor.safeExecute(fsGLP, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, _amount));
+        gmxDepositor.safeExecute(sGLP, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, _amount));
     }
 
     function stakeGmx(uint256 _amount) external override onlyGMXStrategy {
