@@ -28,6 +28,7 @@ contract BlpProxy is IBlpProxy {
     uint256 internal constant BIPS_DIVISOR = 10000;
 
     address internal constant sGLP = 0x9a4E5E7fbb3Bbf0F04b78354aaFEA877E346ae33;
+    address internal constant esGMX = 0x8d5618aa319d99A8A8396e8a855115dfEa5E84a4;
     address internal constant WAVAX = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
 
     address public devAddr;
@@ -72,6 +73,14 @@ contract BlpProxy is IBlpProxy {
     function approveStrategy(address _strategy) external onlyDev {
         require(approvedStrategy == address(0), "BlpProxy::Strategy for deposit token already added");
         approvedStrategy = _strategy;
+    }
+
+    function stakeESGMX() external onlyDev {
+        gmxDepositor.safeExecute(
+            gmxRewardRouter,
+            0,
+            abi.encodeWithSignature("stakeEsGmx(uint256)", IERC20(esGMX).balanceOf(address(gmxDepositor)))
+        );
     }
 
     function buyAndStakeGlp(uint256 _amount) external override onlyStrategy returns (uint256) {
