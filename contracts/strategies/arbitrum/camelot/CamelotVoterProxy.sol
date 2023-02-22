@@ -19,18 +19,15 @@ library SafeProxy {
         bytes memory data
     ) internal returns (bytes memory) {
         (bool success, bytes memory returnValue) = voter.execute(target, value, data);
-        if (!success) revert("PlatypusVoterProxy::safeExecute failed");
+        if (!success) revert("CamelotVoterProxy::safeExecute failed");
         return returnValue;
     }
 }
 
 /**
- * @notice PlatypusVoterProxy is an upgradable contract.
- * Strategies interact with PlatypusVoterProxy and
- * PlatypusVoterProxy interacts with PlatypusVoter.
- * @dev For accounting reasons, there is one approved
- * strategy per Masterchef PID. In case of upgrade,
- * use a new proxy.
+ * @notice CamelotVoterProxy is an upgradable contract.
+ * Strategies interact with CamelotVoterProxy and
+ * CamelotVoterProxy interacts with CamelotVoter.
  */
 contract CamelotVoterProxy is ICamelotVoterProxy {
     using SafeProxy for ICamelotVoter;
@@ -50,14 +47,13 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
     address internal constant NITRO_POOL_FACTORY = 0xe0a6b372Ac6AF4B37c7F3a989Fe5d5b194c24569;
 
     ICamelotVoter public immutable voter;
-    // address public immutable yieldBooster;
 
     address public devAddr;
     // pool => position id => strategy
     mapping(address => mapping(uint256 => address)) public approvedStrategies;
 
     modifier onlyDev() {
-        require(msg.sender == devAddr, "PlatypusVoterProxy::onlyDev");
+        require(msg.sender == devAddr, "CamelotVoterProxy::onlyDev");
         _;
     }
 
@@ -79,6 +75,15 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
         devAddr = _newValue;
     }
 
+    /**
+     * @notice Used to initialize position and allow for immutable position id in strategy
+     * @dev Use this method before deploying a strategy to generate the NFT
+     * @dev Use NitroPoolFactory.nftPoolPublishedNitroPoolsLength and getNftPoolPublishedNitroPool to find a suitable nitro pool
+     * @param _nftPool NFTPool address
+     * @param _lpToken LP token address
+     * @param _useNitroPool Pass false if there is no nitro pool available
+     * @param _nitroPoolIndex Relativ index for this NFTPool
+     */
     function createPosition(
         address _nftPool,
         address _lpToken,
@@ -97,6 +102,23 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
             _stakeInNitroPool(positionId, _nftPool, _nitroPoolIndex);
         }
         return positionId;
+    }
+
+    /**
+     * @notice Reallocate yield boost from one NFTPool/position to another
+     */
+    function reallocateYieldBoost(
+        address _nftPoolFrom,
+        uint256 _positionIdFrom,
+        address _nftPoolTo,
+        uint256 _positionIdTo,
+        uint256 _amount
+    ) external onlyDev {
+        address yieldBooster = INFTPool(_nftPoolFrom).yieldBooster();
+        bytes memory data = abi.encode(_nftPoolFrom, _positionIdFrom);
+        voter.safeExecute(xGRAIL, 0, abi.encodeWithSelector(IXGrail.deallocate.selector, yieldBooster, _amount, data));
+        _amount = voter.unallocatedXGrail();
+        _allocateXGrail(_nftPoolTo, _positionIdTo, _amount);
     }
 
     function _stakeInNitroPool(
@@ -165,7 +187,7 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
 
     /**
      * @notice Withdraw function
-     * @dev Restricted to strategy with _pid
+     * @dev Restricted to approved strategies
      * @param _positionId ERC721 token id / position id
      * @param _nftPool Staking contract
      * @param _lpToken LP token
@@ -198,7 +220,7 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
 
     /**
      * @notice Emergency withdraw function
-     * @dev Restricted to strategy with _pid
+     * @dev Restricted to approved strategies
      * @param _positionId ERC721 token id / position id
      * @param _nftPool Staking contract
      * @param _lpToken LP token
@@ -298,7 +320,7 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
 
     /**
      * @notice Claim and distribute PTP rewards
-     * @dev Restricted to strategy with _pid
+     * @dev Restricted to approved strategies
      * @param _positionId ERC721 token id / position id
      * @param _nftPool Staking contract
      */
@@ -320,19 +342,19 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
 
         uint256 unallocatedXGrail = voter.unallocatedXGrail();
         if (unallocatedXGrail > 0) {
-            address yieldBooster = INFTPool(_nftPool).yieldBooster();
-            bytes memory data = abi.encode(_nftPool, _positionId);
-            voter.safeExecute(
-                xGRAIL,
-                0,
-                abi.encodeWithSelector(IXGrail.approveUsage.selector, yieldBooster, unallocatedXGrail)
-            );
-            voter.safeExecute(
-                xGRAIL,
-                0,
-                abi.encodeWithSelector(IXGrail.allocate.selector, yieldBooster, unallocatedXGrail, data)
-            );
+            _allocateXGrail(_nftPool, _positionId, unallocatedXGrail);
         }
+    }
+
+    function _allocateXGrail(
+        address _nftPool,
+        uint256 _positionId,
+        uint256 _amount
+    ) internal {
+        address yieldBooster = INFTPool(_nftPool).yieldBooster();
+        bytes memory data = abi.encode(_nftPool, _positionId);
+        voter.safeExecute(xGRAIL, 0, abi.encodeWithSelector(IXGrail.approveUsage.selector, yieldBooster, _amount));
+        voter.safeExecute(xGRAIL, 0, abi.encodeWithSelector(IXGrail.allocate.selector, yieldBooster, _amount, data));
     }
 
     function claimNitroRewards(address _nitroPool)

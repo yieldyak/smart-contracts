@@ -5,7 +5,6 @@ import "../../../interfaces/IWETH.sol";
 import "../../../lib/Ownable.sol";
 import "../../../lib/ERC20.sol";
 import "../../../lib/SafeERC20.sol";
-import "../../../lib/SafeMath.sol";
 
 import "./interfaces/IXGrail.sol";
 import "./interfaces/ICamelotVoter.sol";
@@ -18,15 +17,13 @@ import "./interfaces/INFTHandler.sol";
  */
 contract CamelotVoter is ICamelotVoter, Ownable, ERC20, INFTHandler {
     using SafeERC20 for IERC20;
-    using SafeMath for uint256;
 
     IWETH private constant WETH = IWETH(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1);
+    IXGrail public constant xGRAIL = IXGrail(0x3CAaE25Ee616f2C8E13C74dA0813402eae3F496b);
+    address public constant GRAIL = 0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8;
 
     address public voterProxy;
     bool public override depositsEnabled = true;
-
-    IXGrail public constant xGRAIL = IXGrail(0x3CAaE25Ee616f2C8E13C74dA0813402eae3F496b);
-    address public constant GRAIL = 0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8;
 
     modifier onlyCamelotVoterProxy() {
         require(msg.sender == voterProxy, "CamelotVoter::onlyCamelotVoterProxy");

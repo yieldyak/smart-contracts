@@ -53,6 +53,9 @@ contract CamelotStrategy is VariableRewardsStrategy {
         proxy = ICamelotVoterProxy(_voterProxy);
     }
 
+    /**
+     * @notice Needed because camelot pairs have mutable fees
+     */
     function updateSwapPairs(
         address _swapPairToken0,
         address _swapPairToken1,
@@ -69,8 +72,27 @@ contract CamelotStrategy is VariableRewardsStrategy {
         }
     }
 
+    /**
+     * @notice Updates nitro pool
+     * @dev Use NitroPoolFactory.nftPoolPublishedNitroPoolsLength and getNftPoolPublishedNitroPool to find a suitable nitro pool
+     * @param _nitroPoolIndex Relativ index for this NFTPool
+     * @param _useNewNitroPool Pass false if there is no nitro pool available anymore
+     */
     function updateNitroPool(uint256 _nitroPoolIndex, bool _useNewNitroPool) external onlyDev {
         nitroPool = proxy.updateNitroPool(positionId, nitroPool, pool, _useNewNitroPool, _nitroPoolIndex);
+    }
+
+    /**
+     * @notice Failsafe for when selected nitro pool has ended and would block withdrawals
+     */
+    function withdrawFromEndedNitroPool() external {
+        (, , , uint256 depositEndTime, , , , , ) = INitroPool(nitroPool).settings();
+        require(
+            depositEndTime > 0 && depositEndTime < block.timestamp,
+            "CamelotStrategy::withdrawFromNitroPool not allowed"
+        );
+        proxy.updateNitroPool(positionId, nitroPool, pool, false, 0);
+        nitroPool = address(0);
     }
 
     function _depositToStakingContract(uint256 _amount, uint256) internal override {

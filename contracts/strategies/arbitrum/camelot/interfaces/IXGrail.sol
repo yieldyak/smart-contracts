@@ -9,13 +9,13 @@ interface IXGrail {
     function approveUsage(address usage, uint256 amount) external;
 
     function allocate(
-        address userAddress,
+        address usageAddress,
         uint256 amount,
         bytes calldata data
     ) external;
 
     function deallocate(
-        address userAddress,
+        address usageAddress,
         uint256 amount,
         bytes calldata data
     ) external;
