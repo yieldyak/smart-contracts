@@ -23,7 +23,7 @@ contract CamelotVoter is ICamelotVoter, Ownable, ERC20, INFTHandler {
     address public constant GRAIL = 0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8;
 
     address public voterProxy;
-    bool public override depositsEnabled = true;
+    bool public override depositsEnabled;
 
     modifier onlyCamelotVoterProxy() {
         require(msg.sender == voterProxy, "CamelotVoter::onlyCamelotVoterProxy");
@@ -75,7 +75,7 @@ contract CamelotVoter is ICamelotVoter, Ownable, ERC20, INFTHandler {
      * @notice unallocated xGrail balance
      * @return uint256 unallocated xGrail
      */
-    function unallocatedXGrail() external view returns (uint256) {
+    function unallocatedXGrail() public view returns (uint256) {
         return xGRAIL.balanceOf(address(this));
     }
 
@@ -83,9 +83,13 @@ contract CamelotVoter is ICamelotVoter, Ownable, ERC20, INFTHandler {
      * @notice xGrail allocated to plugin
      * @return uint256 allocated xGrail
      */
-    function allocatedXGrail() external view returns (uint256) {
+    function allocatedXGrail() public view returns (uint256) {
         (uint256 allocated, ) = xGRAIL.xGrailBalances(address(this));
         return allocated;
+    }
+
+    function totalXGrail() public view returns (uint256) {
+        return unallocatedXGrail() + allocatedXGrail();
     }
 
     /**
@@ -115,6 +119,14 @@ contract CamelotVoter is ICamelotVoter, Ownable, ERC20, INFTHandler {
      */
     function setVoterProxy(address _voterProxy) external override onlyOwner {
         voterProxy = _voterProxy;
+    }
+
+    function mint(address _receiver) external override onlyCamelotVoterProxy {
+        uint256 totalXGrailLocked = totalXGrail();
+        uint256 totalSupply = totalSupply();
+        if (totalXGrailLocked > totalSupply) {
+            _mint(_receiver, totalXGrailLocked - totalSupply);
+        }
     }
 
     /**

@@ -20,6 +20,7 @@ contract CamelotStrategy is VariableRewardsStrategy {
         address swapPairToken1;
         uint256 swapFeeToken1;
         address voterProxy;
+        address yyGrailReceiver;
     }
 
     address public constant GRAIL = 0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8;
@@ -27,8 +28,9 @@ contract CamelotStrategy is VariableRewardsStrategy {
     address public immutable pool;
     uint256 public immutable positionId;
 
-    address public nitroPool;
     ICamelotVoterProxy public proxy;
+    address public yyGrailReceiver;
+    address public nitroPool;
     address public swapPairToken0;
     address public swapPairToken1;
     uint256 public swapFeeToken0;
@@ -47,10 +49,15 @@ contract CamelotStrategy is VariableRewardsStrategy {
         swapFeeToken0 = _camelotStrategySettings.swapFeeToken0;
         swapFeeToken1 = _camelotStrategySettings.swapFeeToken1;
         proxy = ICamelotVoterProxy(_camelotStrategySettings.voterProxy);
+        yyGrailReceiver = _camelotStrategySettings.yyGrailReceiver;
     }
 
-    function setPlatypusVoterProxy(address _voterProxy) external onlyOwner {
+    function setVoterProxy(address _voterProxy) external onlyOwner {
         proxy = ICamelotVoterProxy(_voterProxy);
+    }
+
+    function updateYYGrailReceiver(address _receiver) external onlyDev {
+        yyGrailReceiver = _receiver;
     }
 
     /**
@@ -96,13 +103,13 @@ contract CamelotStrategy is VariableRewardsStrategy {
     }
 
     function _depositToStakingContract(uint256 _amount, uint256) internal override {
-        proxy.claimReward(positionId, pool, nitroPool);
+        proxy.claimReward(positionId, pool, nitroPool, yyGrailReceiver);
         depositToken.safeTransfer(address(proxy.voter()), _amount);
         proxy.deposit(positionId, pool, address(depositToken), _amount);
     }
 
     function _withdrawFromStakingContract(uint256 _amount) internal override returns (uint256 withdrawAmount) {
-        proxy.claimReward(positionId, pool, nitroPool);
+        proxy.claimReward(positionId, pool, nitroPool, yyGrailReceiver);
         proxy.withdraw(positionId, pool, nitroPool, address(depositToken), _amount);
         return _amount;
     }
@@ -112,7 +119,7 @@ contract CamelotStrategy is VariableRewardsStrategy {
     }
 
     function _getRewards() internal virtual override {
-        proxy.claimReward(positionId, pool, nitroPool);
+        proxy.claimReward(positionId, pool, nitroPool, yyGrailReceiver);
     }
 
     function _convertRewardTokenToDepositToken(uint256 fromAmount) internal override returns (uint256 toAmount) {

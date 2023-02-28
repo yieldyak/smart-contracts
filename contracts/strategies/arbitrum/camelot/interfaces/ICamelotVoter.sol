@@ -14,6 +14,8 @@ interface ICamelotVoter {
 
     function deposit(uint256 _amount) external;
 
+    function mint(address _receiver) external;
+
     function depositFromBalance(uint256 _value) external;
 
     function unallocatedXGrail() external view returns (uint256);

@@ -327,7 +327,8 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
     function claimReward(
         uint256 _positionId,
         address _nftPool,
-        address _nitroPool
+        address _nitroPool,
+        address _yyGrailReceiver
     ) external onlyStrategy(_nftPool, _positionId) {
         (address token1, address token2, uint256 claimed1, uint256 claimed2) = claimNitroRewards(_nitroPool);
         if (claimed1 > 0) {
@@ -343,6 +344,7 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
         uint256 unallocatedXGrail = voter.unallocatedXGrail();
         if (unallocatedXGrail > 0) {
             _allocateXGrail(_nftPool, _positionId, unallocatedXGrail);
+            voter.mint(_yyGrailReceiver);
         }
     }
 

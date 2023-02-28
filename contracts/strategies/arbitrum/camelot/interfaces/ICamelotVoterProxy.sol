@@ -55,6 +55,7 @@ interface ICamelotVoterProxy {
     function claimReward(
         uint256 _positionId,
         address _nftPool,
-        address _nitroPool
+        address _nitroPool,
+        address _yyGrailReceiver
     ) external;
 }
