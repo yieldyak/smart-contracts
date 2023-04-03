@@ -2,9 +2,9 @@
 pragma solidity 0.8.13;
 
 import "./../../VariableRewardsStrategy.sol";
-import "./../../../interfaces/IBoosterFeeCollector.sol";
 
 import "./interfaces/IGauge.sol";
+import "./interfaces/IGlacierBoosterFeeCollector.sol";
 
 contract GlacierStrategy is VariableRewardsStrategy {
     using SafeERC20 for IERC20;
@@ -22,7 +22,7 @@ contract GlacierStrategy is VariableRewardsStrategy {
 
     IGauge public immutable gauge;
 
-    IBoosterFeeCollector public boosterFeeCollector;
+    IGlacierBoosterFeeCollector public boosterFeeCollector;
     address public swapPairToken0;
     address public swapPairToken1;
     uint256 public swapFeeToken0;
@@ -38,11 +38,11 @@ contract GlacierStrategy is VariableRewardsStrategy {
         swapPairToken1 = _glacierStrategySettings.swapPairToken1;
         swapFeeToken0 = _glacierStrategySettings.swapFeeToken0;
         swapFeeToken1 = _glacierStrategySettings.swapFeeToken1;
-        boosterFeeCollector = IBoosterFeeCollector(_glacierStrategySettings.boosterFeeCollector);
+        boosterFeeCollector = IGlacierBoosterFeeCollector(_glacierStrategySettings.boosterFeeCollector);
     }
 
     function updateBoosterFeeCollector(address _collector) external onlyDev {
-        boosterFeeCollector = IBoosterFeeCollector(_collector);
+        boosterFeeCollector = IGlacierBoosterFeeCollector(_collector);
     }
 
     function updateSwapPairs(
@@ -78,7 +78,8 @@ contract GlacierStrategy is VariableRewardsStrategy {
             address token = supportedRewards[i];
             uint256 amount = gauge.earned(token, address(this));
             if (token == GLCR && address(boosterFeeCollector) > address(0)) {
-                amount -= boosterFeeCollector.calculateBoostFee(address(this), amount);
+                (uint256 boostFee,) = boosterFeeCollector.calculateBoostFee(address(this), amount);
+                amount -= boostFee;
             }
             rewards[i] = Reward({reward: token, amount: amount});
         }
@@ -89,9 +90,9 @@ contract GlacierStrategy is VariableRewardsStrategy {
         gauge.getReward(address(this), supportedRewards);
         if (address(boosterFeeCollector) > address(0)) {
             uint256 balance = IERC20(GLCR).balanceOf(address(this));
-            uint256 boostFee = boosterFeeCollector.calculateBoostFee(address(this), balance);
+            (uint256 boostFee, address receiver) = boosterFeeCollector.calculateBoostFee(address(this), balance);
             if (boostFee > 0) {
-                IERC20(GLCR).safeTransfer(address(boosterFeeCollector), boostFee);
+                IERC20(GLCR).safeTransfer(address(receiver), boostFee);
             }
         }
     }
