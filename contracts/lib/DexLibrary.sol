@@ -8,7 +8,8 @@ library DexLibrary {
     using SafeERC20 for IERC20;
 
     bytes private constant zeroBytes = new bytes(0);
-    uint256 public constant DEFAULT_SWAP_FEE = 3;
+    uint256 public constant DEFAULT_SWAP_FEE = 30;
+    uint public constant BIPS_DIVISOR = 10000;
 
     /**
      * @notice Swap directly through a Pair
@@ -208,9 +209,9 @@ library DexLibrary {
         uint256 reserveOut,
         uint256 swapFee
     ) internal pure returns (uint256) {
-        uint256 amountInWithFee = amountIn * (1000 - swapFee);
+        uint256 amountInWithFee = amountIn * (BIPS_DIVISOR - swapFee);
         uint256 numerator = amountInWithFee * reserveOut;
-        uint256 denominator = reserveIn * 1000 + amountInWithFee;
+        uint256 denominator = reserveIn * BIPS_DIVISOR + amountInWithFee;
         return numerator / denominator;
     }
 }
