@@ -18,12 +18,16 @@ contract GmxStrategyForGLP is YakStrategyV2 {
 
     IGmxProxy public proxy;
 
-    constructor(string memory _name, address _gmxProxy, address _timelock, StrategySettings memory _strategySettings)
-        YakStrategyV2(_strategySettings)
-    {
+    constructor(
+        string memory _name,
+        address _gmxProxy,
+        address _devAddr,
+        address _timelock,
+        StrategySettings memory _strategySettings
+    ) YakStrategyV2(_strategySettings) {
         name = _name;
         proxy = IGmxProxy(_gmxProxy);
-        devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
+        devAddr = _devAddr;
 
         updateDepositsEnabled(true);
         transferOwnership(_timelock);
