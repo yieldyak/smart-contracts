@@ -10,7 +10,7 @@ import "./VariableRewardsStrategy.sol";
  */
 abstract contract VariableRewardsStrategyForSAV2 is VariableRewardsStrategy {
     address public immutable swapPairDepositToken;
-    uint256 public immutable swapFeeBips;
+    uint256 public swapFeeBips;
 
     constructor(
         address _swapPairDepositToken,
@@ -20,6 +20,10 @@ abstract contract VariableRewardsStrategyForSAV2 is VariableRewardsStrategy {
     ) VariableRewardsStrategy(_settings, _strategySettings) {
         swapPairDepositToken = _swapPairDepositToken;
         assignSwapPairSafely(_swapPairDepositToken);
+        swapFeeBips = _swapFeeBips;
+    }
+
+    function updateSwapFee(uint256 _swapFeeBips) external onlyDev {
         swapFeeBips = _swapFeeBips;
     }
 
