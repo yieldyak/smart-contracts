@@ -12,6 +12,9 @@ interface IERC20 {
 interface IStrategy {
     function updateDevAddr(address newValue) external;
 
+    // VariableRewards
+    function updateSwapFee(uint256 _swapFeeBips) external;
+
     // Joe
     function setExtraRewardSwapPair(address swapPair) external;
 
@@ -27,26 +30,14 @@ interface IStrategy {
 
     function addReward(address rewardToken, address swapPair) external;
 
-    function addReward(
-        address rewardToken,
-        address swapPair,
-        uint256 swapFee
-    ) external;
+    function addReward(address rewardToken, address swapPair, uint256 swapFee) external;
 
     // Benqi
-    function updateLeverage(
-        uint256 _leverageLevel,
-        uint256 _leverageBips,
-        uint256 _redeemLimitSafetyMargin
-    ) external;
+    function updateLeverage(uint256 _leverageLevel, uint256 _leverageBips, uint256 _redeemLimitSafetyMargin) external;
 
     // Aave
-    function updateLeverage(
-        uint256 _leverageLevel,
-        uint256 _safetyFactor,
-        uint256 _minMinting,
-        uint256 _leverageBips
-    ) external;
+    function updateLeverage(uint256 _leverageLevel, uint256 _safetyFactor, uint256 _minMinting, uint256 _leverageBips)
+        external;
 }
 
 /**
@@ -66,12 +57,7 @@ contract YakFeeCollectorV1 is AccessControl {
     event SetDev(address indexed upgrader, address indexed strategy, address newValue);
     event Sweep(address indexed sweeper, address indexed token, uint256 amount);
 
-    constructor(
-        address _manager,
-        address _tokenSweeper,
-        address _upgrader,
-        address _dev
-    ) {
+    constructor(address _manager, address _tokenSweeper, address _upgrader, address _dev) {
         _setupRole(DEFAULT_ADMIN_ROLE, _manager);
         _setupRole(TOKEN_SWEEPER_ROLE, _tokenSweeper);
         _setupRole(UPGRADER_ROLE, _upgrader);
@@ -121,7 +107,7 @@ contract YakFeeCollectorV1 is AccessControl {
             amount = balance;
         }
         require(amount > 0, "sweepAVAX::balance");
-        (bool success, ) = msg.sender.call{value: amount}("");
+        (bool success,) = msg.sender.call{value: amount}("");
         require(success == true, "sweepAVAX::transfer failed");
         emit Sweep(msg.sender, address(0), amount);
     }
@@ -133,11 +119,12 @@ contract YakFeeCollectorV1 is AccessControl {
         IStrategy(strategy).setExtraRewardSwapPair(swapPair);
     }
 
-    function updateLeverage(
-        address strategy,
-        uint256 leverageLevel,
-        uint256 leverageBips
-    ) external {
+    function updateSwapFee(address strategy, uint256 _swapFeeBips) external {
+        require(hasRole(DEV_ROLE, msg.sender), "execute::auth");
+        IStrategy(strategy).updateSwapFee(_swapFeeBips);
+    }
+
+    function updateLeverage(address strategy, uint256 leverageLevel, uint256 leverageBips) external {
         require(hasRole(DEV_ROLE, msg.sender), "execute::auth");
         IStrategy(strategy).updateLeverage(leverageLevel, leverageBips);
     }
@@ -178,21 +165,12 @@ contract YakFeeCollectorV1 is AccessControl {
         IStrategy(strategy).removeReward(rewardToken);
     }
 
-    function addReward(
-        address strategy,
-        address rewardToken,
-        address swapPair
-    ) external {
+    function addReward(address strategy, address rewardToken, address swapPair) external {
         require(hasRole(DEV_ROLE, msg.sender), "execute::auth");
         IStrategy(strategy).addReward(rewardToken, swapPair);
     }
 
-    function addReward(
-        address strategy,
-        address rewardToken,
-        address swapPair,
-        uint256 swapFee
-    ) external {
+    function addReward(address strategy, address rewardToken, address swapPair, uint256 swapFee) external {
         require(hasRole(DEV_ROLE, msg.sender), "execute::auth");
         IStrategy(strategy).addReward(rewardToken, swapPair, swapFee);
     }
