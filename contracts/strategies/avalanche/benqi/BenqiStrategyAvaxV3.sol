@@ -4,7 +4,7 @@ pragma solidity 0.8.13;
 import "../../../YakStrategyV2Payable.sol";
 import "../../../lib/DexLibrary.sol";
 import "../../../lib/ReentrancyGuard.sol";
-import "../../../interfaces/IWAVAX.sol";
+import "../../../interfaces/IWGAS.sol";
 import "../../../interfaces/IERC20.sol";
 import "./interfaces/IBenqiUnitroller.sol";
 import "./interfaces/IBenqiAVAXDelegator.sol";
@@ -24,7 +24,7 @@ contract BenqiStrategyAvaxV3 is YakStrategyV2Payable, ReentrancyGuard {
     IBenqiAVAXDelegator private tokenDelegator;
     IERC20 private rewardToken0;
     IPair private swapPairToken0; // swaps rewardToken0 to WAVAX
-    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    IWGAS private constant WAVAX = IWGAS(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
     uint256 private leverageLevel;
     uint256 private leverageBips;
     uint256 private minMinting;

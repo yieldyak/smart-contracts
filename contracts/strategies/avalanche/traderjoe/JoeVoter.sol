@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "../../../interfaces/IWAVAX.sol";
+import "../../../interfaces/IWGAS.sol";
 import "../../../lib/Ownable.sol";
 import "../../../lib/ERC20.sol";
 
@@ -14,7 +14,7 @@ import "./interfaces/IJoeVoter.sol";
  * in exchange for yyJOE token.
  */
 contract JoeVoter is IJoeVoter, Ownable, ERC20 {
-    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    IWGAS private constant WAVAX = IWGAS(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
     address public constant JOE = address(0x6e84a6216eA6dACC71eE8E6b0a5B7322EEbC0fDd);
     IERC20 public constant veJOE = IERC20(0x3cabf341943Bc8466245e4d6F1ae0f8D071a1456);
 

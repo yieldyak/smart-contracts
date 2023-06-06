@@ -32,16 +32,10 @@ contract YYAvaxJoeStrategy is VariableRewardsStrategy {
     }
 
     receive() external payable {
-        require(msg.sender == address(withdrawalPool) || msg.sender == address(WAVAX), "not allowed");
+        require(msg.sender == address(withdrawalPool) || msg.sender == address(WGAS), "not allowed");
     }
 
-    function onERC1155Received(
-        address,
-        address,
-        uint256,
-        uint256,
-        bytes memory
-    ) public virtual returns (bytes4) {
+    function onERC1155Received(address, address, uint256, uint256, bytes memory) public virtual returns (bytes4) {
         return this.onERC1155Received.selector;
     }
 
@@ -64,12 +58,12 @@ contract YYAvaxJoeStrategy is VariableRewardsStrategy {
     }
 
     function _pendingRewards() internal view override returns (Reward[] memory) {
-        (uint256 pendingJoe, , , uint256 pendingBonusToken) = joeChef.pendingTokens(PID, address(this));
+        (uint256 pendingJoe,,, uint256 pendingBonusToken) = joeChef.pendingTokens(PID, address(this));
 
         Reward[] memory pendingRewards = new Reward[](2);
         pendingRewards[0] = Reward({reward: address(JOE), amount: pendingJoe});
         pendingRewards[1] = Reward({
-            reward: address(WAVAX),
+            reward: address(WGAS),
             amount: pendingBonusToken > 0 ? withdrawalPool.calculateSwap(1, 0, pendingBonusToken) : 0
         });
 
@@ -91,33 +85,31 @@ contract YYAvaxJoeStrategy is VariableRewardsStrategy {
         address token1 = IPair(address(depositToken)).token1();
 
         uint256 amountOutToken0 = amountIn;
-        if (address(WAVAX) != token0) {
-            amountOutToken0 = token0 == yyAVAX
-                ? _swapThroughWithdrawalPool(amountIn)
-                : _swapThroughPair(amountIn, token0);
+        if (address(WGAS) != token0) {
+            amountOutToken0 =
+                token0 == yyAVAX ? _swapThroughWithdrawalPool(amountIn) : _swapThroughPair(amountIn, token0);
         }
 
         uint256 amountOutToken1 = amountIn;
-        if (address(WAVAX) != token1) {
-            amountOutToken1 = token1 == yyAVAX
-                ? _swapThroughWithdrawalPool(amountIn)
-                : _swapThroughPair(amountIn, token1);
+        if (address(WGAS) != token1) {
+            amountOutToken1 =
+                token1 == yyAVAX ? _swapThroughWithdrawalPool(amountIn) : _swapThroughPair(amountIn, token1);
         }
 
         return DexLibrary.addLiquidity(address(depositToken), amountOutToken0, amountOutToken1);
     }
 
     function _swapThroughWithdrawalPool(uint256 _amountIn) internal returns (uint256) {
-        WAVAX.withdraw(_amountIn);
+        WGAS.withdraw(_amountIn);
         return withdrawalPool.swap{value: _amountIn}(0, 1, _amountIn, 0, type(uint256).max);
     }
 
     function _swapThroughPair(uint256 _amountIn, address _toToken) internal returns (uint256) {
-        return DexLibrary.swap(_amountIn, address(WAVAX), _toToken, IPair(swapPairWavaxOther));
+        return DexLibrary.swap(_amountIn, address(WGAS), _toToken, IPair(swapPairWavaxOther));
     }
 
     function totalDeposits() public view override returns (uint256 amount) {
-        (amount, ) = joeChef.userInfo(PID, address(this));
+        (amount,) = joeChef.userInfo(PID, address(this));
     }
 
     function _emergencyWithdraw() internal override {

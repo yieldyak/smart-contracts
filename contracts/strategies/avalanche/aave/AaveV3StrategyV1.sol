@@ -2,7 +2,7 @@
 pragma solidity 0.8.13;
 
 import "../../../YakStrategyV2.sol";
-import "../../../interfaces/IWAVAX.sol";
+import "../../../interfaces/IWGAS.sol";
 import "../../../interfaces/IERC20.sol";
 import "../../../lib/SafeMath.sol";
 import "../../../lib/DexLibrary.sol";
@@ -45,7 +45,7 @@ contract AaveV3StrategyV1 is YakStrategyV2 {
     IAaveV3IncentivesController private rewardController;
     ILendingPoolAaveV3 private tokenDelegator;
     IPair private swapPairToken;
-    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    IWGAS private constant WAVAX = IWGAS(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
     address private avToken;
     address private avDebtToken;
 

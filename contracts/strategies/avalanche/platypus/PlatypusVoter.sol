@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "../../../interfaces/IWAVAX.sol";
+import "../../../interfaces/IWGAS.sol";
 import "../../../lib/Ownable.sol";
 import "../../../lib/ERC20.sol";
 import "../../../lib/SafeERC20.sol";
@@ -19,7 +19,7 @@ contract PlatypusVoter is IPlatypusVoter, Ownable, ERC20 {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
-    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    IWGAS private constant WAVAX = IWGAS(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
     address public constant PTP = address(0x22d4002028f537599bE9f666d1c4Fa138522f9c8);
     IVePTP public constant vePTP = IVePTP(0x5857019c749147EEE22b1Fe63500F237F3c1B692);
 

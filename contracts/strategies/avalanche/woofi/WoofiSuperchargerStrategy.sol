@@ -31,8 +31,7 @@ contract WoofiSuperchargerStrategy is VariableRewardsStrategy {
         wooChef = IMasterChefWoo(_stakingContract);
         xWoo = IWooStakingVault(wooChef.xWoo());
         require(
-            address(rewardToken) == IWooSuperChargerVault(_strategySettings.depositToken).want(),
-            "Invalid reward token"
+            address(rewardToken) == IWooSuperChargerVault(_strategySettings.depositToken).want(), "Invalid reward token"
         );
         router = IWooRouterV2(_router);
         pool = IWooPPV2(router.wooPool());
@@ -41,7 +40,7 @@ contract WoofiSuperchargerStrategy is VariableRewardsStrategy {
     }
 
     receive() external payable {
-        require(address(rewardToken) == address(WAVAX) && msg.sender == address(WAVAX), "not allowed");
+        require(address(rewardToken) == address(WGAS) && msg.sender == address(WGAS), "not allowed");
     }
 
     function _depositToStakingContract(uint256 _amount, uint256) internal override {
@@ -78,8 +77,8 @@ contract WoofiSuperchargerStrategy is VariableRewardsStrategy {
     }
 
     function _convertRewardTokenToDepositToken(uint256 _fromAmount) internal override returns (uint256 toAmount) {
-        if (address(rewardToken) == address(WAVAX)) {
-            WAVAX.withdraw(_fromAmount);
+        if (address(rewardToken) == address(WGAS)) {
+            WGAS.withdraw(_fromAmount);
             IWooSuperChargerVault(address(depositToken)).deposit{value: _fromAmount}(_fromAmount);
         } else {
             rewardToken.approve(address(depositToken), _fromAmount);
@@ -90,7 +89,7 @@ contract WoofiSuperchargerStrategy is VariableRewardsStrategy {
     }
 
     function totalDeposits() public view override returns (uint256 amount) {
-        (amount, ) = wooChef.userInfo(PID, address(this));
+        (amount,) = wooChef.userInfo(PID, address(this));
     }
 
     function _emergencyWithdraw() internal override {

@@ -3,7 +3,7 @@ pragma solidity 0.8.13;
 
 import "../YakStrategyV2.sol";
 import "../interfaces/IPair.sol";
-import "./../interfaces/IWAVAX.sol";
+import "./../interfaces/IWGAS.sol";
 import "./../lib/SafeMath.sol";
 import "../lib/DexLibrary.sol";
 
@@ -13,7 +13,7 @@ import "../lib/DexLibrary.sol";
 abstract contract MasterChefVariableRewardsStrategy is YakStrategyV2 {
     using SafeMath for uint256;
 
-    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    IWGAS private constant WGAS = IWGAS(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
 
     struct Reward {
         address reward;
@@ -100,13 +100,7 @@ abstract contract MasterChefVariableRewardsStrategy is YakStrategyV2 {
      * @param r Half of the ECDSA signature pair
      * @param s Half of the ECDSA signature pair
      */
-    function depositWithPermit(
-        uint256 amount,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external override {
+    function depositWithPermit(uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external override {
         depositToken.permit(msg.sender, address(this), amount, deadline, v, r, s);
         _deposit(msg.sender, amount);
     }
@@ -152,7 +146,7 @@ abstract contract MasterChefVariableRewardsStrategy is YakStrategyV2 {
         _reinvest(rewards);
     }
 
-    function _convertRewardIntoWAVAX(Reward[] memory rewards) private returns (uint256) {
+    function _convertRewardIntoWGAS(Reward[] memory rewards) private returns (uint256) {
         uint256 avaxAmount = rewardToken.balanceOf(address(this));
         for (uint256 i = 0; i < rewards.length; i++) {
             address reward = rewards[i].reward;
@@ -162,14 +156,13 @@ abstract contract MasterChefVariableRewardsStrategy is YakStrategyV2 {
                 if (reward == address(rewardToken)) {
                     uint256 balance = address(this).balance;
                     if (balance > 0) {
-                        WAVAX.deposit{value: balance}();
+                        WGAS.deposit{value: balance}();
                         avaxAmount = avaxAmount.add(amount);
                     }
                 } else {
                     if (swapPair > address(0)) {
-                        avaxAmount = avaxAmount.add(
-                            DexLibrary.swap(amount, reward, address(rewardToken), IPair(swapPair))
-                        );
+                        avaxAmount =
+                            avaxAmount.add(DexLibrary.swap(amount, reward, address(rewardToken), IPair(swapPair)));
                     }
                 }
             }
@@ -183,7 +176,7 @@ abstract contract MasterChefVariableRewardsStrategy is YakStrategyV2 {
      */
     function _reinvest(Reward[] memory rewards) private {
         _getRewards(PID);
-        uint256 amount = _convertRewardIntoWAVAX(rewards);
+        uint256 amount = _convertRewardIntoWGAS(rewards);
 
         uint256 devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {
@@ -213,11 +206,7 @@ abstract contract MasterChefVariableRewardsStrategy is YakStrategyV2 {
      * @param to recipient address
      * @param value amount
      */
-    function _safeTransfer(
-        address token,
-        address to,
-        uint256 value
-    ) private {
+    function _safeTransfer(address token, address to, uint256 value) private {
         require(IERC20(token).transfer(to, value), "MasterChefStrategyV1::TRANSFER_FROM_FAILED");
     }
 
@@ -268,10 +257,7 @@ abstract contract MasterChefVariableRewardsStrategy is YakStrategyV2 {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         _emergencyWithdraw(PID);
         uint256 balanceAfter = depositToken.balanceOf(address(this));
-        require(
-            balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
-            "MasterChefStrategyV1::rescueDeployedFunds"
-        );
+        require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "MasterChefStrategyV1::rescueDeployedFunds");
         emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
             updateDepositsEnabled(false);

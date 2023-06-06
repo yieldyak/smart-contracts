@@ -10,7 +10,7 @@ import "./interfaces/IKassandraStaking.sol";
 contract KassandraIndexStrategy is MasterChefStrategy {
     using SafeMath for uint256;
 
-    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    IWGAS private constant WAVAX = IWGAS(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
 
     IKassandraStaking public stakingContract;
     IKassandraPool public kassandraPool;

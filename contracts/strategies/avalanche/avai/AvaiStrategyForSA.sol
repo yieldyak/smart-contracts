@@ -5,7 +5,7 @@ pragma solidity 0.8.13;
 import "./interfaces/IAvaiPodLeader.sol";
 import "../../../interfaces/IERC20.sol";
 import "../../../interfaces/IPair.sol";
-import "../../../interfaces/IWAVAX.sol";
+import "../../../interfaces/IWGAS.sol";
 import "../../../lib/DexLibrary.sol";
 import "../../MasterChefStrategyForSA.sol";
 
@@ -14,7 +14,7 @@ contract AvaiStrategyForSA is MasterChefStrategyForSA {
     using SafeMath for uint256;
 
     IAvaiPodLeader public podLeader;
-    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    IWGAS private constant WAVAX = IWGAS(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
 
     constructor(
         string memory _name,

@@ -66,12 +66,12 @@ contract SynapseStrategy is VariableRewardsStrategy {
     }
 
     function totalDeposits() public view override returns (uint256) {
-        (uint256 amount, ) = miniChef.userInfo(PID, address(this));
+        (uint256 amount,) = miniChef.userInfo(PID, address(this));
         return amount;
     }
 
     function _convertRewardTokenToDepositToken(uint256 fromAmount) internal override returns (uint256 toAmount) {
-        uint256 amount = DexLibrary.swap(fromAmount, address(WAVAX), swapDepositToken, IPair(swapPairDepositToken));
+        uint256 amount = DexLibrary.swap(fromAmount, address(WGAS), swapDepositToken, IPair(swapPairDepositToken));
 
         IERC20(swapDepositToken).approve(address(synapseSwap), amount);
         uint256[] memory amounts = new uint256[](tokenCount);

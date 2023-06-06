@@ -3,7 +3,7 @@ pragma solidity 0.8.13;
 
 import "../YakStrategyV2.sol";
 import "../interfaces/IPair.sol";
-import "../interfaces/IWAVAX.sol";
+import "../interfaces/IWGAS.sol";
 import "../lib/DexLibrary.sol";
 import "../lib/SafeERC20.sol";
 
@@ -13,7 +13,7 @@ import "../lib/SafeERC20.sol";
 abstract contract VariableRewardsStrategy is YakStrategyV2 {
     using SafeERC20 for IERC20;
 
-    IWAVAX internal immutable WAVAX;
+    IWGAS internal immutable WGAS;
 
     struct VariableRewardsStrategySettings {
         string name;
@@ -45,8 +45,8 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         YakStrategyV2(_strategySettings)
     {
         name = _settings.name;
-        WAVAX = IWAVAX(_settings.platformToken);
         devAddr = 0x2D580F9CF2fB2D09BC411532988F2aFdA4E7BefF;
+        WGAS = IWGAS(_settings.platformToken);
 
         for (uint256 i = 0; i < _settings.rewardSwapPairs.length; i++) {
             _addReward(
@@ -65,19 +65,11 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         _addReward(_rewardToken, _swapPair, DexLibrary.DEFAULT_SWAP_FEE);
     }
 
-    function addReward(
-        address _rewardToken,
-        address _swapPair,
-        uint256 _swapFee
-    ) public onlyDev {
+    function addReward(address _rewardToken, address _swapPair, uint256 _swapFee) public onlyDev {
         _addReward(_rewardToken, _swapPair, _swapFee);
     }
 
-    function _addReward(
-        address _rewardToken,
-        address _swapPair,
-        uint256 _swapFee
-    ) internal {
+    function _addReward(address _rewardToken, address _swapPair, uint256 _swapFee) internal {
         if (_rewardToken != address(rewardToken)) {
             require(
                 DexLibrary.checkSwapPairCompatibility(IPair(_swapPair), _rewardToken, address(rewardToken)),
@@ -129,13 +121,10 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
      * @param _r Half of the ECDSA signature pair
      * @param _s Half of the ECDSA signature pair
      */
-    function depositWithPermit(
-        uint256 _amount,
-        uint256 _deadline,
-        uint8 _v,
-        bytes32 _r,
-        bytes32 _s
-    ) external override {
+    function depositWithPermit(uint256 _amount, uint256 _deadline, uint8 _v, bytes32 _r, bytes32 _s)
+        external
+        override
+    {
         depositToken.permit(msg.sender, address(this), _amount, _deadline, _v, _r, _s);
         _deposit(msg.sender, _amount);
     }
@@ -216,12 +205,12 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         uint256 count = supportedRewards.length;
         for (uint256 i = 0; i < count; i++) {
             address reward = supportedRewards[i];
-            if (reward == address(WAVAX)) {
+            if (reward == address(WGAS)) {
                 uint256 balance = address(this).balance;
                 if (balance > 0) {
-                    WAVAX.deposit{value: balance}();
+                    WGAS.deposit{value: balance}();
                 }
-                if (address(rewardToken) == address(WAVAX)) {
+                if (address(rewardToken) == address(WGAS)) {
                     rewardTokenAmount += balance;
                     continue;
                 }
@@ -231,11 +220,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
                 address swapPair = rewardSwapPairs[reward].swapPair;
                 if (swapPair > address(0)) {
                     rewardTokenAmount += DexLibrary.swap(
-                        amount,
-                        reward,
-                        address(rewardToken),
-                        IPair(swapPair),
-                        rewardSwapPairs[reward].swapFee
+                        amount, reward, address(rewardToken), IPair(swapPair), rewardSwapPairs[reward].swapFee
                     );
                 }
             }
@@ -279,7 +264,7 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
     function checkReward() public view override returns (uint256) {
         Reward[] memory rewards = _pendingRewards();
         uint256 estimatedTotalReward = rewardToken.balanceOf(address(this));
-        if (address(rewardToken) == address(WAVAX)) {
+        if (address(rewardToken) == address(WGAS)) {
             estimatedTotalReward += address(this).balance;
         }
         for (uint256 i = 0; i < rewards.length; i++) {
@@ -314,10 +299,11 @@ abstract contract VariableRewardsStrategy is YakStrategyV2 {
         return depositBalance - withdrawFee;
     }
 
-    function rescueDeployedFunds(
-        uint256 _minReturnAmountAccepted,
-        bool /*_disableDeposits*/
-    ) external override onlyOwner {
+    function rescueDeployedFunds(uint256 _minReturnAmountAccepted, bool /*_disableDeposits*/ )
+        external
+        override
+        onlyOwner
+    {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         _emergencyWithdraw();
         uint256 balanceAfter = depositToken.balanceOf(address(this));

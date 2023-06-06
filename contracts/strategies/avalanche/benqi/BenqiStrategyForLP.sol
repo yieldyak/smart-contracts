@@ -3,7 +3,7 @@ pragma solidity 0.8.13;
 
 import "../../../YakStrategy.sol";
 import "../../../lib/DexLibrary.sol";
-import "./../../../interfaces/IWAVAX.sol";
+import "./../../../interfaces/IWGAS.sol";
 import "../../../interfaces/IPair.sol";
 import "./interfaces/IBenqiStakingContract.sol";
 
@@ -17,7 +17,7 @@ contract BenqiStrategyForLP is YakStrategy {
     IERC20 private wavaxRewardToken;
     IERC20 private qiRewardToken;
     IPair private swapPairToken; // WAVAX-QI LP
-    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    IWGAS private constant WAVAX = IWGAS(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
 
     constructor(
         string memory _name,

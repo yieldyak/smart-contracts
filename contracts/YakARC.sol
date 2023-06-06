@@ -4,7 +4,7 @@ pragma solidity 0.8.13;
 import "./lib/SafeMath.sol";
 import "./lib/AccessControl.sol";
 import "./timelocks/YakFeeCollectorV1.sol";
-import "./interfaces/IWAVAX.sol";
+import "./interfaces/IWGAS.sol";
 
 /**
  * @notice YakARC is an Automated Revenue Collector
@@ -21,7 +21,7 @@ contract YakARC is AccessControl {
     bytes32 public constant DISTRIBUTION_UPDATER_ROLE = keccak256("DISTRIBUTION_UPDATER_ROLE");
 
     /// @dev WAVAX
-    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    IWGAS private constant WAVAX = IWGAS(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
 
     /// @notice YakFeeCollectorV1 address
     YakFeeCollectorV1 public feeCollector;
@@ -123,7 +123,7 @@ contract YakARC is AccessControl {
             uint256 amount = balance.mul(distributionRatios[i]).div(10000);
             if (amount > 0) {
                 totalPaid = totalPaid.add(amount);
-                (bool success, ) = distributionAddresses[i].call{value: amount}("");
+                (bool success,) = distributionAddresses[i].call{value: amount}("");
                 require(success == true, "distribute::transfer failed");
                 emit Paid(currentEpoch(), distributionAddresses[i], amount);
             }
