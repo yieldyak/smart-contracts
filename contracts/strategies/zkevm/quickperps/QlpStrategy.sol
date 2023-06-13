@@ -198,7 +198,10 @@ contract QlpStrategy is YakStrategyV2 {
     function withdraw(uint256 _amount) external override {
         uint256 depositTokenAmount = getDepositTokensForShares(_amount);
         require(depositTokenAmount > 0, "VariableRewardsStrategy::Withdraw amount too low");
-        uint256 withdrawFee = calculateWithdrawFee(depositTokenAmount);
+        uint256 withdrawFee;
+        if (totalSupply > _amount) {
+            withdrawFee = calculateWithdrawFee(depositTokenAmount);
+        }
         depositToken.safeTransfer(msg.sender, depositTokenAmount - withdrawFee);
         _burn(msg.sender, _amount);
         emit Withdraw(msg.sender, depositTokenAmount);
@@ -314,9 +317,7 @@ contract QlpStrategy is YakStrategyV2 {
      * @return deposit tokens after withdraw fee
      */
     function estimateDeployedBalance() external view override returns (uint256) {
-        uint256 depositBalance = totalDeposits();
-        uint256 withdrawFee = calculateWithdrawFee(depositBalance);
-        return depositBalance - withdrawFee;
+        return totalDeposits();
     }
 
     function rescueDeployedFunds(uint256, bool) external view override onlyOwner {
