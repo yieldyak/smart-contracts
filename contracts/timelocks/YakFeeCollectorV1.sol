@@ -38,6 +38,13 @@ interface IStrategy {
     // Aave
     function updateLeverage(uint256 _leverageLevel, uint256 _safetyFactor, uint256 _minMinting, uint256 _leverageBips)
         external;
+
+    // QLP
+    function updateDepositFee(uint256 _depositFeeBips) external;
+
+    function updateWithdrawFee(uint256 _withdrawFeeBips) external;
+
+    function updateQlpTokenIn(address _pair, uint256 _swapFee) external;
 }
 
 /**
@@ -173,5 +180,20 @@ contract YakFeeCollectorV1 is AccessControl {
     function addReward(address strategy, address rewardToken, address swapPair, uint256 swapFee) external {
         require(hasRole(DEV_ROLE, msg.sender), "execute::auth");
         IStrategy(strategy).addReward(rewardToken, swapPair, swapFee);
+    }
+
+    function updateWithdrawFee(address strategy, uint256 withdrawFeeBips) external {
+        require(hasRole(DEV_ROLE, msg.sender), "execute::auth");
+        IStrategy(strategy).updateWithdrawFee(withdrawFeeBips);
+    }
+
+    function updateDepositFee(address strategy, uint256 depositFeeBips) external {
+        require(hasRole(DEV_ROLE, msg.sender), "execute::auth");
+        IStrategy(strategy).updateDepositFee(depositFeeBips);
+    }
+
+    function updateQlpTokenIn(address strategy, address pair, uint256 swapFee) external {
+        require(hasRole(DEV_ROLE, msg.sender), "execute::auth");
+        IStrategy(strategy).updateQlpTokenIn(pair, swapFee);
     }
 }
