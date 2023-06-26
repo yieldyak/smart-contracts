@@ -38,6 +38,9 @@ interface IStrategy {
     // Aave
     function updateLeverage(uint256 _leverageLevel, uint256 _safetyFactor, uint256 _minMinting, uint256 _leverageBips)
         external;
+
+    // Level
+    function updateLPTokenIn(address _pair, uint256 _swapFee) external;
 }
 
 /**
