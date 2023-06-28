@@ -25,7 +25,4 @@ deployments/localhost/
 
 #Foundry
 out
-lib
 forge-cache
-foundry.toml
-remappings.txt
