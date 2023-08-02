@@ -4,7 +4,7 @@ pragma solidity 0.8.13;
 
 import "../../MasterChefStrategyForSA.sol";
 import "../../../interfaces/IERC20.sol";
-import "../../../interfaces/IWAVAX.sol";
+import "../../../interfaces/IWGAS.sol";
 import "../../../lib/SafeERC20.sol";
 
 import "./interfaces/IGmxProxy.sol";
@@ -14,7 +14,7 @@ contract GmxStrategyForGMX is MasterChefStrategyForSA {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    IWGAS private constant WAVAX = IWGAS(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
 
     IGmxProxy public proxy;
 

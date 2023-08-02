@@ -4,7 +4,7 @@ pragma solidity 0.8.13;
 import "../../../YakStrategy.sol";
 import "../../../interfaces/IPair.sol";
 import "../../../interfaces/IERC20.sol";
-import "../../../interfaces/IWAVAX.sol";
+import "../../../interfaces/IWGAS.sol";
 import "../../../lib/DexLibrary.sol";
 
 import "./interfaces/IYakChef.sol";
@@ -117,7 +117,7 @@ contract MasterYakStrategyForLP is YakStrategy {
      */
     function _reinvest(uint256 amount) private {
         stakingContract.deposit(PID, 0);
-        IWAVAX(address(rewardToken)).deposit{value: amount}();
+        IWGAS(address(rewardToken)).deposit{value: amount}();
 
         uint256 devFee = amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
         if (devFee > 0) {

@@ -16,8 +16,8 @@ contract YYAvaxPlatypusStrategy is PlatypusStrategy {
         Reward[] memory rewards = proxy.pendingRewards(PID);
         for (uint256 i = 0; i < rewards.length; i++) {
             if (rewards[i].reward == yyAVAX) {
-                (rewards[i].amount, ) = pool.quotePotentialSwap(yyAVAX, address(WAVAX), rewards[i].amount);
-                rewards[i].reward = address(WAVAX);
+                (rewards[i].amount,) = pool.quotePotentialSwap(yyAVAX, address(WGAS), rewards[i].amount);
+                rewards[i].reward = address(WGAS);
             }
         }
         return rewards;
@@ -28,16 +28,16 @@ contract YYAvaxPlatypusStrategy is PlatypusStrategy {
         uint256 yyAvaxBalance = IERC20(yyAVAX).balanceOf(address(this));
         if (yyAvaxBalance > 0) {
             IERC20(yyAVAX).approve(address(pool), yyAvaxBalance);
-            pool.swap(yyAVAX, address(WAVAX), yyAvaxBalance, 0, address(this), type(uint256).max);
+            pool.swap(yyAVAX, address(WGAS), yyAvaxBalance, 0, address(this), type(uint256).max);
             IERC20(yyAVAX).approve(address(pool), 0);
         }
     }
 
     function _convertRewardTokenToDepositToken(uint256 _fromAmount) internal override returns (uint256 toAmount) {
         if (address(depositToken) == yyAVAX) {
-            WAVAX.approve(address(pool), _fromAmount);
-            (toAmount, ) = pool.swap(address(WAVAX), yyAVAX, _fromAmount, 0, address(this), type(uint256).max);
-            WAVAX.approve(address(pool), 0);
+            WGAS.approve(address(pool), _fromAmount);
+            (toAmount,) = pool.swap(address(WGAS), yyAVAX, _fromAmount, 0, address(this), type(uint256).max);
+            WGAS.approve(address(pool), 0);
         } else {
             return super._convertRewardTokenToDepositToken(_fromAmount);
         }

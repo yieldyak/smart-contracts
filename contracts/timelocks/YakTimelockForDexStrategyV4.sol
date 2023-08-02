@@ -30,7 +30,7 @@ interface IStrategy {
 
     function recoverERC20(address tokenAddress, uint256 tokenAmount) external;
 
-    function recoverAVAX(uint256 amount) external;
+    function recoverGasToken(uint256 amount) external;
 
     function setAllowances() external;
 
@@ -66,10 +66,7 @@ contract YakTimelockForDexStrategyV4 {
     event ProposeDevFee(address indexed strategy, uint256 proposedValue, uint256 timelock);
     event ProposeReinvestReward(address indexed strategy, uint256 proposedValue, uint256 timelock);
     event ProposeRecovery(
-        address indexed strategy,
-        address indexed proposedToken,
-        uint256 proposedValue,
-        uint256 timelock
+        address indexed strategy, address indexed proposedToken, uint256 proposedValue, uint256 timelock
     );
 
     event SetOwner(address indexed strategy, address indexed newValue);
@@ -95,7 +92,7 @@ contract YakTimelockForDexStrategyV4 {
         updateDevFee,
         updateReinvestReward,
         recoverERC20,
-        recoverAVAX
+        recoverGasToken
     }
 
     enum PermissionedTimelockFunctions {
@@ -160,11 +157,7 @@ contract YakTimelockForDexStrategyV4 {
      * @param _fn Function enum value
      * @param timelockLength in seconds
      */
-    modifier setTimelock(
-        address _strategy,
-        Functions _fn,
-        uint256 timelockLength
-    ) {
+    modifier setTimelock(address _strategy, Functions _fn, uint256 timelockLength) {
         timelock[_strategy][_fn] = block.timestamp + timelockLength;
         _;
     }
@@ -244,8 +237,7 @@ contract YakTimelockForDexStrategyV4 {
     {
         require(tokenAmount > 0, "YakTimelockManager::sweepTokens, amount too low");
         require(
-            IERC20(tokenAddress).transfer(msg.sender, tokenAmount),
-            "YakTimelockManager::sweepTokens, transfer failed"
+            IERC20(tokenAddress).transfer(msg.sender, tokenAmount), "YakTimelockManager::sweepTokens, transfer failed"
         );
         emit Sweep(tokenAddress, tokenAmount);
     }
@@ -359,9 +351,7 @@ contract YakTimelockForDexStrategyV4 {
     {
         pendingReinvestRewards[_strategy] = _pendingReinvestReward;
         emit ProposeReinvestReward(
-            _strategy,
-            _pendingReinvestReward,
-            timelock[_strategy][Functions.updateReinvestReward]
+            _strategy, _pendingReinvestReward, timelock[_strategy][Functions.updateReinvestReward]
         );
     }
 
@@ -411,8 +401,7 @@ contract YakTimelockForDexStrategyV4 {
      */
     function setRecoverERC20(address _strategy) external enforceTimelock(_strategy, Functions.recoverERC20) {
         IStrategy(_strategy).recoverERC20(
-            pendingTokenAddressesToRecover[_strategy],
-            pendingTokenAmountsToRecover[_strategy]
+            pendingTokenAddressesToRecover[_strategy], pendingTokenAmountsToRecover[_strategy]
         );
         emit Recover(_strategy, pendingTokenAddressesToRecover[_strategy], pendingTokenAmountsToRecover[_strategy]);
         pendingTokenAddressesToRecover[_strategy] = address(0);
@@ -420,7 +409,7 @@ contract YakTimelockForDexStrategyV4 {
     }
 
     /**
-     * @notice Pass values for `recoverAVAX` through timelock
+     * @notice Pass values for `recoverGasToken` through timelock
      * @dev Restricted to `manager` to avoid griefing
      * @dev Resets timelock duration through modifier
      * @param _strategy address
@@ -429,20 +418,22 @@ contract YakTimelockForDexStrategyV4 {
     function proposeRecoverAVAX(address _strategy, uint256 _pendingAVAXToRecover)
         external
         hasPermission(PermissionedTimelockFunctions.proposeRecoverAVAX, msg.sender)
-        setTimelock(_strategy, Functions.recoverAVAX, timelockLengthForAssetRecovery)
+        setTimelock(_strategy, Functions.recoverGasToken, timelockLengthForAssetRecovery)
     {
         pendingAVAXToRecover[_strategy] = _pendingAVAXToRecover;
-        emit ProposeRecovery(_strategy, address(0), _pendingAVAXToRecover, timelock[_strategy][Functions.recoverAVAX]);
+        emit ProposeRecovery(
+            _strategy, address(0), _pendingAVAXToRecover, timelock[_strategy][Functions.recoverGasToken]
+        );
     }
 
     /**
-     * @notice Call `recoverAVAX` and reset timelock
+     * @notice Call `recoverGasToken` and reset timelock
      * @dev This can be called by anyone
      * @dev Recoverd funds are collected to this timelock and may be swept
      * @param _strategy address
      */
-    function setRecoverAVAX(address _strategy) external enforceTimelock(_strategy, Functions.recoverAVAX) {
-        IStrategy(_strategy).recoverAVAX(pendingAVAXToRecover[_strategy]);
+    function setRecoverAVAX(address _strategy) external enforceTimelock(_strategy, Functions.recoverGasToken) {
+        IStrategy(_strategy).recoverGasToken(pendingAVAXToRecover[_strategy]);
         emit Recover(_strategy, address(0), pendingAVAXToRecover[_strategy]);
         pendingAVAXToRecover[_strategy] = 0;
     }
@@ -510,11 +501,10 @@ contract YakTimelockForDexStrategyV4 {
      * @param minReturnAmountAccepted amount
      * @param disableDeposits bool
      */
-    function rescueDeployedFunds(
-        address _strategy,
-        uint256 minReturnAmountAccepted,
-        bool disableDeposits
-    ) external hasPermission(PermissionedTimelockFunctions.rescueDeployedFunds, msg.sender) {
+    function rescueDeployedFunds(address _strategy, uint256 minReturnAmountAccepted, bool disableDeposits)
+        external
+        hasPermission(PermissionedTimelockFunctions.rescueDeployedFunds, msg.sender)
+    {
         IStrategy(_strategy).rescueDeployedFunds(minReturnAmountAccepted, disableDeposits);
         emit EmergencyWithdraw(_strategy);
     }

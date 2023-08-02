@@ -40,9 +40,8 @@ contract YYAvaxEchidnaStrategy is VariableRewardsStrategy {
         PID = _echidnaStrategySettings.pid;
         platypusPool = IPlatypusPool(_echidnaStrategySettings.platypusPool);
         echidnaBooster = IEchidnaBooster(_echidnaStrategySettings.stakingContract);
-        platypusAsset = IPlatypusAsset(
-            IPlatypusPool(_echidnaStrategySettings.platypusPool).assetOf(_strategySettings.depositToken)
-        );
+        platypusAsset =
+            IPlatypusAsset(IPlatypusPool(_echidnaStrategySettings.platypusPool).assetOf(_strategySettings.depositToken));
         boosterFeeCollector = IBoosterFeeCollector(_echidnaStrategySettings.boosterFeeCollector);
         swapPairDepositToken = _echidnaStrategySettings.swapPairDepositToken;
     }
@@ -53,8 +52,8 @@ contract YYAvaxEchidnaStrategy is VariableRewardsStrategy {
 
     function _convertRewardTokenToDepositToken(uint256 _fromAmount) internal override returns (uint256 toAmount) {
         if (address(depositToken) == yyAVAX) {
-            WAVAX.approve(address(platypusPool), _fromAmount);
-            (toAmount, ) = platypusPool.swap(address(WAVAX), yyAVAX, _fromAmount, 0, address(this), type(uint256).max);
+            WGAS.approve(address(platypusPool), _fromAmount);
+            (toAmount,) = platypusPool.swap(address(WGAS), yyAVAX, _fromAmount, 0, address(this), type(uint256).max);
         } else if (address(rewardToken) == address(depositToken)) {
             return _fromAmount;
         } else {
@@ -82,15 +81,10 @@ contract YYAvaxEchidnaStrategy is VariableRewardsStrategy {
         liquidity = liquidity > lpBalance ? lpBalance : liquidity;
         echidnaBooster.withdraw(PID, liquidity, false, false, 0, type(uint256).max);
 
-        (uint256 expectedAmount, , ) = platypusPool.quotePotentialWithdraw(address(depositToken), liquidity);
+        (uint256 expectedAmount,,) = platypusPool.quotePotentialWithdraw(address(depositToken), liquidity);
         IERC20(address(platypusAsset)).approve(address(platypusPool), liquidity);
-        _withdrawAmount = platypusPool.withdraw(
-            address(depositToken),
-            liquidity,
-            expectedAmount,
-            address(this),
-            type(uint256).max
-        );
+        _withdrawAmount =
+            platypusPool.withdraw(address(depositToken), liquidity, expectedAmount, address(this), type(uint256).max);
     }
 
     function _emergencyWithdraw() internal override {
@@ -107,17 +101,12 @@ contract YYAvaxEchidnaStrategy is VariableRewardsStrategy {
         pendingRewards[0] = Reward({reward: address(PTP), amount: pendingPTP - boostFee});
         for (uint256 i = 1; i < rewardCount; i++) {
             IEchidnaRewardPool extraRewardPool = IEchidnaRewardPool(echidnaRewardPool.extraRewards(i - 1));
-            pendingRewards[i] = Reward({
-                reward: extraRewardPool.rewardToken(),
-                amount: extraRewardPool.earned(address(this))
-            });
+            pendingRewards[i] =
+                Reward({reward: extraRewardPool.rewardToken(), amount: extraRewardPool.earned(address(this))});
             if (pendingRewards[i].reward == yyAVAX) {
-                (pendingRewards[i].amount, ) = platypusPool.quotePotentialSwap(
-                    yyAVAX,
-                    address(WAVAX),
-                    pendingRewards[i].amount
-                );
-                pendingRewards[i].reward = address(WAVAX);
+                (pendingRewards[i].amount,) =
+                    platypusPool.quotePotentialSwap(yyAVAX, address(WGAS), pendingRewards[i].amount);
+                pendingRewards[i].reward = address(WGAS);
             }
         }
         return pendingRewards;
@@ -130,7 +119,7 @@ contract YYAvaxEchidnaStrategy is VariableRewardsStrategy {
         uint256 yyAvaxBalance = IERC20(yyAVAX).balanceOf(address(this));
         if (yyAvaxBalance > 0) {
             IERC20(yyAVAX).approve(address(platypusPool), yyAvaxBalance);
-            platypusPool.swap(yyAVAX, address(WAVAX), yyAvaxBalance, 0, address(this), type(uint256).max);
+            platypusPool.swap(yyAVAX, address(WGAS), yyAvaxBalance, 0, address(this), type(uint256).max);
         }
     }
 
@@ -142,16 +131,14 @@ contract YYAvaxEchidnaStrategy is VariableRewardsStrategy {
     function totalDeposits() public view override returns (uint256) {
         uint256 assetBalance = _echidnaRewardPool().balanceOf(address(this));
         if (assetBalance == 0) return 0;
-        (uint256 depositTokenBalance, uint256 fee, bool enoughCash) = platypusPool.quotePotentialWithdraw(
-            address(depositToken),
-            assetBalance
-        );
+        (uint256 depositTokenBalance, uint256 fee, bool enoughCash) =
+            platypusPool.quotePotentialWithdraw(address(depositToken), assetBalance);
         require(enoughCash, "1");
         return depositTokenBalance + fee;
     }
 
     function _echidnaRewardPool() internal view returns (IEchidnaRewardPool) {
-        (, , , address rewardPool, , ) = IEchidnaBooster(address(echidnaBooster)).pools(PID);
+        (,,, address rewardPool,,) = IEchidnaBooster(address(echidnaBooster)).pools(PID);
         return IEchidnaRewardPool(rewardPool);
     }
 }

@@ -3,7 +3,7 @@ pragma solidity 0.8.13;
 
 import "../YakStrategyV2.sol";
 import "../interfaces/IPair.sol";
-import "./../interfaces/IWAVAX.sol";
+import "./../interfaces/IWGAS.sol";
 import "./../lib/SafeMath.sol";
 import "../lib/DexLibrary.sol";
 
@@ -13,7 +13,7 @@ import "../lib/DexLibrary.sol";
 abstract contract MasterChefStrategy is YakStrategyV2 {
     using SafeMath for uint256;
 
-    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    IWGAS private constant WGAS = IWGAS(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
 
     uint256 public immutable PID;
     address private poolRewardToken;
@@ -46,11 +46,9 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
      * @dev Checks that selected Pairs are valid for trading reward tokens
      * @dev Assigns values to IPair(swapPairToken0) and IPair(swapPairToken1)
      */
-    function assignSwapPairSafely(
-        address _ecosystemToken,
-        address _poolRewardToken,
-        address _swapPairPoolReward
-    ) private {
+    function assignSwapPairSafely(address _ecosystemToken, address _poolRewardToken, address _swapPairPoolReward)
+        private
+    {
         if (_poolRewardToken != _ecosystemToken) {
             if (_poolRewardToken == IPair(_swapPairPoolReward).token0()) {
                 require(
@@ -104,13 +102,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
      * @param r Half of the ECDSA signature pair
      * @param s Half of the ECDSA signature pair
      */
-    function depositWithPermit(
-        uint256 amount,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external override {
+    function depositWithPermit(uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external override {
         depositToken.permit(msg.sender, address(this), amount, deadline, v, r, s);
         _deposit(msg.sender, amount);
     }
@@ -156,12 +148,8 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
     }
 
     function reinvest() external override onlyEOA {
-        (
-            uint256 poolTokenAmount,
-            uint256 extraTokenAmount,
-            uint256 rewardTokenBalance,
-            uint256 estimatedTotalReward
-        ) = _checkReward();
+        (uint256 poolTokenAmount, uint256 extraTokenAmount, uint256 rewardTokenBalance, uint256 estimatedTotalReward) =
+            _checkReward();
         require(estimatedTotalReward >= MIN_TOKENS_TO_REINVEST, "MasterChefStrategyV1::reinvest");
         _reinvest(rewardTokenBalance, poolTokenAmount, extraTokenAmount);
     }
@@ -184,9 +172,9 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
 
             uint256 avaxBalance = address(this).balance;
             if (avaxBalance > 0) {
-                WAVAX.deposit{value: avaxBalance}();
+                WGAS.deposit{value: avaxBalance}();
             }
-            return WAVAX.balanceOf(address(this)).sub(rewardTokenBalance);
+            return WGAS.balanceOf(address(this)).sub(rewardTokenBalance);
         }
         return 0;
     }
@@ -195,11 +183,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
      * @notice Reinvest rewards from staking contract to deposit tokens
      * @dev Reverts if the expected amount of tokens are not returned from `MasterChef`
      */
-    function _reinvest(
-        uint256 rewardTokenBalance,
-        uint256 poolTokenAmount,
-        uint256 extraTokenAmount
-    ) private {
+    function _reinvest(uint256 rewardTokenBalance, uint256 poolTokenAmount, uint256 extraTokenAmount) private {
         _getRewards(PID);
         uint256 amount = rewardTokenBalance.add(_convertPoolTokensIntoReward(poolTokenAmount));
         amount.add(_convertExtraTokensIntoReward(rewardTokenBalance, extraTokenAmount));
@@ -232,11 +216,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
      * @param to recipient address
      * @param value amount
      */
-    function _safeTransfer(
-        address token,
-        address to,
-        uint256 value
-    ) private {
+    function _safeTransfer(address token, address to, uint256 value) private {
         require(IERC20(token).transfer(to, value), "MasterChefStrategyV1::TRANSFER_FROM_FAILED");
     }
 
@@ -251,31 +231,23 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
         )
     {
         uint256 poolTokenBalance = IERC20(poolRewardToken).balanceOf(address(this));
-        (uint256 pendingPoolTokenAmount, uint256 pendingExtraTokenAmount, address extraTokenAddress) = _pendingRewards(
-            PID,
-            address(this)
-        );
+        (uint256 pendingPoolTokenAmount, uint256 pendingExtraTokenAmount, address extraTokenAddress) =
+            _pendingRewards(PID, address(this));
         uint256 poolTokenAmount = poolTokenBalance.add(pendingPoolTokenAmount);
 
         uint256 pendingRewardTokenAmount = poolRewardToken != address(rewardToken)
             ? DexLibrary.estimateConversionThroughPair(
-                poolTokenAmount,
-                poolRewardToken,
-                address(rewardToken),
-                swapPairPoolReward
+                poolTokenAmount, poolRewardToken, address(rewardToken), swapPairPoolReward
             )
             : pendingPoolTokenAmount;
         uint256 pendingExtraTokenRewardAmount = 0;
         if (extraTokenAddress > address(0)) {
-            if (extraTokenAddress == address(WAVAX)) {
+            if (extraTokenAddress == address(WGAS)) {
                 pendingExtraTokenRewardAmount = pendingExtraTokenAmount;
             } else if (swapPairExtraReward > address(0)) {
                 pendingExtraTokenAmount = pendingExtraTokenAmount.add(IERC20(extraToken).balanceOf(address(this)));
                 pendingExtraTokenRewardAmount = DexLibrary.estimateConversionThroughPair(
-                    pendingExtraTokenAmount,
-                    extraTokenAddress,
-                    address(rewardToken),
-                    IPair(swapPairExtraReward)
+                    pendingExtraTokenAmount, extraTokenAddress, address(rewardToken), IPair(swapPairExtraReward)
                 );
             }
         }
@@ -285,7 +257,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
     }
 
     function checkReward() public view override returns (uint256) {
-        (, , , uint256 estimatedTotalReward) = _checkReward();
+        (,,, uint256 estimatedTotalReward) = _checkReward();
         return estimatedTotalReward;
     }
 
@@ -309,10 +281,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         _emergencyWithdraw(PID);
         uint256 balanceAfter = depositToken.balanceOf(address(this));
-        require(
-            balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted,
-            "MasterChefStrategyV1::rescueDeployedFunds"
-        );
+        require(balanceAfter.sub(balanceBefore) >= minReturnAmountAccepted, "MasterChefStrategyV1::rescueDeployedFunds");
         emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true && disableDeposits == true) {
             updateDepositsEnabled(false);
@@ -334,11 +303,7 @@ abstract contract MasterChefStrategy is YakStrategyV2 {
         internal
         view
         virtual
-        returns (
-            uint256 poolTokenAmount,
-            uint256 extraTokenAmount,
-            address extraTokenAddress
-        );
+        returns (uint256 poolTokenAmount, uint256 extraTokenAmount, address extraTokenAddress);
 
     function _getDepositBalance(uint256 pid, address user) internal view virtual returns (uint256 amount);
 

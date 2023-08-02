@@ -14,14 +14,14 @@ contract UspPlatypusStrategy is PlatypusStrategy {
     ) PlatypusStrategy(_platypusStrategySettings, _variableRewardsStrategySettings, _strategySettings) {}
 
     function _convertRewardTokenToDepositToken(uint256 _fromAmount) internal override returns (uint256 toAmount) {
-        // swap WAVAX to USDC
-        WAVAX.approve(address(swapPairToken), _fromAmount);
-        uint256 usdcAmount = DexLibrary.swap(_fromAmount, address(WAVAX), address(USDC), IPair(swapPairToken));
-        WAVAX.approve(address(swapPairToken), 0);
+        // swap WGAS to USDC
+        WGAS.approve(address(swapPairToken), _fromAmount);
+        uint256 usdcAmount = DexLibrary.swap(_fromAmount, address(WGAS), address(USDC), IPair(swapPairToken));
+        WGAS.approve(address(swapPairToken), 0);
 
         // swap USDC to USP
         USDC.approve(address(pool), usdcAmount);
-        (toAmount, ) = pool.swap(address(USDC), USP, usdcAmount, 0, address(this), type(uint256).max);
+        (toAmount,) = pool.swap(address(USDC), USP, usdcAmount, 0, address(this), type(uint256).max);
         USDC.approve(address(pool), 0);
     }
 }

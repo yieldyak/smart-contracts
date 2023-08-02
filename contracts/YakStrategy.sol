@@ -95,13 +95,7 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
      * @param r Half of the ECDSA signature pair
      * @param s Half of the ECDSA signature pair
      */
-    function depositWithPermit(
-        uint256 amount,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external virtual;
+    function depositWithPermit(uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external virtual;
 
     /**
      * @notice Deposit on behalf of another account
@@ -262,7 +256,7 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
      * @notice Recover AVAX from contract
      * @param amount amount
      */
-    function recoverAVAX(uint256 amount) external onlyOwner {
+    function recoverGasToken(uint256 amount) external onlyOwner {
         require(amount > 0);
         payable(msg.sender).transfer(amount);
         emit Recovered(address(0), amount);

@@ -18,7 +18,7 @@ contract KyberStrategy is YakStrategyV2 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    IWAVAX internal constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    IWGAS internal constant WAVAX = IWGAS(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
     address internal constant KNC = 0x39fC9e94Caeacb435842FADeDeCB783589F50f5f;
 
     struct Reward {

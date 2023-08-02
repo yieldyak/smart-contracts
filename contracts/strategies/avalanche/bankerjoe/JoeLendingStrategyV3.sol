@@ -2,7 +2,7 @@
 pragma solidity 0.8.13;
 
 import "../../../YakStrategyV2Payable.sol";
-import "../../../interfaces/IWAVAX.sol";
+import "../../../interfaces/IWGAS.sol";
 import "../../../interfaces/IERC20.sol";
 import "../../../lib/DexLibrary.sol";
 import "./interfaces/IJoetroller.sol";
@@ -22,7 +22,7 @@ contract JoeLendingStrategyV3 is YakStrategyV2 {
     IERC20 private rewardToken1; // AVAX
     IPair private swapPairToken0; // JOE-AVAX
     IPair private swapPairToken1; // AVAX-DAI
-    IWAVAX private constant WAVAX = IWAVAX(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
+    IWGAS private constant WAVAX = IWGAS(0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7);
     uint256 private leverageLevel;
     uint256 private leverageBips;
     uint256 private minMinting;

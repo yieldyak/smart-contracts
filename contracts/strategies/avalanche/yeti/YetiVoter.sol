@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "../../../interfaces/IWAVAX.sol";
+import "../../../interfaces/IWGAS.sol";
 import "../../../interfaces/IERC20.sol";
 import "../../../lib/Ownable.sol";
 import "../../../lib/ERC20.sol";
