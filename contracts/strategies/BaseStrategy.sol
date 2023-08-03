@@ -49,6 +49,8 @@ abstract contract BaseStrategy is YakStrategyV2 {
         feeCollector = _settings.feeCollector;
 
         supportedRewards = _settings.rewards;
+        rewardCount = _settings.rewards.length;
+
         simpleRouter = ISimpleRouter(_settings.simpleRouter);
         require(_strategySettings.minTokensToReinvest > 0, "BaseStrategy::Invalid configuration");
 
@@ -77,6 +79,7 @@ abstract contract BaseStrategy is YakStrategyV2 {
             }
         }
         if (!found) {
+            rewardCount++;
             supportedRewards.push(_rewardToken);
             emit AddReward(_rewardToken);
         }
@@ -92,7 +95,7 @@ abstract contract BaseStrategy is YakStrategyV2 {
         }
         require(found, "BaseStrategy::Reward to delete not found!");
         supportedRewards.pop();
-        rewardCount = rewardCount - 1;
+        rewardCount--;
         emit RemoveReward(_rewardToken);
     }
 
@@ -145,7 +148,7 @@ abstract contract BaseStrategy is YakStrategyV2 {
     }
 
     /**
-     * @notice Withdraw fee bips from underlying farm
+     * @notice Deposit fee bips from underlying farm
      */
     function _getDepositFeeBips() internal view virtual returns (uint256) {
         return 0;
@@ -219,6 +222,7 @@ abstract contract BaseStrategy is YakStrategyV2 {
     /**
      * @notice Reinvest rewards from staking contract to deposit tokens
      * @dev Reverts if the expected amount of tokens are not returned from the staking contract
+     * @param userDeposit Controls whether or not a gas refund is payed to msg.sender
      */
     function _reinvest(bool userDeposit) private {
         _getRewards();
@@ -234,9 +238,7 @@ abstract contract BaseStrategy is YakStrategyV2 {
                 rewardToken.safeTransfer(msg.sender, reinvestFee);
             }
 
-            uint256 depositTokenAmount = address(rewardToken) == address(depositToken)
-                ? amount - devFee - reinvestFee
-                : _convertRewardTokenToDepositToken(amount - devFee - reinvestFee);
+            uint256 depositTokenAmount = _convertRewardTokenToDepositToken(amount - devFee - reinvestFee);
 
             if (depositTokenAmount > 0) {
                 uint256 depositFee = _calculateDepositFee(depositTokenAmount);
@@ -247,6 +249,7 @@ abstract contract BaseStrategy is YakStrategyV2 {
     }
 
     function _convertRewardTokenToDepositToken(uint256 _fromAmount) internal virtual returns (uint256 toAmount) {
+        if (address(rewardToken) == address(depositToken)) return _fromAmount;
         FormattedOffer memory offer = simpleRouter.query(_fromAmount, address(rewardToken), address(depositToken));
         return _swap(offer);
     }
@@ -259,18 +262,19 @@ abstract contract BaseStrategy is YakStrategyV2 {
     function _swap(FormattedOffer memory _offer) internal returns (uint256 amountOut) {
         if (_offer.amounts.length > 0 && _offer.amounts[_offer.amounts.length - 1] > 0) {
             IERC20(_offer.path[0]).approve(address(simpleRouter), _offer.amounts[0]);
-            amountOut = simpleRouter.swap(_offer);
+            return simpleRouter.swap(_offer);
         }
+        return 0;
     }
 
     function checkReward() public view override returns (uint256) {
         Reward[] memory rewards = _pendingRewards();
         uint256 estimatedTotalReward = rewardToken.balanceOf(address(this));
-        if (address(rewardToken) == address(WAVAX)) {
-            estimatedTotalReward += address(this).balance;
-        }
         for (uint256 i = 0; i < rewards.length; i++) {
             address reward = rewards[i].reward;
+            if (reward == address(WAVAX)) {
+                rewards[i].amount += address(this).balance;
+            }
             if (reward == address(rewardToken)) {
                 estimatedTotalReward += rewards[i].amount;
             } else if (reward > address(0)) {
