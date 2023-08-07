@@ -191,7 +191,7 @@ abstract contract BaseStrategy is YakStrategyV2 {
         return (_amount * withdrawFeeBips) / _bip();
     }
 
-    function reinvest() external override {
+    function reinvest() external override onlyEOA {
         _reinvest(false);
     }
 
