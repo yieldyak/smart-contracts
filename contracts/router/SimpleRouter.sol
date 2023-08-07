@@ -31,12 +31,12 @@ contract SimpleRouter is ISimpleRouter, Ownable {
     }
 
     function configureYakSwapDefaults(bool _yakSwapFallback, uint256 _maxStepsFallback, address _yakRouter) internal {
-        if (address(yakRouter) == address(0) && _yakRouter == address(0)) {
+        if (_yakRouter == address(0)) {
             revert InvalidConfiguration();
         }
         maxStepsFallback = _maxStepsFallback > 0 ? _maxStepsFallback : 1;
         yakSwapFallback = _yakSwapFallback;
-        yakRouter = yakSwapFallback && _yakRouter > address(0) ? IYakRouter(_yakRouter) : yakRouter;
+        yakRouter = IYakRouter(_yakRouter);
     }
 
     function query(uint256 _amountIn, address _tokenIn, address _tokenOut)

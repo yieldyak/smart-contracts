@@ -10,7 +10,6 @@ interface ISimpleRouter {
     struct SwapConfig {
         bool useYakSwapRouter;
         uint8 yakSwapMaxSteps;
-        address oracleAdapter;
         Path path;
     }
 
