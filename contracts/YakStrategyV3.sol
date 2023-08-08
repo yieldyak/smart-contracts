@@ -73,11 +73,14 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
         name = _strategySettings.name;
         depositToken = IERC20(_strategySettings.depositToken);
         rewardToken = IERC20(_strategySettings.rewardToken);
+
+        devAddr = msg.sender;
         updateMinTokensToReinvest(_strategySettings.minTokensToReinvest);
         updateDevFee(_strategySettings.devFeeBips);
         updateReinvestReward(_strategySettings.reinvestRewardBips);
-        devAddr = _strategySettings.dev;
-        feeCollector = _strategySettings.feeCollector;
+        updateFeeCollector(_strategySettings.feeCollector);
+        updateDevAddr(_strategySettings.dev);
+
         updateDepositsEnabled(true);
         transferOwnership(_strategySettings.owner);
     }
