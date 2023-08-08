@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "./lib/Ownable.sol";
-import "./lib/Permissioned.sol";
-import "./interfaces/IERC20.sol";
 import "./YakERC20.sol";
+import "./lib/Ownable.sol";
 import "./lib/SafeERC20.sol";
+import "./interfaces/IERC20.sol";
 
 /**
  * @notice YakStrategy should be inherited by new strategies
  */
-abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
+abstract contract YakStrategyV3 is YakERC20, Ownable {
     using SafeERC20 for IERC20;
 
     struct StrategySettings {
@@ -31,7 +30,6 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
     address public feeCollector;
 
     uint256 public MIN_TOKENS_TO_REINVEST;
-    uint256 public MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST;
     bool public DEPOSITS_ENABLED;
 
     uint256 public REINVEST_REWARD_BIPS;
@@ -150,12 +148,6 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
     function checkReward() public view virtual returns (uint256);
 
     /**
-     * @notice Estimated deposit token balance deployed by strategy, excluding balance
-     * @return deposit tokens
-     */
-    function estimateDeployedBalance() external view virtual returns (uint256);
-
-    /**
      * @notice Rescue all available deployed deposit tokens back to Strategy
      * @param minReturnAmountAccepted min deposit tokens to receive
      * @param disableDeposits bool
@@ -206,15 +198,6 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
     }
 
     /**
-     * @notice Update reinvest max threshold before a deposit
-     * @param newValue threshold
-     */
-    function updateMaxTokensToDepositWithoutReinvest(uint256 newValue) public onlyDev {
-        emit UpdateMaxTokensToDepositWithoutReinvest(MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST, newValue);
-        MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST = newValue;
-    }
-
-    /**
      * @notice Update developer fee
      * @param newValue fee in BIPS
      */
@@ -260,7 +243,7 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
      * @param newValue address
      */
     function updateFeeCollector(address newValue) public onlyOwner {
-        emit UpdateFeeCollector(devAddr, newValue);
+        emit UpdateFeeCollector(feeCollector, newValue);
         feeCollector = newValue;
     }
 

@@ -269,16 +269,6 @@ abstract contract BaseStrategy is YakStrategyV3 {
         return estimatedTotalReward;
     }
 
-    /**
-     * @notice Estimate recoverable balance after withdraw fee
-     * @return deposit tokens after withdraw fee
-     */
-    function estimateDeployedBalance() external view override returns (uint256) {
-        uint256 depositBalance = totalDeposits();
-        uint256 withdrawFee = _calculateWithdrawFee(depositBalance);
-        return depositBalance - withdrawFee;
-    }
-
     function rescueDeployedFunds(uint256 _minReturnAmountAccepted, bool /*_disableDeposits*/ )
         external
         override
