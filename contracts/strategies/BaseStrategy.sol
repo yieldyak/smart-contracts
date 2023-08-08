@@ -26,7 +26,6 @@ abstract contract BaseStrategy is YakStrategyV3 {
     }
 
     address[] public supportedRewards;
-    uint256 public rewardCount;
     ISimpleRouter public simpleRouter;
 
     event AddReward(address rewardToken);
@@ -39,9 +38,9 @@ abstract contract BaseStrategy is YakStrategyV3 {
         WGAS = IWGAS(_settings.gasToken);
 
         supportedRewards = _settings.rewards;
-        rewardCount = _settings.rewards.length;
 
         simpleRouter = ISimpleRouter(_settings.simpleRouter);
+
         require(_strategySettings.minTokensToReinvest > 0, "BaseStrategy::Invalid configuration");
 
         emit Reinvest(0, 0);
@@ -60,7 +59,6 @@ abstract contract BaseStrategy is YakStrategyV3 {
             }
         }
         require(!found, "BaseStrategy::Reward already configured!");
-        rewardCount++;
         supportedRewards.push(_rewardToken);
         emit AddReward(_rewardToken);
     }
@@ -75,8 +73,11 @@ abstract contract BaseStrategy is YakStrategyV3 {
         }
         require(found, "BaseStrategy::Reward not configured!");
         supportedRewards.pop();
-        rewardCount--;
         emit RemoveReward(_rewardToken);
+    }
+
+    function getSupportedRewardsLength() public view returns (uint256) {
+        return supportedRewards.length;
     }
 
     function calculateDepositFee(uint256 _amount) public view returns (uint256) {
