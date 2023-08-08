@@ -200,8 +200,7 @@ abstract contract BaseStrategy is YakStrategyV3 {
     }
 
     /**
-     * @notice Reinvest rewards from staking contract to deposit tokens
-     * @dev Reverts if the expected amount of tokens are not returned from the staking contract
+     * @notice Reinvest rewards from staking contract
      * @param userDeposit Controls whether or not a gas refund is payed to msg.sender
      */
     function _reinvest(bool userDeposit) private {
