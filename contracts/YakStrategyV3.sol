@@ -50,6 +50,7 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
     event UpdateMinTokensToReinvest(uint256 oldValue, uint256 newValue);
     event UpdateMaxTokensToDepositWithoutReinvest(uint256 oldValue, uint256 newValue);
     event UpdateDevAddr(address oldValue, address newValue);
+    event UpdateFeeCollector(address oldValue, address newValue);
     event DepositsEnabled(bool newValue);
 
     /**
@@ -190,11 +191,13 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
         return (amount * totalDeposits()) / totalSupply;
     }
 
+    // Dev protected
+
     /**
      * @notice Update reinvest min threshold
      * @param newValue threshold
      */
-    function updateMinTokensToReinvest(uint256 newValue) public onlyOwner {
+    function updateMinTokensToReinvest(uint256 newValue) public onlyDev {
         emit UpdateMinTokensToReinvest(MIN_TOKENS_TO_REINVEST, newValue);
         MIN_TOKENS_TO_REINVEST = newValue;
     }
@@ -203,7 +206,7 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
      * @notice Update reinvest max threshold before a deposit
      * @param newValue threshold
      */
-    function updateMaxTokensToDepositWithoutReinvest(uint256 newValue) public onlyOwner {
+    function updateMaxTokensToDepositWithoutReinvest(uint256 newValue) public onlyDev {
         emit UpdateMaxTokensToDepositWithoutReinvest(MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST, newValue);
         MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST = newValue;
     }
@@ -212,7 +215,7 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
      * @notice Update developer fee
      * @param newValue fee in BIPS
      */
-    function updateDevFee(uint256 newValue) public onlyOwner {
+    function updateDevFee(uint256 newValue) public onlyDev {
         require(newValue + REINVEST_REWARD_BIPS <= BIPS_DIVISOR);
         emit UpdateDevFee(DEV_FEE_BIPS, newValue);
         DEV_FEE_BIPS = newValue;
@@ -222,11 +225,13 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
      * @notice Update reinvest reward
      * @param newValue fee in BIPS
      */
-    function updateReinvestReward(uint256 newValue) public onlyOwner {
+    function updateReinvestReward(uint256 newValue) public onlyDev {
         require(newValue + DEV_FEE_BIPS <= BIPS_DIVISOR);
         emit UpdateReinvestReward(REINVEST_REWARD_BIPS, newValue);
         REINVEST_REWARD_BIPS = newValue;
     }
+
+    // Owner protected
 
     /**
      * @notice Enable/disable deposits
@@ -242,9 +247,18 @@ abstract contract YakStrategyV3 is YakERC20, Ownable, Permissioned {
      * @notice Update devAddr
      * @param newValue address
      */
-    function updateDevAddr(address newValue) public onlyDev {
+    function updateDevAddr(address newValue) public onlyOwner {
         emit UpdateDevAddr(devAddr, newValue);
         devAddr = newValue;
+    }
+
+    /**
+     * @notice Update feeCollector
+     * @param newValue address
+     */
+    function updateFeeCollector(address newValue) public onlyOwner {
+        emit UpdateFeeCollector(devAddr, newValue);
+        feeCollector = newValue;
     }
 
     /**
