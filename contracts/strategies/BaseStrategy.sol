@@ -32,7 +32,6 @@ abstract contract BaseStrategy is YakStrategyV3 {
     event AddReward(address rewardToken);
     event RemoveReward(address rewardToken);
     event UpdateRouter(address oldRouter, address newRouter);
-    event UpdateFeeCollector(address oldFeeCollector, address newFeeCollector);
 
     constructor(BaseStrategySettings memory _settings, StrategySettings memory _strategySettings)
         YakStrategyV3(_strategySettings)
@@ -52,12 +51,6 @@ abstract contract BaseStrategy is YakStrategyV3 {
         address oldRouter = address(simpleRouter);
         simpleRouter = ISimpleRouter(_router);
         emit UpdateRouter(oldRouter, _router);
-    }
-
-    function updateFeeCollector(address _feeCollector) public onlyDev {
-        address oldFeeCollector = address(feeCollector);
-        feeCollector = _feeCollector;
-        emit UpdateFeeCollector(oldFeeCollector, _feeCollector);
     }
 
     function addReward(address _rewardToken) public onlyDev {
