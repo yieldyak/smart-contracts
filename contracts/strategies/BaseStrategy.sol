@@ -48,9 +48,8 @@ abstract contract BaseStrategy is YakStrategyV3 {
     }
 
     function updateRouter(address _router) public onlyDev {
-        address oldRouter = address(simpleRouter);
+        emit UpdateRouter(address(simpleRouter), _router);
         simpleRouter = ISimpleRouter(_router);
-        emit UpdateRouter(oldRouter, _router);
     }
 
     function addReward(address _rewardToken) public onlyDev {
@@ -60,11 +59,10 @@ abstract contract BaseStrategy is YakStrategyV3 {
                 found = true;
             }
         }
-        if (!found) {
-            rewardCount++;
-            supportedRewards.push(_rewardToken);
-            emit AddReward(_rewardToken);
-        }
+        require(!found, "BaseStrategy::Reward already configured!");
+        rewardCount++;
+        supportedRewards.push(_rewardToken);
+        emit AddReward(_rewardToken);
     }
 
     function removeReward(address _rewardToken) public onlyDev {
@@ -75,7 +73,7 @@ abstract contract BaseStrategy is YakStrategyV3 {
                 supportedRewards[i] = supportedRewards[supportedRewards.length - 1];
             }
         }
-        require(found, "BaseStrategy::Reward to delete not found!");
+        require(found, "BaseStrategy::Reward not configured!");
         supportedRewards.pop();
         rewardCount--;
         emit RemoveReward(_rewardToken);
