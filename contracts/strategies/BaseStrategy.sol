@@ -1,25 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "../YakStrategyV2.sol";
-import "../interfaces/IWAVAX.sol";
+import "../YakStrategyV3.sol";
+import "../interfaces/IWGAS.sol";
 import "../lib/SafeERC20.sol";
 import "./../interfaces/ISimpleRouter.sol";
 
 /**
  * @notice BaseStrategy
  */
-abstract contract BaseStrategy is YakStrategyV2 {
+abstract contract BaseStrategy is YakStrategyV3 {
     using SafeERC20 for IERC20;
 
-    IWAVAX internal immutable WAVAX;
+    IWGAS internal immutable WGAS;
 
     struct BaseStrategySettings {
-        string name;
-        address platformToken;
-        address owner;
-        address dev;
-        address feeCollector;
+        address gasToken;
         address[] rewards;
         address simpleRouter;
     }
@@ -28,8 +24,6 @@ abstract contract BaseStrategy is YakStrategyV2 {
         address reward;
         uint256 amount;
     }
-
-    address feeCollector;
 
     address[] public supportedRewards;
     uint256 public rewardCount;
@@ -41,12 +35,9 @@ abstract contract BaseStrategy is YakStrategyV2 {
     event UpdateFeeCollector(address oldFeeCollector, address newFeeCollector);
 
     constructor(BaseStrategySettings memory _settings, StrategySettings memory _strategySettings)
-        YakStrategyV2(_strategySettings)
+        YakStrategyV3(_strategySettings)
     {
-        name = _settings.name;
-        WAVAX = IWAVAX(_settings.platformToken);
-        devAddr = _settings.dev;
-        feeCollector = _settings.feeCollector;
+        WGAS = IWGAS(_settings.gasToken);
 
         supportedRewards = _settings.rewards;
         rewardCount = _settings.rewards.length;
@@ -54,8 +45,6 @@ abstract contract BaseStrategy is YakStrategyV2 {
         simpleRouter = ISimpleRouter(_settings.simpleRouter);
         require(_strategySettings.minTokensToReinvest > 0, "BaseStrategy::Invalid configuration");
 
-        updateDepositsEnabled(true);
-        transferOwnership(_settings.owner);
         emit Reinvest(0, 0);
     }
 
@@ -200,12 +189,12 @@ abstract contract BaseStrategy is YakStrategyV2 {
         uint256 count = supportedRewards.length;
         for (uint256 i = 0; i < count; i++) {
             address reward = supportedRewards[i];
-            if (reward == address(WAVAX)) {
+            if (reward == address(WGAS)) {
                 uint256 balance = address(this).balance;
                 if (balance > 0) {
-                    WAVAX.deposit{value: balance}();
+                    WGAS.deposit{value: balance}();
                 }
-                if (address(rewardToken) == address(WAVAX)) {
+                if (address(rewardToken) == address(WGAS)) {
                     rewardTokenAmount += balance;
                     continue;
                 }
@@ -272,7 +261,7 @@ abstract contract BaseStrategy is YakStrategyV2 {
         uint256 estimatedTotalReward = rewardToken.balanceOf(address(this));
         for (uint256 i = 0; i < rewards.length; i++) {
             address reward = rewards[i].reward;
-            if (reward == address(WAVAX)) {
+            if (reward == address(WGAS)) {
                 rewards[i].amount += address(this).balance;
             }
             if (reward == address(rewardToken)) {
