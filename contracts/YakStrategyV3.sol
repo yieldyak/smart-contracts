@@ -26,6 +26,7 @@ abstract contract YakStrategyV3 is YakERC20, Ownable {
 
     IERC20 public immutable depositToken;
     IERC20 public immutable rewardToken;
+
     address public devAddr;
     address public feeCollector;
 
@@ -36,7 +37,6 @@ abstract contract YakStrategyV3 is YakERC20, Ownable {
     uint256 public DEV_FEE_BIPS;
 
     uint256 internal constant BIPS_DIVISOR = 10000;
-    uint256 internal constant MAX_UINT = type(uint256).max;
 
     event Deposit(address indexed account, uint256 amount);
     event Withdraw(address indexed account, uint256 amount);
