@@ -177,6 +177,7 @@ abstract contract BaseStrategy is YakStrategyV3 {
     }
 
     function _convertPoolRewardsToRewardToken() private returns (uint256) {
+        _getRewards();
         uint256 rewardTokenAmount = rewardToken.balanceOf(address(this));
         uint256 count = supportedRewards.length;
         for (uint256 i = 0; i < count; i++) {
@@ -192,7 +193,7 @@ abstract contract BaseStrategy is YakStrategyV3 {
                 }
             }
             uint256 amount = IERC20(reward).balanceOf(address(this));
-            if (amount > 0) {
+            if (amount > 0 && reward != address(rewardToken)) {
                 FormattedOffer memory offer = simpleRouter.query(amount, reward, address(rewardToken));
                 rewardTokenAmount += _swap(offer);
             }
@@ -205,7 +206,6 @@ abstract contract BaseStrategy is YakStrategyV3 {
      * @param userDeposit Controls whether or not a gas refund is payed to msg.sender
      */
     function _reinvest(bool userDeposit) private {
-        _getRewards();
         uint256 amount = _convertPoolRewardsToRewardToken();
         if (amount > MIN_TOKENS_TO_REINVEST) {
             uint256 devFee = (amount * DEV_FEE_BIPS) / BIPS_DIVISOR;
@@ -269,11 +269,7 @@ abstract contract BaseStrategy is YakStrategyV3 {
         return estimatedTotalReward;
     }
 
-    function rescueDeployedFunds(uint256 _minReturnAmountAccepted, bool /*_disableDeposits*/ )
-        external
-        override
-        onlyOwner
-    {
+    function rescueDeployedFunds(uint256 _minReturnAmountAccepted) external override onlyOwner {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         _emergencyWithdraw();
         uint256 balanceAfter = depositToken.balanceOf(address(this));
@@ -283,7 +279,7 @@ abstract contract BaseStrategy is YakStrategyV3 {
         );
         emit Reinvest(totalDeposits(), totalSupply);
         if (DEPOSITS_ENABLED == true) {
-            updateDepositsEnabled(false);
+            disableDeposits();
         }
     }
 

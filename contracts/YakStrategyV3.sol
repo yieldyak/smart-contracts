@@ -79,17 +79,8 @@ abstract contract YakStrategyV3 is YakERC20, Ownable {
         updateFeeCollector(_strategySettings.feeCollector);
         updateDevAddr(_strategySettings.dev);
 
-        updateDepositsEnabled(true);
+        enableDeposits();
         transferOwnership(_strategySettings.owner);
-    }
-
-    /**
-     * @notice Revoke token allowance
-     * @param token address
-     * @param spender address
-     */
-    function revokeAllowance(address token, address spender) external onlyOwner {
-        require(IERC20(token).approve(spender, 0));
     }
 
     /**
@@ -150,9 +141,8 @@ abstract contract YakStrategyV3 is YakERC20, Ownable {
     /**
      * @notice Rescue all available deployed deposit tokens back to Strategy
      * @param minReturnAmountAccepted min deposit tokens to receive
-     * @param disableDeposits bool
      */
-    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external virtual;
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted) external virtual;
 
     /**
      * @notice This function returns a snapshot of last available quotes
@@ -189,6 +179,24 @@ abstract contract YakStrategyV3 is YakERC20, Ownable {
     // Dev protected
 
     /**
+     * @notice Revoke token allowance
+     * @param token address
+     * @param spender address
+     */
+    function revokeAllowance(address token, address spender) external onlyDev {
+        require(IERC20(token).approve(spender, 0));
+    }
+
+    /**
+     * @notice Disable deposits
+     */
+    function disableDeposits() public onlyDev {
+        require(DEPOSITS_ENABLED);
+        DEPOSITS_ENABLED = false;
+        emit DepositsEnabled(false);
+    }
+
+    /**
      * @notice Update reinvest min threshold
      * @param newValue threshold
      */
@@ -220,13 +228,12 @@ abstract contract YakStrategyV3 is YakERC20, Ownable {
     // Owner protected
 
     /**
-     * @notice Enable/disable deposits
-     * @param newValue bool
+     * @notice Enable deposits
      */
-    function updateDepositsEnabled(bool newValue) public onlyOwner {
-        require(DEPOSITS_ENABLED != newValue);
-        DEPOSITS_ENABLED = newValue;
-        emit DepositsEnabled(newValue);
+    function enableDeposits() public onlyOwner {
+        require(!DEPOSITS_ENABLED);
+        DEPOSITS_ENABLED = true;
+        emit DepositsEnabled(true);
     }
 
     /**
