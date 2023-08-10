@@ -42,7 +42,6 @@ abstract contract YakStrategyV3 is YakERC20, Ownable {
     event Withdraw(address indexed account, uint256 amount);
     event Reinvest(uint256 newTotalDeposits, uint256 newTotalSupply);
     event Recovered(address token, uint256 amount);
-    event UpdateAdminFee(uint256 oldValue, uint256 newValue);
     event UpdateDevFee(uint256 oldValue, uint256 newValue);
     event UpdateReinvestReward(uint256 oldValue, uint256 newValue);
     event UpdateMinTokensToReinvest(uint256 oldValue, uint256 newValue);
@@ -158,10 +157,12 @@ abstract contract YakStrategyV3 is YakERC20, Ownable {
      * @return receipt tokens
      */
     function getSharesForDepositTokens(uint256 amount) public view returns (uint256) {
-        if (totalSupply == 0 || totalDeposits() == 0) {
+        uint256 tDeposits = totalDeposits();
+        uint256 tSupply = totalSupply;
+        if (tSupply == 0 || tDeposits == 0) {
             return amount;
         }
-        return (amount * totalSupply) / totalDeposits();
+        return (amount * tSupply) / tDeposits;
     }
 
     /**
@@ -170,10 +171,12 @@ abstract contract YakStrategyV3 is YakERC20, Ownable {
      * @return deposit tokens
      */
     function getDepositTokensForShares(uint256 amount) public view returns (uint256) {
-        if (totalSupply == 0 || totalDeposits() == 0) {
+        uint256 tDeposits = totalDeposits();
+        uint256 tSupply = totalSupply;
+        if (tSupply == 0 || tDeposits == 0) {
             return 0;
         }
-        return (amount * totalDeposits()) / totalSupply;
+        return (amount * tDeposits) / tSupply;
     }
 
     // Dev protected
