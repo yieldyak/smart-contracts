@@ -12,7 +12,7 @@ import "./interfaces/IGmxRewardRouter.sol";
 /**
  * @notice Adapter strategy for MasterChef.
  */
-contract GmxStrategyForGLP is YakStrategyV2 {
+contract GmxStrategyForGLPArbitrum is YakStrategyV2 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
