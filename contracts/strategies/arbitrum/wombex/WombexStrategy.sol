@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "../../VariableRewardsStrategyForSAV2.sol";
+import "../../BaseStrategy.sol";
 import "./interfaces/IPoolDepositor.sol";
 import "./interfaces/IWombexRewardPool.sol";
 import "./interfaces/IWombatAsset.sol";
@@ -9,7 +9,7 @@ import "./interfaces/IWombatPool.sol";
 import "./interfaces/IBooster.sol";
 import "./interfaces/ITokenMinter.sol";
 
-contract WombexStrategy is VariableRewardsStrategyForSAV2 {
+contract WombexStrategy is BaseStrategy {
     using SafeERC20 for IERC20;
 
     address private constant WOM = 0x7B5EB3940021Ec0e8e463D5dBB4B7B09a89DDF96;
@@ -18,8 +18,6 @@ contract WombexStrategy is VariableRewardsStrategyForSAV2 {
     struct WombexStrategySettings {
         address poolDepositor;
         address rewardPool;
-        address swapPairDepositToken;
-        uint256 swapFee;
     }
 
     IPoolDepositor public immutable poolDepositor;
@@ -31,16 +29,9 @@ contract WombexStrategy is VariableRewardsStrategyForSAV2 {
 
     constructor(
         WombexStrategySettings memory _wombexStrategySettings,
-        VariableRewardsStrategySettings memory _variableRewardsStrategySettings,
+        BaseStrategySettings memory baseStrategySettings,
         StrategySettings memory _strategySettings
-    )
-        VariableRewardsStrategyForSAV2(
-            _wombexStrategySettings.swapPairDepositToken,
-            _wombexStrategySettings.swapFee,
-            _variableRewardsStrategySettings,
-            _strategySettings
-        )
-    {
+    ) BaseStrategy(baseStrategySettings, _strategySettings) {
         poolDepositor = IPoolDepositor(_wombexStrategySettings.poolDepositor);
         rewardPool = IWombexRewardPool(_wombexStrategySettings.rewardPool);
         wombatAsset = IWombatAsset(rewardPool.asset());
