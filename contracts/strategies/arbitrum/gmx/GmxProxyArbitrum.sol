@@ -23,7 +23,7 @@ library SafeProxy {
     }
 }
 
-contract GmxProxy is IGmxProxy {
+contract GmxProxyArbitrum is IGmxProxy {
     using SafeProxy for IGmxDepositor;
     using SafeERC20 for IERC20;
 
