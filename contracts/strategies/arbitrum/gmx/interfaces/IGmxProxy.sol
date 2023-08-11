@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "./IGmxDepositor.sol";
+import "./../../../crosschain/gmx/interfaces/IGmxDepositor.sol";
 
 interface IGmxProxy {
     function gmxDepositor() external view returns (IGmxDepositor);

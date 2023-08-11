@@ -2,10 +2,10 @@
 pragma solidity 0.8.13;
 
 import "../../../interfaces/IYakStrategy.sol";
+import "../../../interfaces/ISimpleRouter.sol";
 import "../../../lib/SafeERC20.sol";
-import "../../../lib/DexLibrary.sol";
 
-import "./interfaces/IGmxDepositor.sol";
+import "./../../crosschain/gmx/interfaces/IGmxDepositor.sol";
 import "./interfaces/IGmxRewardRouter.sol";
 import "./interfaces/IGmxRewardTracker.sol";
 import "./interfaces/IGmxProxy.sol";
@@ -38,6 +38,8 @@ contract GmxProxyArbitrum is IGmxProxy {
 
     address public devAddr;
     address public approvedStrategy;
+    address public alternativeTokenIn;
+    ISimpleRouter public simpleRouter;
 
     IGmxDepositor public immutable override gmxDepositor;
     address public immutable override gmxRewardRouter;
@@ -48,8 +50,6 @@ contract GmxProxyArbitrum is IGmxProxy {
     address internal immutable glpManager;
     address internal immutable vault;
     address internal immutable usdg;
-    address internal immutable wethUsdcPair;
-    uint256 internal immutable swapFee;
 
     modifier onlyDev() {
         require(msg.sender == devAddr, "GmxProxy::onlyDev");
@@ -65,8 +65,8 @@ contract GmxProxyArbitrum is IGmxProxy {
         address _gmxDepositor,
         address _gmxRewardRouter,
         address _gmxRewardRouterV2,
-        address _wethUsdcPair,
-        uint256 _swapFee,
+        address _alternativeTokenIn,
+        address _simpleRouter,
         address _devAddr
     ) {
         require(_devAddr > address(0), "GmxProxy::Invalid dev address provided");
@@ -79,13 +79,23 @@ contract GmxProxyArbitrum is IGmxProxy {
         glpManager = IGmxRewardRouter(_gmxRewardRouterV2).glpManager();
         vault = IGlpManager(glpManager).vault();
         usdg = IGmxVault(vault).usdg();
-        wethUsdcPair = _wethUsdcPair;
-        swapFee = _swapFee;
+        alternativeTokenIn = _alternativeTokenIn;
+        simpleRouter = ISimpleRouter(_simpleRouter);
     }
 
-    function updateDevAddr(address newValue) public onlyDev {
-        require(newValue > address(0), "GmxProxy::Invalid dev address provided");
-        devAddr = newValue;
+    function updateDevAddr(address _newValue) public onlyDev {
+        require(_newValue > address(0), "GmxProxy::Invalid address provided");
+        devAddr = _newValue;
+    }
+
+    function updateAlternativeTokenIn(address _newValue) public onlyDev {
+        require(_newValue > address(0), "GmxProxy::Invalid address provided");
+        alternativeTokenIn = _newValue;
+    }
+
+    function updateRouter(address _newValue) public onlyDev {
+        require(_newValue > address(0), "GmxProxy::Invalid address provided");
+        simpleRouter = ISimpleRouter(_newValue);
     }
 
     function approveStrategy(address _strategy) external onlyDev {
@@ -114,14 +124,17 @@ contract GmxProxyArbitrum is IGmxProxy {
         return maxUsdgAmount == 0 || vaultUsdgAmount + usdgAmount < maxUsdgAmount;
     }
 
-    function swapToUSDC(uint256 _amount) internal returns (uint256) {
-        return DexLibrary.swap(_amount, WETH, USDC, IPair(wethUsdcPair), swapFee);
-    }
-
     function buyAndStakeGlp(uint256 _amount) external override onlyStrategy returns (uint256) {
-        bool sufficientEthCapacity = vaultHasEthCapacity(_amount);
-        address token = sufficientEthCapacity ? WETH : USDC;
-        _amount = sufficientEthCapacity ? _amount : swapToUSDC(_amount);
+        address token = WETH;
+
+        if (!vaultHasEthCapacity(_amount)) {
+            FormattedOffer memory offer = simpleRouter.query(_amount, WETH, alternativeTokenIn);
+            if (offer.amounts.length > 0 && offer.amounts[offer.amounts.length - 1] > 0) {
+                IERC20(offer.path[0]).approve(address(simpleRouter), offer.amounts[0]);
+                _amount = simpleRouter.swap(offer);
+                token = alternativeTokenIn;
+            }
+        }
 
         IERC20(token).transfer(address(gmxDepositor), _amount);
 

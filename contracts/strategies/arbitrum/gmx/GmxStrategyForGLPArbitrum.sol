@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.13;
 
-import "../../../YakStrategyV2.sol";
+import "../../../YakStrategyV3.sol";
 import "../../../lib/SafeERC20.sol";
 import "./../../../lib/SafeMath.sol";
 
@@ -12,25 +12,15 @@ import "./interfaces/IGmxRewardRouter.sol";
 /**
  * @notice Adapter strategy for MasterChef.
  */
-contract GmxStrategyForGLPArbitrum is YakStrategyV2 {
+contract GmxStrategyForGLPArbitrum is YakStrategyV3 {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     IGmxProxy public proxy;
 
-    constructor(
-        string memory _name,
-        address _gmxProxy,
-        address _devAddr,
-        address _timelock,
-        StrategySettings memory _strategySettings
-    ) YakStrategyV2(_strategySettings) {
-        name = _name;
+    constructor(address _gmxProxy, StrategySettings memory _strategySettings) YakStrategyV3(_strategySettings) {
         proxy = IGmxProxy(_gmxProxy);
-        devAddr = _devAddr;
 
-        updateDepositsEnabled(true);
-        transferOwnership(_timelock);
         emit Reinvest(0, 0);
     }
 
@@ -59,12 +49,8 @@ contract GmxStrategyForGLPArbitrum is YakStrategyV2 {
 
     function _deposit(address account, uint256 amount) internal {
         require(DEPOSITS_ENABLED == true, "GmxStrategyForGLP::_deposit");
-        if (MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST > 0) {
-            uint256 reward = checkReward();
-            if (reward > MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST) {
-                _reinvest(reward);
-            }
-        }
+        uint256 reward = checkReward();
+        _reinvest(reward, true);
         require(depositToken.transferFrom(msg.sender, address(this), amount), "GmxStrategyForGLP::transfer failed");
         _mint(account, getSharesForDepositTokens(amount));
         _stakeDepositTokens(amount);
@@ -87,30 +73,31 @@ contract GmxStrategyForGLPArbitrum is YakStrategyV2 {
     function reinvest() external override onlyEOA {
         uint256 amount = checkReward();
         require(amount >= MIN_TOKENS_TO_REINVEST, "GmxStrategyForGLP::reinvest");
-        _reinvest(amount);
+        _reinvest(amount, false);
     }
 
     /**
      * @notice Reinvest rewards from staking contract to deposit tokens
      * @dev Reverts if the expected amount of tokens are not returned from `MasterChef`
      */
-    function _reinvest(uint256 _amount) private {
-        proxy.claimReward();
+    function _reinvest(uint256 _amount, bool _userDeposit) private {
+        if (_amount > MIN_TOKENS_TO_REINVEST) {
+            proxy.claimReward();
+            uint256 devFee = _amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
+            if (devFee > 0) {
+                rewardToken.safeTransfer(feeCollector, devFee);
+            }
 
-        uint256 devFee = _amount.mul(DEV_FEE_BIPS).div(BIPS_DIVISOR);
-        if (devFee > 0) {
-            rewardToken.safeTransfer(devAddr, devFee);
+            uint256 reinvestFee = _userDeposit ? 0 : _amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
+            if (reinvestFee > 0) {
+                rewardToken.safeTransfer(msg.sender, reinvestFee);
+            }
+
+            rewardToken.safeTransfer(address(proxy), _amount.sub(devFee).sub(reinvestFee));
+            proxy.buyAndStakeGlp(_amount.sub(devFee).sub(reinvestFee));
+
+            emit Reinvest(totalDeposits(), totalSupply);
         }
-
-        uint256 reinvestFee = _amount.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
-        if (reinvestFee > 0) {
-            rewardToken.safeTransfer(msg.sender, reinvestFee);
-        }
-
-        rewardToken.safeTransfer(address(proxy), _amount.sub(devFee).sub(reinvestFee));
-        proxy.buyAndStakeGlp(_amount.sub(devFee).sub(reinvestFee));
-
-        emit Reinvest(totalDeposits(), totalSupply);
     }
 
     function _stakeDepositTokens(uint256 _amount) private {
@@ -124,20 +111,11 @@ contract GmxStrategyForGLPArbitrum is YakStrategyV2 {
         return rewardTokenBalance.add(pendingReward);
     }
 
-    /**
-     * @notice Estimate recoverable balance after withdraw fee
-     * @return deposit tokens after withdraw fee
-     */
-    function estimateDeployedBalance() external view override returns (uint256) {
-        uint256 depositBalance = totalDeposits();
-        return depositBalance;
-    }
-
     function totalDeposits() public view override returns (uint256) {
         return proxy.totalDeposits();
     }
 
-    function rescueDeployedFunds(uint256, bool) external view override onlyOwner {
+    function rescueDeployedFunds(uint256) external view override onlyOwner {
         revert("Unsupported");
     }
 
