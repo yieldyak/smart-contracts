@@ -20,7 +20,13 @@ contract BalancesOfHelper {
     {
         uint256[] memory balances = new uint256[](tokenAddresses.length);
         for (uint256 i = 0; i < tokenAddresses.length; i++) {
-            uint256 balance = IERC20(tokenAddresses[i]).balanceOf(account);
+            uint256 balance;
+            if (tokenAddresses[i] == address(0)) {
+                balance = account.balance;
+            }
+            else {
+                balance = IERC20(tokenAddresses[i]).balanceOf(account);
+            }
             balances[i] = balance;
         }
         return balances;
@@ -39,7 +45,13 @@ contract BalancesOfHelper {
         require(accounts.length == tokenAddresses.length, "not same length");
         uint256[] memory balances = new uint256[](tokenAddresses.length);
         for (uint256 i = 0; i < tokenAddresses.length; i++) {
-            uint256 balance = IERC20(tokenAddresses[i]).balanceOf(accounts[i]);
+            uint256 balance;
+            if (tokenAddresses[i] == address(0)) {
+                balance = accounts[i].balance;
+            }
+            else {
+                balance = IERC20(tokenAddresses[i]).balanceOf(accounts[i]);
+            }
             balances[i] = balance;
         }
         return balances;
@@ -53,7 +65,13 @@ contract BalancesOfHelper {
     function accountsBalanceOf(address[] memory accounts, address tokenAddress) public view returns (uint256[] memory) {
         uint256[] memory balances = new uint256[](accounts.length);
         for (uint256 i = 0; i < accounts.length; i++) {
-            uint256 balance = IERC20(tokenAddress).balanceOf(accounts[i]);
+            uint256 balance;
+            if (tokenAddress == address(0)) {
+                balance = accounts[i].balance;
+            }
+            else {
+                balance = IERC20(tokenAddress).balanceOf(accounts[i]);
+            }
             balances[i] = balance;
         }
         return balances;
