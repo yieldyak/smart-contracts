@@ -7,7 +7,7 @@ import "./interfaces/ISynapseSwap.sol";
 import "./interfaces/IMiniChefV2.sol";
 import "./interfaces/IUniV3Pool.sol";
 
-contract SynapseStrategy is VariableRewardsStrategy {
+contract SynapseStrategyV2 is VariableRewardsStrategy {
     using SafeERC20 for IERC20;
 
     IERC20 private constant SYN = IERC20(0x080F6AEd32Fc474DD5717105Dba5ea57268F46eb);
