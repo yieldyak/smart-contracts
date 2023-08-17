@@ -1,20 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "../../VariableRewardsStrategyForSAV2.sol";
+import "../../BaseStrategy.sol";
 
 import "./interfaces/ISingleStaking.sol";
 
-contract CompoundingBets is VariableRewardsStrategyForSAV2 {
+contract CompoundingBets is BaseStrategy {
     ISingleStaking public stakingContract;
 
     constructor(
         address _stakingContract,
-        address _swapPairDepositToken,
-        uint256 _swapFeeBips,
-        VariableRewardsStrategySettings memory _settings,
+        BaseStrategySettings memory _settings,
         StrategySettings memory _strategySettings
-    ) VariableRewardsStrategyForSAV2(_swapPairDepositToken, _swapFeeBips, _settings, _strategySettings) {
+    ) BaseStrategy(_settings, _strategySettings) {
         stakingContract = ISingleStaking(_stakingContract);
     }
 
@@ -34,7 +32,7 @@ contract CompoundingBets is VariableRewardsStrategyForSAV2 {
     }
 
     function _pendingRewards() internal view override returns (Reward[] memory) {
-        Reward[] memory pendingRewards = new Reward[](rewardCount);
+        Reward[] memory pendingRewards = new Reward[](supportedRewards.length);
         for (uint256 i = 0; i < pendingRewards.length; i++) {
             address rewardToken = supportedRewards[i];
             uint256 amount = stakingContract.earned(address(this), rewardToken);
