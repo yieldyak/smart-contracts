@@ -2,17 +2,11 @@
 pragma solidity 0.8.13;
 
 interface IMiniChefV2 {
-    function deposit(
-        uint256 pid,
-        uint256 amount,
-        address to
-    ) external;
+    function SYNAPSE() external view returns (address);
 
-    function withdraw(
-        uint256 pid,
-        uint256 amount,
-        address to
-    ) external;
+    function deposit(uint256 pid, uint256 amount, address to) external;
+
+    function withdraw(uint256 pid, uint256 amount, address to) external;
 
     function userInfo(uint256 _pid, address _user) external view returns (uint256 amount, int256 rewardDebt);
 
