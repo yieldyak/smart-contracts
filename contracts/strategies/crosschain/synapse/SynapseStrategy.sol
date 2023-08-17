@@ -1,39 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "../../VariableRewardsStrategy.sol";
+import "../../BaseStrategy.sol";
 
 import "./interfaces/ISynapseSwap.sol";
 import "./interfaces/IMiniChefV2.sol";
-import "./interfaces/IUniV3Pool.sol";
 
-contract SynapseStrategyV2 is VariableRewardsStrategy {
+contract SynapseStrategy is BaseStrategy {
     using SafeERC20 for IERC20;
 
-    IERC20 private constant SYN = IERC20(0x080F6AEd32Fc474DD5717105Dba5ea57268F46eb);
-    uint160 internal constant MAX_SQRT_RATIO = 1461446703485210103287273052203988822378723970342;
-    uint160 internal constant MIN_SQRT_RATIO = 4295128739;
-
-    address private immutable uniPoolTokenOut;
-    bool private immutable zeroForOne;
-    uint160 private immutable sqrtPriceLimitX96;
+    address private immutable SYN;
 
     uint256 public immutable PID;
     IMiniChefV2 public immutable miniChef;
 
-    address public immutable uniV3Pool;
     ISynapseSwap public immutable synapseSwap;
     address public immutable synapseLpTokenIn;
     uint256 public immutable synapseLpTokenIndex;
     uint256 public immutable synapseLpTokenCount;
 
-    address public immutable swapPairSynapseTokenIn;
-
     struct SynapseStrategySettings {
         address stakingContract;
         uint256 pid;
-        address uniV3Pool;
-        address swapPairSynapseTokenIn;
         address synapseLpTokenIn;
         address synapseSwap;
         uint256 synapseLpTokenCount;
@@ -41,23 +29,16 @@ contract SynapseStrategyV2 is VariableRewardsStrategy {
 
     constructor(
         SynapseStrategySettings memory _synapseStrategySettings,
-        VariableRewardsStrategySettings memory _settings,
+        BaseStrategySettings memory _settings,
         StrategySettings memory _strategySettings
-    ) VariableRewardsStrategy(_settings, _strategySettings) {
-        miniChef = IMiniChefV2(_synapseStrategySettings.stakingContract);
+    ) BaseStrategy(_settings, _strategySettings) {
         PID = _synapseStrategySettings.pid;
-        uniV3Pool = _synapseStrategySettings.uniV3Pool;
-        swapPairSynapseTokenIn = _synapseStrategySettings.swapPairSynapseTokenIn;
+        miniChef = IMiniChefV2(_synapseStrategySettings.stakingContract);
+        SYN = miniChef.SYNAPSE();
         synapseLpTokenIn = _synapseStrategySettings.synapseLpTokenIn;
         synapseSwap = ISynapseSwap(_synapseStrategySettings.synapseSwap);
         synapseLpTokenCount = _synapseStrategySettings.synapseLpTokenCount;
         synapseLpTokenIndex = synapseSwap.getTokenIndex(synapseLpTokenIn);
-        address uniPoolToken0 = IUniV3Pool(uniV3Pool).token0();
-        address uniPoolToken1 = IUniV3Pool(uniV3Pool).token1();
-        require(uniPoolToken0 == address(SYN) || uniPoolToken1 == address(SYN), "Incompatible pool");
-        zeroForOne = true;
-        uniPoolTokenOut = zeroForOne ? uniPoolToken1 : uniPoolToken0;
-        sqrtPriceLimitX96 = zeroForOne ? MIN_SQRT_RATIO + 1 : MAX_SQRT_RATIO - 1;
     }
 
     function _depositToStakingContract(uint256 _amount, uint256) internal override {
@@ -92,23 +73,15 @@ contract SynapseStrategyV2 is VariableRewardsStrategy {
         return amount;
     }
 
-    function _convertRewardTokenToDepositToken(uint256 fromAmount) internal override returns (uint256 toAmount) {
-        (int256 amount0, int256 amount1) =
-            IUniV3Pool(uniV3Pool).swap(address(this), zeroForOne, int256(fromAmount), sqrtPriceLimitX96, "");
-        fromAmount = zeroForOne ? uint256(-amount1) : uint256(-amount0);
-
-        if (uniPoolTokenOut != synapseLpTokenIn) {
-            fromAmount = DexLibrary.swap(fromAmount, uniPoolTokenOut, synapseLpTokenIn, IPair(swapPairSynapseTokenIn));
+    function _convertRewardTokenToDepositToken(uint256 _fromAmount) internal override returns (uint256 toAmount) {
+        if (synapseLpTokenIn != address(rewardToken)) {
+            FormattedOffer memory offer = simpleRouter.query(_fromAmount, address(rewardToken), synapseLpTokenIn);
+            _fromAmount = _swap(offer);
         }
 
-        IERC20(synapseLpTokenIn).approve(address(synapseSwap), fromAmount);
+        IERC20(synapseLpTokenIn).approve(address(synapseSwap), _fromAmount);
         uint256[] memory amounts = new uint256[](synapseLpTokenCount);
-        amounts[synapseLpTokenIndex] = fromAmount;
+        amounts[synapseLpTokenIndex] = _fromAmount;
         toAmount = synapseSwap.addLiquidity(amounts, 0, type(uint256).max);
-    }
-
-    function uniswapV3SwapCallback(int256 amount0Delta, int256 amount1Delta, bytes calldata) external {
-        require(msg.sender == uniV3Pool);
-        rewardToken.safeTransfer(uniV3Pool, zeroForOne ? uint256(amount0Delta) : uint256(amount1Delta));
     }
 }
