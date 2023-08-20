@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "../../VariableRewardsStrategy.sol";
+import "../../BaseStrategy.sol";
 import "./interfaces/IDepositHelper.sol";
 import "./interfaces/IMasterPenpie.sol";
 import "./interfaces/ISy.sol";
 import "./interfaces/IPendleRouter.sol";
 import "./interfaces/IPendleStaticRouter.sol";
 
-contract PenpieStrategy is VariableRewardsStrategy {
+contract PenpieStrategy is BaseStrategy {
     using SafeERC20 for IERC20;
 
     address private constant PNP = 0x2Ac2B254Bc18cD4999f64773a966E4f4869c34Ee;
@@ -17,8 +17,6 @@ contract PenpieStrategy is VariableRewardsStrategy {
         address masterPenpie;
         address depositHelper;
         address tokenLpIn;
-        address swapPairLpIn;
-        uint256 swapFeeBips;
         address pendleStaticRouter;
         address pendleRouter;
         address pendleSY;
@@ -29,8 +27,6 @@ contract PenpieStrategy is VariableRewardsStrategy {
     address immutable depositHelper;
     address immutable magpiePendleStaking;
     address immutable tokenLpIn;
-    address immutable swapPairLpIn;
-    uint256 immutable swapFeeBips;
     address immutable pendleStaticRouter;
     address immutable pendleRouter;
     address immutable pendleSY;
@@ -38,9 +34,9 @@ contract PenpieStrategy is VariableRewardsStrategy {
 
     constructor(
         PenpieStrategySettings memory _penpieStrategySettings,
-        VariableRewardsStrategySettings memory _variableRewardsStrategySettings,
+        BaseStrategySettings memory _variableRewardsStrategySettings,
         StrategySettings memory _strategySettings
-    ) VariableRewardsStrategy(_variableRewardsStrategySettings, _strategySettings) {
+    ) BaseStrategy(_variableRewardsStrategySettings, _strategySettings) {
         masterPenpie = _penpieStrategySettings.masterPenpie;
         depositHelper = _penpieStrategySettings.depositHelper;
         magpiePendleStaking = IDepositHelper(depositHelper).pendleStaking();
@@ -49,8 +45,6 @@ contract PenpieStrategy is VariableRewardsStrategy {
         pendleSY = _penpieStrategySettings.pendleSY;
         pendleMarket = _penpieStrategySettings.pendleMarket;
         tokenLpIn = _penpieStrategySettings.tokenLpIn;
-        swapPairLpIn = _penpieStrategySettings.swapPairLpIn;
-        swapFeeBips = _penpieStrategySettings.swapFeeBips;
     }
 
     function _depositToStakingContract(uint256 _amount, uint256) internal override {
@@ -89,8 +83,8 @@ contract PenpieStrategy is VariableRewardsStrategy {
         if (_fromAmount == 0) return 0;
 
         if (address(rewardToken) != tokenLpIn) {
-            _fromAmount =
-                DexLibrary.swap(_fromAmount, address(rewardToken), tokenLpIn, IPair(swapPairLpIn), swapFeeBips);
+            FormattedOffer memory offer = simpleRouter.query(_fromAmount, address(rewardToken), tokenLpIn);
+            _fromAmount = _swap(offer);
         }
 
         uint256 minOut = ISy(pendleSY).previewDeposit(tokenLpIn, _fromAmount);
