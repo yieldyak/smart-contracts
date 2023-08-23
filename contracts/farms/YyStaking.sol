@@ -229,6 +229,8 @@ contract YyStaking is Ownable {
             if (rewardTokens[i] == _rewardToken) {
                 rewardTokens[i] = rewardTokens[_len - 1];
                 rewardTokens.pop();
+                accRewardPerShare[_rewardToken] = 0;
+                lastRewardBalance[_rewardToken] = 0;
                 break;
             }
         }
