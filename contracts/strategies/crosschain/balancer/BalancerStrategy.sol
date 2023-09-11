@@ -8,8 +8,6 @@ import "./interfaces/IBalancerPool.sol";
 import "./interfaces/IBalancerGauge.sol";
 import "./interfaces/IBalMinter.sol";
 
-import "lib/forge-std/src/console2.sol";
-
 abstract contract BalancerStrategy is BaseStrategy {
     using SafeERC20 for IERC20;
 
