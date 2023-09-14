@@ -24,10 +24,9 @@ contract BalancerDirectJoinStrategy is BalancerStrategy {
         uint256 userDataAmountsIndex;
         for (uint256 i = 0; i < amounts.length; i++) {
             amounts[i] = poolTokens[i] == balancerPoolTokenIn ? _amountIn : 0;
-            if (dropBptAmountOnPoolJoin && i != bptIndex) {
-                userDataAmounts[userDataAmountsIndex] = poolTokens[i] == balancerPoolTokenIn ? _amountIn : 0;
-                userDataAmountsIndex++;
-            }
+            if (dropBptAmountOnPoolJoin && i == bptIndex) continue;
+            userDataAmounts[userDataAmountsIndex] = poolTokens[i] == balancerPoolTokenIn ? _amountIn : 0;
+            userDataAmountsIndex++;
         }
         bytes memory userData = abi.encode(JOIN_KIND, userDataAmounts, 0);
 
