@@ -46,7 +46,9 @@ contract MuxStrategyForMLP is YakStrategyV3 {
         _reinvest(true);
         require(depositToken.transferFrom(msg.sender, address(this), amount), "MuxStrategyForMLP::transfer failed");
         _mint(account, getSharesForDepositTokens(amount));
-        _stakeDepositTokens(amount);
+        require(amount > 0, "MuxStrategyForMLP::_stakeDepositTokens");
+        depositToken.safeTransfer(address(proxy.muxDepositor()), amount);
+        proxy.stakeMlp(depositToken.balanceOf(address(proxy.muxDepositor())));
         emit Deposit(account, amount);
     }
 
@@ -87,28 +89,22 @@ contract MuxStrategyForMLP is YakStrategyV3 {
                 rewardToken.safeTransfer(msg.sender, reinvestFee);
             }
 
-            rewardToken.safeTransfer(address(proxy.muxDepositor()), amount - devFee - reinvestFee);
+            rewardToken.safeTransfer(address(proxy), amount - devFee - reinvestFee);
             proxy.orderMlp(amount - devFee - reinvestFee);
 
-            uint256 unstakedMlp = depositToken.balanceOf(address(proxy.muxDepositor()));
-            if (unstakedMlp > 0) {
-                proxy.stakeMlp(unstakedMlp);
+            if (!_userDeposit) {
+                uint256 unstakedMlp = depositToken.balanceOf(address(proxy.muxDepositor()));
+                if (unstakedMlp > 0) {
+                    proxy.stakeMlp(unstakedMlp);
+                }
             }
 
             emit Reinvest(totalDeposits(), totalSupply);
         }
     }
 
-    function _stakeDepositTokens(uint256 _amount) private {
-        require(_amount > 0, "MuxStrategyForMLP::_stakeDepositTokens");
-        depositToken.safeTransfer(address(proxy.muxDepositor()), _amount);
-        proxy.stakeMlp(_amount);
-    }
-
     function checkReward() public view override returns (uint256) {
-        uint256 pendingReward = proxy.pendingRewards();
-        uint256 rewardTokenBalance = rewardToken.balanceOf(address(this));
-        return rewardTokenBalance + pendingReward;
+        return rewardToken.balanceOf(address(this)) + proxy.pendingRewards();
     }
 
     function totalDeposits() public view override returns (uint256) {

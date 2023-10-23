@@ -6,8 +6,6 @@ import "../../../lib/Ownable.sol";
 import "./interfaces/IMuxDepositor.sol";
 
 contract MuxDepositor is IMuxDepositor, Ownable {
-    address internal constant WETH = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
-
     address public proxy;
 
     modifier onlyMuxProxy() {
@@ -17,10 +15,6 @@ contract MuxDepositor is IMuxDepositor, Ownable {
 
     constructor(address _owner) {
         transferOwnership(_owner);
-    }
-
-    receive() external payable {
-        require(msg.sender == address(WETH), "not allowed");
     }
 
     function setMuxProxy(address _proxy) external override onlyOwner {
