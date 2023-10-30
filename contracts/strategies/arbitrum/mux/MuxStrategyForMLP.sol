@@ -31,7 +31,7 @@ contract MuxStrategyForMLP is YakStrategyV3 {
     }
 
     /**
-     * @dev Permit not supported by fsGLP
+     * @dev Permit not supported by mux LP
      */
     function depositWithPermit(uint256, uint256, uint8, bytes32, bytes32) external pure override {
         revert();
@@ -48,26 +48,22 @@ contract MuxStrategyForMLP is YakStrategyV3 {
         _mint(account, getSharesForDepositTokens(amount));
         require(amount > 0, "MuxStrategyForMLP::_stakeDepositTokens");
         depositToken.safeTransfer(address(proxy.muxDepositor()), amount);
-        proxy.stakeMlp(depositToken.balanceOf(address(proxy.muxDepositor())));
+        proxy.stakeMlp(amount);
         emit Deposit(account, amount);
     }
 
     function withdraw(uint256 amount) external override {
         uint256 depositTokenAmount = getDepositTokensForShares(amount);
         require(depositTokenAmount > 0, "MuxStrategyForMLP::withdraw");
-        _withdrawDepositTokens(depositTokenAmount);
+        proxy.withdrawMlp(depositTokenAmount);
         depositToken.safeTransfer(msg.sender, depositTokenAmount);
         _burn(msg.sender, amount);
         emit Withdraw(msg.sender, depositTokenAmount);
     }
 
-    function _withdrawDepositTokens(uint256 _amount) private {
-        proxy.withdrawMlp(_amount);
-    }
-
     function reinvest() external override onlyEOA {
         uint256 amount = checkReward();
-        require(amount >= MIN_TOKENS_TO_REINVEST, "MuxStrategyForMLP::reinvest");
+        require(amount >= MIN_TOKENS_TO_REINVEST && !proxy.largePendingOrder(), "MuxStrategyForMLP::reinvest");
         _reinvest(false);
     }
 
@@ -91,13 +87,6 @@ contract MuxStrategyForMLP is YakStrategyV3 {
 
             rewardToken.safeTransfer(address(proxy), amount - devFee - reinvestFee);
             proxy.orderMlp(amount - devFee - reinvestFee);
-
-            if (!_userDeposit) {
-                uint256 unstakedMlp = depositToken.balanceOf(address(proxy.muxDepositor()));
-                if (unstakedMlp > 0) {
-                    proxy.stakeMlp(unstakedMlp);
-                }
-            }
 
             emit Reinvest(totalDeposits(), totalSupply);
         }

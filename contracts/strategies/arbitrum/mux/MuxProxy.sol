@@ -11,6 +11,7 @@ import "./interfaces/IMuxRewardTracker.sol";
 import "./interfaces/IMuxProxy.sol";
 import "./interfaces/IVault.sol";
 import "./interfaces/ILiquidityPool.sol";
+import "./interfaces/IDistributor.sol";
 
 import "./MuxOrderHandler.sol";
 
@@ -110,11 +111,29 @@ contract MuxProxy is IMuxProxy {
     }
 
     function pendingRewards() external view override returns (uint256) {
-        return IMuxRewardTracker(mlpFeeTracker).claimableReward(address(muxDepositor));
+        IMuxRewardTracker rewardTracker = IMuxRewardTracker(mlpFeeTracker);
+
+        uint256 rewardUnaccounted = IERC20(WETH).balanceOf(mlpFeeTracker);
+        rewardUnaccounted += IDistributor(rewardTracker.distributor()).pendingMlpRewards();
+        rewardUnaccounted -= rewardTracker.lastRewardBalance();
+
+        uint256 tSupply = rewardTracker.totalSupply();
+        uint256 cumulativeRewardPerToken = rewardTracker.cumulativeRewardPerToken();
+
+        if (tSupply > 0 && rewardUnaccounted > 0) {
+            cumulativeRewardPerToken += ((rewardUnaccounted * 1e18) / tSupply);
+        }
+        uint256 accountReward = (
+            rewardTracker.stakedAmounts(address(muxDepositor))
+                * (cumulativeRewardPerToken - rewardTracker.previousCumulatedRewardPerToken(address(muxDepositor)))
+        ) / 1e18;
+
+        return IMuxRewardTracker(mlpFeeTracker).claimableReward(address(muxDepositor)) + accountReward;
     }
 
     function claimReward() external override onlyStrategy {
-        muxDepositor.safeExecute(muxRewardRouter, 0, abi.encodeWithSignature("claimAll()"));
+        muxDepositor.safeExecute(muxRewardRouter, 0, abi.encodeWithSignature("claimFromMlp()"));
+        muxDepositor.safeExecute(muxRewardRouter, 0, abi.encodeWithSignature("claimFromVe()"));
         uint256 reward = IERC20(WETH).balanceOf(address(muxDepositor));
         muxDepositor.safeExecute(WETH, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, reward));
         uint256 muxBalance = IERC20(MUX).balanceOf(address(muxDepositor));
