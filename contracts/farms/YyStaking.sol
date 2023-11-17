@@ -55,6 +55,7 @@ contract YyStaking is Ownable {
 
     /// @notice The deposit fee, scaled to `DEPOSIT_FEE_PERCENT_PRECISION`
     uint256 public depositFeePercent;
+    uint256 public immutable MAX_DEPOSIT_FEE_BIPS;
 
     /// @dev The precision of `depositFeePercent`
     uint256 internal constant DEPOSIT_FEE_PERCENT_PRECISION = 10000;
@@ -94,7 +95,8 @@ contract YyStaking is Ownable {
     constructor(
         IERC20 _depositToken,
         IERC20 _rewardToken,
-        address _feeCollector
+        address _feeCollector,
+        uint256 _maxDepositFeeBips
     ) {
         require(address(_depositToken) != address(0), "YyStaking::depositToken can't be address(0)");
         require(address(_rewardToken) != address(0), "YyStaking::rewardToken can't be address(0)");
@@ -106,6 +108,7 @@ contract YyStaking is Ownable {
         isRewardToken[_rewardToken] = true;
         rewardTokens.push(_rewardToken);
         ACC_REWARD_PER_SHARE_PRECISION = 1e24;
+        MAX_DEPOSIT_FEE_BIPS = _maxDepositFeeBips;
     }
 
     /**
@@ -229,6 +232,8 @@ contract YyStaking is Ownable {
             if (rewardTokens[i] == _rewardToken) {
                 rewardTokens[i] = rewardTokens[_len - 1];
                 rewardTokens.pop();
+                accRewardPerShare[_rewardToken] = 0;
+                lastRewardBalance[_rewardToken] = 0;
                 break;
             }
         }
@@ -240,7 +245,7 @@ contract YyStaking is Ownable {
      * @param _depositFeePercent The new deposit fee percent
      */
     function setDepositFeePercent(uint256 _depositFeePercent) external onlyOwner {
-        require(_depositFeePercent <= DEPOSIT_FEE_PERCENT_PRECISION, "YyStaking::deposit fee too high");
+        require(_depositFeePercent <= MAX_DEPOSIT_FEE_BIPS, "YyStaking::deposit fee too high");
         emit DepositFeeChanged(_depositFeePercent, depositFeePercent);
         depositFeePercent = _depositFeePercent;
     }
@@ -361,8 +366,7 @@ contract YyStaking is Ownable {
      * @dev Restricted to existing fee collector
      * @param _newFeeCollector The address of the new fee collector
      */
-    function updateFeeCollector(address _newFeeCollector) external {
-        require(msg.sender == feeCollector, "YyStaking::only feeCollector");
+    function updateFeeCollector(address _newFeeCollector) external onlyOwner {
         emit FeeCollectorChanged(_newFeeCollector, feeCollector);
         feeCollector = _newFeeCollector;
     }
