@@ -1,40 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "../../VariableRewardsStrategy.sol";
+import "../../BaseStrategy.sol";
 
 import "./interfaces/IYYStaking.sol";
 
-contract CompoundingYYStaking is VariableRewardsStrategy {
+contract CompoundingYYStaking is BaseStrategy {
     IYYStaking public stakingContract;
-    address public swapPairToken;
-    address public swapPairPreSwap;
-    address public preSwapToken;
 
     constructor(
-        address _preSwapToken,
-        address _swapPairPreSwap,
-        address _swapPairToken,
         address _stakingContract,
-        VariableRewardsStrategySettings memory _settings,
+        BaseStrategySettings memory _settings,
         StrategySettings memory _strategySettings
-    ) VariableRewardsStrategy(_settings, _strategySettings) {
-        swapPairPreSwap = _swapPairPreSwap;
-        swapPairToken = _swapPairToken;
-        preSwapToken = _preSwapToken;
+    ) BaseStrategy(_settings, _strategySettings) {
         stakingContract = IYYStaking(_stakingContract);
-    }
-
-    function _convertRewardTokenToDepositToken(uint256 _fromAmount) internal override returns (uint256 toAmount) {
-        if (swapPairPreSwap > address(0)) {
-            _fromAmount = DexLibrary.swap(
-                _fromAmount,
-                address(rewardToken),
-                address(preSwapToken),
-                IPair(swapPairPreSwap)
-            );
-        }
-        return DexLibrary.swap(_fromAmount, address(preSwapToken), address(depositToken), IPair(swapPairToken));
     }
 
     function _getDepositFeeBips() internal view virtual override returns (uint256) {
@@ -44,7 +23,6 @@ contract CompoundingYYStaking is VariableRewardsStrategy {
     function _depositToStakingContract(uint256 _amount, uint256) internal override {
         depositToken.approve(address(stakingContract), _amount);
         stakingContract.deposit(_amount);
-        depositToken.approve(address(stakingContract), 0);
     }
 
     function _withdrawFromStakingContract(uint256 _amount) internal override returns (uint256 withdrawAmount) {
@@ -73,7 +51,7 @@ contract CompoundingYYStaking is VariableRewardsStrategy {
     }
 
     function totalDeposits() public view override returns (uint256) {
-        (uint256 amount, ) = stakingContract.getUserInfo(address(this), address(0));
+        (uint256 amount,) = stakingContract.getUserInfo(address(this), address(0));
         return amount;
     }
 }
