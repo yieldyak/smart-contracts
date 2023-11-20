@@ -15,7 +15,7 @@ contract BalancerDirectJoinStrategy is BalancerStrategy {
         StrategySettings memory _strategySettings
     ) BalancerStrategy(_balancerStrategySettings, _settings, _strategySettings) {
         dropBptAmountOnPoolJoin = _dropBptAmountOnPoolJoin;
-        bptIndex = IBalancerPool(address(depositToken)).getBptIndex();
+        bptIndex = dropBptAmountOnPoolJoin ? IBalancerPool(address(depositToken)).getBptIndex() : 0;
     }
 
     function _joinPool(uint256 _amountIn) internal override returns (uint256 amountOut) {
