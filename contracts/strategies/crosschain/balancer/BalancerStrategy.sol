@@ -16,6 +16,7 @@ abstract contract BalancerStrategy is BaseStrategy {
     IBalMinter public immutable balMinter;
     bytes32 public immutable poolId;
     address public immutable balancerPoolTokenIn;
+    address public immutable gaugeFactory;
 
     uint256 public boostFeeBips;
     address public boostFeeReceiver;
@@ -37,6 +38,7 @@ abstract contract BalancerStrategy is BaseStrategy {
         StrategySettings memory _strategySettings
     ) BaseStrategy(_settings, _strategySettings) {
         stakingContract = IBalancerGauge(_balancerStrategySettings.stakingContract);
+        gaugeFactory = stakingContract.factory();
         balancerVault = IBalancerVault(_balancerStrategySettings.balancerVault);
         balancerPoolTokenIn = _balancerStrategySettings.balancerPoolTokenIn;
         boostFeeBips = _balancerStrategySettings.boostFeeBips;
@@ -79,7 +81,7 @@ abstract contract BalancerStrategy is BaseStrategy {
     }
 
     function _pendingBalRewards() internal view returns (uint256 pendingBal) {
-        if (!balMinter.isValidGaugeFactory(address(stakingContract))) return 0;
+        if (!balMinter.isValidGaugeFactory(address(gaugeFactory))) return 0;
 
         uint256 period = stakingContract.period();
         uint256 periodTime = stakingContract.period_timestamp(period);
@@ -119,7 +121,7 @@ abstract contract BalancerStrategy is BaseStrategy {
 
     function _getRewards() internal override {
         stakingContract.claim_rewards();
-        if (balMinter.isValidGaugeFactory(address(stakingContract))) {
+        if (balMinter.isValidGaugeFactory(address(gaugeFactory))) {
             balMinter.mint(address(stakingContract));
             if (boostFeeReceiver > address(0)) {
                 uint256 boostFee = (IERC20(BAL).balanceOf(address(this)) * boostFeeBips) / BIPS_DIVISOR;
