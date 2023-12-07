@@ -20,4 +20,6 @@ interface IBalancerGauge {
     function inflation_rate(uint256 time) external view returns (uint256);
     function bal_pseudo_minter() external view returns (address);
     function factory() external view returns (address);
+    function integrate_fraction(address user) external view returns (uint256);
+    function user_checkpoint(address user) external returns (bool);
 }

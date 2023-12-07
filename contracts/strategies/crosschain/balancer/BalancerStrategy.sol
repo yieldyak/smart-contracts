@@ -106,8 +106,11 @@ abstract contract BalancerStrategy is BaseStrategy {
         }
 
         pendingBal = (
-            stakingContract.working_balances(address(this))
-                * (integrateInvSupply - stakingContract.integrate_inv_supply_of(address(this))) / 10e18
+            stakingContract.integrate_fraction(address(this))
+                + (
+                    stakingContract.working_balances(address(this))
+                        * (integrateInvSupply - stakingContract.integrate_inv_supply_of(address(this))) / 10e18
+                )
         ) - balMinter.minted(address(this), address(stakingContract));
 
         if (boostFeeReceiver > address(0)) {
