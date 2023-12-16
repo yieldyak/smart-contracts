@@ -23,7 +23,6 @@ contract CamelotVoter is ICamelotVoter, Ownable, ERC20, INFTHandler {
     address public constant GRAIL = 0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8;
 
     address public voterProxy;
-    bool public override depositsEnabled;
 
     modifier onlyCamelotVoterProxy() {
         require(msg.sender == voterProxy, "CamelotVoter::onlyCamelotVoterProxy");
@@ -34,40 +33,30 @@ contract CamelotVoter is ICamelotVoter, Ownable, ERC20, INFTHandler {
         transferOwnership(_owner);
     }
 
+    /**
+     * @notice Update proxy address
+     * @dev Very sensitive, restricted to owner
+     * @param _voterProxy new address
+     */
+    function setVoterProxy(address _voterProxy) external override onlyOwner {
+        voterProxy = _voterProxy;
+    }
+
     receive() external payable {}
 
-    function onERC721Received(
-        address,
-        address,
-        uint256,
-        bytes calldata
-    ) external pure returns (bytes4) {
+    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
         return IERC721Receiver.onERC721Received.selector;
     }
 
-    function onNFTHarvest(
-        address,
-        address,
-        uint256,
-        uint256,
-        uint256
-    ) external pure override returns (bool) {
+    function onNFTHarvest(address, address, uint256, uint256, uint256) external pure override returns (bool) {
         return true;
     }
 
-    function onNFTAddToPosition(
-        address,
-        uint256,
-        uint256
-    ) external pure override returns (bool) {
+    function onNFTAddToPosition(address, uint256, uint256) external pure override returns (bool) {
         return true;
     }
 
-    function onNFTWithdraw(
-        address,
-        uint256,
-        uint256
-    ) external pure override returns (bool) {
+    function onNFTWithdraw(address, uint256, uint256) external pure override returns (bool) {
         return true;
     }
 
@@ -84,41 +73,12 @@ contract CamelotVoter is ICamelotVoter, Ownable, ERC20, INFTHandler {
      * @return uint256 allocated xGrail
      */
     function allocatedXGrail() public view returns (uint256) {
-        (uint256 allocated, ) = xGRAIL.xGrailBalances(address(this));
+        (uint256 allocated,) = xGRAIL.xGrailBalances(address(this));
         return allocated;
     }
 
     function totalXGrail() public view returns (uint256) {
         return unallocatedXGrail() + allocatedXGrail();
-    }
-
-    /**
-     * @notice Enable/disable deposits
-     * @dev Restricted to owner
-     * @param newValue bool
-     */
-    function updateDepositsEnabled(bool newValue) external onlyOwner {
-        require(depositsEnabled != newValue);
-        depositsEnabled = newValue;
-    }
-
-    /**
-     * @notice External deposit function for GRAIL
-     * @param _amount to deposit
-     */
-    function deposit(uint256 _amount) external override {
-        require(depositsEnabled == true, "CamelotVoter:deposits disabled");
-        require(IERC20(GRAIL).transferFrom(msg.sender, address(this), _amount), "CamelotVoter::transfer failed");
-        _deposit(_amount);
-    }
-
-    /**
-     * @notice Update proxy address
-     * @dev Very sensitive, restricted to owner
-     * @param _voterProxy new address
-     */
-    function setVoterProxy(address _voterProxy) external override onlyOwner {
-        voterProxy = _voterProxy;
     }
 
     function mint(address _receiver) external override onlyCamelotVoterProxy {
@@ -129,24 +89,17 @@ contract CamelotVoter is ICamelotVoter, Ownable, ERC20, INFTHandler {
         }
     }
 
-    /**
-     * @notice Deposit function for GRAIL
-     * @dev Restricted to proxy
-     * @param _amount to deposit
-     */
-    function depositFromBalance(uint256 _amount) external override onlyCamelotVoterProxy {
-        require(depositsEnabled == true, "CamelotVoter:deposits disabled");
-        _deposit(_amount);
+    function burn(address _account, uint256 _amount) external override onlyCamelotVoterProxy {
+        _burn(_account, _amount);
     }
 
-    /**
-     * @notice Deposits GRAIL and mints yyGRAIL at 1:1 ratio
-     * @param _amount to deposit
-     */
-    function _deposit(uint256 _amount) internal {
-        IERC20(GRAIL).safeApprove(address(xGRAIL), _amount);
-        _mint(msg.sender, _amount);
-        xGRAIL.convert(_amount);
+    function xGrailForYYGrail(uint256 amount) public view override returns (uint256) {
+        uint256 xGrailTotal = totalXGrail();
+        uint256 yyTotal = totalSupply();
+        if (yyTotal == 0 || xGrailTotal == 0) {
+            return 0;
+        }
+        return (amount * xGrailTotal) / yyTotal;
     }
 
     /**
@@ -170,11 +123,12 @@ contract CamelotVoter is ICamelotVoter, Ownable, ERC20, INFTHandler {
      * @return bool success
      * @return bytes result
      */
-    function execute(
-        address target,
-        uint256 value,
-        bytes calldata data
-    ) external override onlyCamelotVoterProxy returns (bool, bytes memory) {
+    function execute(address target, uint256 value, bytes calldata data)
+        external
+        override
+        onlyCamelotVoterProxy
+        returns (bool, bytes memory)
+    {
         (bool success, bytes memory result) = target.call{value: value}(data);
 
         return (success, result);

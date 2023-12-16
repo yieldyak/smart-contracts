@@ -5,4 +5,6 @@ interface ICamelotStrategy {
     function pool() external view returns (address);
 
     function positionId() external view returns (uint256);
+
+    function claimReward() external;
 }

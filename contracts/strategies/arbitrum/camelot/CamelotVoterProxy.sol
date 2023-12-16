@@ -2,7 +2,7 @@
 pragma solidity 0.8.13;
 
 import "../../../lib/SafeERC20.sol";
-import "./../../VariableRewardsStrategy.sol";
+import "./../../../interfaces/IBaseStrategy.sol";
 import "./interfaces/ICamelotVoter.sol";
 import "./interfaces/ICamelotVoterProxy.sol";
 import "./interfaces/INFTPool.sol";
@@ -12,12 +12,10 @@ import "./interfaces/INitroPool.sol";
 import "./interfaces/INitroPoolFactory.sol";
 
 library SafeProxy {
-    function safeExecute(
-        ICamelotVoter voter,
-        address target,
-        uint256 value,
-        bytes memory data
-    ) internal returns (bytes memory) {
+    function safeExecute(ICamelotVoter voter, address target, uint256 value, bytes memory data)
+        internal
+        returns (bytes memory)
+    {
         (bool success, bytes memory returnValue) = voter.execute(target, value, data);
         if (!success) revert("CamelotVoterProxy::safeExecute failed");
         return returnValue;
@@ -33,11 +31,6 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
     using SafeProxy for ICamelotVoter;
     using SafeERC20 for IERC20;
 
-    struct Reward {
-        address reward;
-        uint256 amount;
-    }
-
     uint256 internal constant TOTAL_REWARDS_SHARES = 10000;
     uint256 internal constant BIPS_DIVISOR = 10000;
     uint256 internal constant POSITION_INIT_AMOUNT = 1 wei;
@@ -49,6 +42,8 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
     ICamelotVoter public immutable voter;
 
     address public devAddr;
+    address public xGrailFeeCollector;
+    uint256 public xGrailFeeBips;
     // pool => position id => strategy
     mapping(address => mapping(uint256 => address)) public approvedStrategies;
 
@@ -62,9 +57,11 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
         _;
     }
 
-    constructor(address _voter, address _devAddr) {
+    constructor(address _voter, address _devAddr, address _xGrailFeeCollector, uint256 _xGrailFeeBips) {
         devAddr = _devAddr;
         voter = ICamelotVoter(_voter);
+        xGrailFeeCollector = _xGrailFeeCollector;
+        xGrailFeeBips = _xGrailFeeBips;
     }
 
     /**
@@ -76,6 +73,23 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
     }
 
     /**
+     * @notice Updates xGrailFeeCollector
+     * @param _newXGrailFeeCollector New xGrail fee collector
+     */
+    function updateXGrailFeeCollector(address _newXGrailFeeCollector) external onlyDev {
+        xGrailFeeCollector = _newXGrailFeeCollector;
+    }
+
+    /**
+     * @notice Update xGrail fee
+     * @dev Restricted to devAddr
+     * @param _xGrailFeeBips new fee in bips (1% = 100 bips)
+     */
+    function setXGrailFee(uint256 _xGrailFeeBips) external onlyDev {
+        xGrailFeeBips = _xGrailFeeBips;
+    }
+
+    /**
      * @notice Used to initialize position and allow for immutable position id in strategy
      * @dev Use this method before deploying a strategy to generate the NFT
      * @dev Use NitroPoolFactory.nftPoolPublishedNitroPoolsLength and getNftPoolPublishedNitroPool to find a suitable nitro pool
@@ -84,18 +98,15 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
      * @param _useNitroPool Pass false if there is no nitro pool available
      * @param _nitroPoolIndex Relativ index for this NFTPool
      */
-    function createPosition(
-        address _nftPool,
-        address _lpToken,
-        bool _useNitroPool,
-        uint256 _nitroPoolIndex
-    ) external onlyDev returns (uint256) {
+    function createPosition(address _nftPool, address _lpToken, bool _useNitroPool, uint256 _nitroPoolIndex)
+        external
+        onlyDev
+        returns (uint256)
+    {
         IERC20(_lpToken).safeTransferFrom(msg.sender, address(voter), POSITION_INIT_AMOUNT);
         voter.safeExecute(_lpToken, 0, abi.encodeWithSelector(IERC20.approve.selector, _nftPool, POSITION_INIT_AMOUNT));
         voter.safeExecute(
-            _nftPool,
-            0,
-            abi.encodeWithSelector(INFTPool.createPosition.selector, POSITION_INIT_AMOUNT, 0)
+            _nftPool, 0, abi.encodeWithSelector(INFTPool.createPosition.selector, POSITION_INIT_AMOUNT, 0)
         );
         uint256 positionId = INFTPool(_nftPool).lastTokenId();
         if (_useNitroPool) {
@@ -104,32 +115,12 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
         return positionId;
     }
 
-    /**
-     * @notice Reallocate yield boost from one NFTPool/position to another
-     */
-    function reallocateYieldBoost(
-        address _nftPoolFrom,
-        uint256 _positionIdFrom,
-        address _nftPoolTo,
-        uint256 _positionIdTo,
-        uint256 _amount
-    ) external onlyDev {
-        address yieldBooster = INFTPool(_nftPoolFrom).yieldBooster();
-        bytes memory data = abi.encode(_nftPoolFrom, _positionIdFrom);
-        voter.safeExecute(xGRAIL, 0, abi.encodeWithSelector(IXGrail.deallocate.selector, yieldBooster, _amount, data));
-        _amount = voter.unallocatedXGrail();
-        _allocateXGrail(_nftPoolTo, _positionIdTo, _amount);
-    }
-
-    function _stakeInNitroPool(
-        uint256 _positionId,
-        address _nftPool,
-        uint256 _nitroPoolIndex
-    ) internal returns (address) {
-        address nitroPool = INitroPoolFactory(NITRO_POOL_FACTORY).getNftPoolPublishedNitroPool(
-            _nftPool,
-            _nitroPoolIndex
-        );
+    function _stakeInNitroPool(uint256 _positionId, address _nftPool, uint256 _nitroPoolIndex)
+        internal
+        returns (address)
+    {
+        address nitroPool =
+            INitroPoolFactory(NITRO_POOL_FACTORY).getNftPoolPublishedNitroPool(_nftPool, _nitroPoolIndex);
         voter.safeExecute(
             _nftPool,
             0,
@@ -175,12 +166,10 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
      * @param _lpToken LP token
      * @param _amount deposit amount
      */
-    function deposit(
-        uint256 _positionId,
-        address _nftPool,
-        address _lpToken,
-        uint256 _amount
-    ) external onlyStrategy(_nftPool, _positionId) {
+    function deposit(uint256 _positionId, address _nftPool, address _lpToken, uint256 _amount)
+        external
+        onlyStrategy(_nftPool, _positionId)
+    {
         voter.safeExecute(_lpToken, 0, abi.encodeWithSelector(IERC20.approve.selector, _nftPool, _amount));
         voter.safeExecute(_nftPool, 0, abi.encodeWithSelector(INFTPool.addToPosition.selector, _positionId, _amount));
     }
@@ -193,20 +182,15 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
      * @param _lpToken LP token
      * @param _amount withdraw amount
      */
-    function withdraw(
-        uint256 _positionId,
-        address _nftPool,
-        address _nitroPool,
-        address _lpToken,
-        uint256 _amount
-    ) external onlyStrategy(_nftPool, _positionId) {
+    function withdraw(uint256 _positionId, address _nftPool, address _nitroPool, address _lpToken, uint256 _amount)
+        external
+        onlyStrategy(_nftPool, _positionId)
+    {
         if (_nitroPool > address(0)) {
             voter.safeExecute(_nitroPool, 0, abi.encodeWithSelector(INitroPool.withdraw.selector, _positionId));
         }
         voter.safeExecute(
-            _nftPool,
-            0,
-            abi.encodeWithSelector(INFTPool.withdrawFromPosition.selector, _positionId, _amount)
+            _nftPool, 0, abi.encodeWithSelector(INFTPool.withdrawFromPosition.selector, _positionId, _amount)
         );
         voter.safeExecute(_lpToken, 0, abi.encodeWithSelector(IERC20.transfer.selector, msg.sender, _amount));
         if (_nitroPool > address(0)) {
@@ -218,6 +202,26 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
         }
     }
 
+    function convertToXGrail(address _nftPool, uint256 _positionId, uint256 _amount, address _receiver)
+        external
+        onlyStrategy(_nftPool, _positionId)
+    {
+        uint256 xGrailAmount = voter.xGrailForYYGrail(_amount);
+        voter.burn(msg.sender, _amount);
+        address yieldBooster = INFTPool(_nftPool).yieldBooster();
+        bytes memory data = abi.encode(_nftPool, _positionId);
+        voter.safeExecute(
+            xGRAIL, 0, abi.encodeWithSelector(IXGrail.deallocate.selector, yieldBooster, xGrailAmount, data)
+        );
+
+        xGrailAmount = voter.unallocatedXGrail();
+        uint256 xGrailFee = (xGrailAmount * xGrailFeeBips) / BIPS_DIVISOR;
+        voter.safeExecute(
+            xGRAIL, 0, abi.encodeWithSelector(IERC20.transfer.selector, _receiver, xGrailAmount - xGrailFee)
+        );
+        voter.safeExecute(xGRAIL, 0, abi.encodeWithSelector(IERC20.transfer.selector, xGrailFeeCollector, xGrailFee));
+    }
+
     /**
      * @notice Emergency withdraw function
      * @dev Restricted to approved strategies
@@ -225,12 +229,10 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
      * @param _nftPool Staking contract
      * @param _lpToken LP token
      */
-    function emergencyWithdraw(
-        uint256 _positionId,
-        address _nftPool,
-        address _nitroPool,
-        address _lpToken
-    ) external onlyStrategy(_nftPool, _positionId) {
+    function emergencyWithdraw(uint256 _positionId, address _nftPool, address _nitroPool, address _lpToken)
+        external
+        onlyStrategy(_nftPool, _positionId)
+    {
         if (_nitroPool > address(0)) {
             voter.safeExecute(_nitroPool, 0, abi.encodeWithSelector(INitroPool.withdraw.selector, _positionId));
         }
@@ -239,11 +241,11 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
         voter.safeExecute(_lpToken, 0, abi.encodeWithSelector(IERC20.transfer.selector, msg.sender, balance));
     }
 
-    function pendingRewards(
-        uint256 _positionId,
-        address _nftPool,
-        address _nitroPool
-    ) external view returns (VariableRewardsStrategy.Reward[] memory) {
+    function pendingRewards(uint256 _positionId, address _nftPool, address _nitroPool)
+        external
+        view
+        returns (IBaseStrategy.Reward[] memory)
+    {
         uint256 pendingTotal = INFTPool(_nftPool).pendingRewards(_positionId);
         uint256 xGrailRewards = (pendingTotal * INFTPool(_nftPool).xGrailRewardsShare()) / TOTAL_REWARDS_SHARES;
         uint256 pendingGrail = pendingTotal - xGrailRewards;
@@ -255,13 +257,13 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
             uint256 nitroPendingGrail,
             uint256 pendingCount
         ) = pendingNitroRewards(_nitroPool);
-        VariableRewardsStrategy.Reward[] memory rewards = new VariableRewardsStrategy.Reward[](pendingCount + 1);
-        rewards[0] = VariableRewardsStrategy.Reward({reward: address(GRAIL), amount: pendingGrail + nitroPendingGrail});
+        IBaseStrategy.Reward[] memory rewards = new IBaseStrategy.Reward[](pendingCount + 1);
+        rewards[0] = IBaseStrategy.Reward({reward: address(GRAIL), amount: pendingGrail + nitroPendingGrail});
         if (pending1 > 0) {
-            rewards[1] = VariableRewardsStrategy.Reward({reward: token1, amount: pending1});
+            rewards[1] = IBaseStrategy.Reward({reward: token1, amount: pending1});
         }
         if (pending2 > 0) {
-            rewards[rewards.length - 1] = VariableRewardsStrategy.Reward({reward: token2, amount: pending2});
+            rewards[rewards.length - 1] = IBaseStrategy.Reward({reward: token2, amount: pending2});
         }
         return rewards;
     }
@@ -312,7 +314,7 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
      * @return balance in depositToken
      */
     function poolBalance(uint256 _positionId, address _nftPool) external view returns (uint256 balance) {
-        (balance, , , , , , , ) = INFTPool(_nftPool).getStakingPosition(_positionId);
+        (balance,,,,,,,) = INFTPool(_nftPool).getStakingPosition(_positionId);
         if (balance >= POSITION_INIT_AMOUNT) {
             balance = balance - POSITION_INIT_AMOUNT;
         }
@@ -324,12 +326,10 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
      * @param _positionId ERC721 token id / position id
      * @param _nftPool Staking contract
      */
-    function claimReward(
-        uint256 _positionId,
-        address _nftPool,
-        address _nitroPool,
-        address _yyGrailReceiver
-    ) external onlyStrategy(_nftPool, _positionId) {
+    function claimReward(uint256 _positionId, address _nftPool, address _nitroPool, address _yyGrailReceiver)
+        external
+        onlyStrategy(_nftPool, _positionId)
+    {
         (address token1, address token2, uint256 claimed1, uint256 claimed2) = claimNitroRewards(_nitroPool);
         if (claimed1 > 0) {
             voter.safeExecute(token1, 0, abi.encodeWithSelector(IERC20.transfer.selector, msg.sender, claimed1));
@@ -348,11 +348,7 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
         }
     }
 
-    function _allocateXGrail(
-        address _nftPool,
-        uint256 _positionId,
-        uint256 _amount
-    ) internal {
+    function _allocateXGrail(address _nftPool, uint256 _positionId, uint256 _amount) internal {
         address yieldBooster = INFTPool(_nftPool).yieldBooster();
         bytes memory data = abi.encode(_nftPool, _positionId);
         voter.safeExecute(xGRAIL, 0, abi.encodeWithSelector(IXGrail.approveUsage.selector, yieldBooster, _amount));
@@ -361,25 +357,20 @@ contract CamelotVoterProxy is ICamelotVoterProxy {
 
     function claimNitroRewards(address _nitroPool)
         internal
-        returns (
-            address token1,
-            address token2,
-            uint256 claimed1,
-            uint256 claimed2
-        )
+        returns (address token1, address token2, uint256 claimed1, uint256 claimed2)
     {
         if (_nitroPool > address(0)) {
             voter.safeExecute(_nitroPool, 0, abi.encodeWithSelector(INitroPool.harvest.selector));
             token1 = INitroPool(_nitroPool).rewardsToken1();
             if (token1 == xGRAIL || token1 == GRAIL) {
                 claimed1 = 0;
-            } else {
+            } else if (token1 > address(0)) {
                 claimed1 = IERC20(token1).balanceOf(address(voter));
             }
             token2 = INitroPool(_nitroPool).rewardsToken2();
             if (token2 == xGRAIL || token2 == GRAIL) {
                 claimed2 = 0;
-            } else {
+            } else if (token2 > address(0)) {
                 claimed2 = IERC20(token2).balanceOf(address(voter));
             }
         }
