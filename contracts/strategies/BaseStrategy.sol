@@ -223,9 +223,9 @@ abstract contract BaseStrategy is YakStrategyV3 {
             if (depositTokenAmount > 0) {
                 uint256 depositFee = _calculateDepositFee(depositTokenAmount);
                 _stakeDepositTokens(depositTokenAmount, depositFee);
-                emit Reinvest(totalDeposits(), totalSupply);
             }
         }
+        emit Reinvest(totalDeposits(), totalSupply);
     }
 
     function _convertRewardTokenToDepositToken(uint256 _fromAmount) internal virtual returns (uint256 toAmount) {
