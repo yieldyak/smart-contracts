@@ -3,68 +3,72 @@ pragma solidity 0.8.13;
 
 import "../../BaseStrategy.sol";
 import "./interfaces/IBoostedMasterWombat.sol";
-import "./interfaces/IWombatAsset.sol";
 import "./interfaces/IWombatPool.sol";
+import "./interfaces/IWombatAsset.sol";
+import "./interfaces/IWombatProxy.sol";
 
 contract WombatStrategy is BaseStrategy {
     using SafeERC20 for IERC20;
 
-    IBoostedMasterWombat public immutable masterWombat;
-    IWombatAsset public immutable wombatAsset;
     IWombatPool public immutable wombatPool;
+    address public immutable masterWombat;
     uint256 public immutable pid;
+    address public immutable underlyingToken;
+
+    IWombatProxy public proxy;
 
     constructor(
         address _wombatPool,
+        address _proxy,
         BaseStrategySettings memory baseStrategySettings,
         StrategySettings memory _strategySettings
     ) BaseStrategy(baseStrategySettings, _strategySettings) {
         wombatPool = IWombatPool(_wombatPool);
-        wombatAsset = IWombatAsset(wombatPool.addressOfAsset(address(depositToken)));
-        masterWombat = IBoostedMasterWombat(wombatPool.masterWombat());
-        pid = masterWombat.getAssetPid(address(wombatAsset));
+        masterWombat = wombatPool.masterWombat();
+        pid = IBoostedMasterWombat(masterWombat).getAssetPid(address(depositToken));
+        proxy = IWombatProxy(_proxy);
+        underlyingToken = IWombatAsset(address(depositToken)).underlyingToken();
+    }
+
+    function setProxy(address _proxy) external onlyDev {
+        proxy = IWombatProxy(_proxy);
     }
 
     function _depositToStakingContract(uint256 _amount, uint256) internal override {
-        depositToken.approve(address(wombatPool), _amount);
-        wombatPool.deposit(address(depositToken), _amount, 0, address(this), block.timestamp, true);
+        depositToken.transfer(proxy.voter(), _amount);
+        proxy.depositToStakingContract(masterWombat, pid, address(depositToken), _amount);
     }
 
     function _withdrawFromStakingContract(uint256 _amount) internal override returns (uint256 _withdrawAmount) {
-        (uint128 lpBalance,,,) = masterWombat.userInfo(pid, address(this));
-        uint256 liquidity = (_amount * lpBalance) / totalDeposits();
-        liquidity = liquidity > lpBalance ? lpBalance : liquidity;
-        masterWombat.withdraw(pid, liquidity);
-        IERC20(address(wombatAsset)).approve(address(wombatPool), liquidity);
-        _withdrawAmount = wombatPool.withdraw(address(depositToken), liquidity, 0, address(this), block.timestamp);
+        proxy.withdrawFromStakingContract(masterWombat, pid, address(depositToken), _amount);
+        return _amount;
     }
 
     function _emergencyWithdraw() internal override {
-        depositToken.approve(address(masterWombat), 0);
-        masterWombat.emergencyWithdraw(pid);
-        uint256 assetBalance = IERC20(address(wombatAsset)).balanceOf(address(this));
-        IERC20(address(wombatAsset)).approve(address(wombatPool), assetBalance);
-        wombatPool.withdraw(address(depositToken), assetBalance, 0, address(this), block.timestamp);
+        proxy.emergencyWithdraw(masterWombat, pid, address(depositToken));
     }
 
     function _pendingRewards() internal view override returns (Reward[] memory) {
-        (, address[] memory bonusTokenAddresses,, uint256[] memory pendingBonusRewards) =
-            masterWombat.pendingTokens(pid, address(this));
-        Reward[] memory pendingRewards = new Reward[](bonusTokenAddresses.length);
-        for (uint256 i = 0; i < bonusTokenAddresses.length; i++) {
-            pendingRewards[i] = Reward({reward: bonusTokenAddresses[i], amount: pendingBonusRewards[i]});
-        }
-        return pendingRewards;
+        return proxy.pendingRewards(masterWombat, pid);
     }
 
     function _getRewards() internal override {
-        masterWombat.deposit(pid, 0);
+        proxy.getRewards(masterWombat, pid);
+    }
+
+    function _convertRewardTokenToDepositToken(uint256 _fromAmount) internal override returns (uint256) {
+        if (address(rewardToken) != underlyingToken) {
+            FormattedOffer memory offer = simpleRouter.query(_fromAmount, address(rewardToken), underlyingToken);
+            _fromAmount = _swap(offer);
+        }
+        if (_fromAmount > 0) {
+            IERC20(underlyingToken).approve(address(wombatPool), _fromAmount);
+            wombatPool.deposit(underlyingToken, _fromAmount, 0, address(proxy.voter()), block.timestamp, true);
+        }
+        return 0;
     }
 
     function totalDeposits() public view override returns (uint256) {
-        (uint128 liquidity,,,) = masterWombat.userInfo(pid, address(this));
-        if (liquidity == 0) return 0;
-        (uint256 amount, uint256 fee) = wombatPool.quotePotentialWithdraw(address(depositToken), liquidity);
-        return amount + fee;
+        return proxy.totalDeposits(masterWombat, pid);
     }
 }
