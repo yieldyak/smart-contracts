@@ -148,12 +148,20 @@ contract WombatProxy {
         voter.safeExecute(_masterWombat, 0, abi.encodeWithSelector(IBoostedMasterWombat.deposit.selector, _pid, 0));
         for (uint256 i; i < rewards.length; i++) {
             uint256 reward = IERC20(rewards[i].reward).balanceOf(address(voter));
-            uint256 boostFee = rewards[i].reward == WOM ? _calculateBoostFee(reward) : 0;
-            if (boostFee > minBoostAmount) {
-                _boost(boostFee);
+
+            if (rewards[i].reward == WOM) {
+                uint256 reservedWom = voter.reservedWom();
+                reservedWom += _calculateBoostFee(reward - reservedWom);
+                reward -= reservedWom;
+                if (reservedWom > minBoostAmount) {
+                    _boost(reservedWom);
+                    reservedWom = 0;
+                }
+                voter.setReservedWom(reservedWom);
             }
+
             voter.safeExecute(
-                rewards[i].reward, 0, abi.encodeWithSelector(IERC20.transfer.selector, msg.sender, reward - boostFee)
+                rewards[i].reward, 0, abi.encodeWithSelector(IERC20.transfer.selector, msg.sender, reward)
             );
         }
     }

@@ -7,6 +7,7 @@ import "./interfaces/IWombatVoter.sol";
 
 contract WombatVoter is IWombatVoter, Ownable {
     address public proxy;
+    uint256 public reservedWom;
 
     modifier onlyProxy() {
         require(msg.sender == proxy, "WombatVoter::onlyProxy");
@@ -19,6 +20,10 @@ contract WombatVoter is IWombatVoter, Ownable {
 
     function setProxy(address _proxy) external override onlyOwner {
         proxy = _proxy;
+    }
+
+    function setReservedWom(uint256 _reservedWom) external override onlyProxy {
+        reservedWom = _reservedWom;
     }
 
     function execute(address target, uint256 value, bytes calldata data)
