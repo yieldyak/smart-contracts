@@ -9,15 +9,22 @@ import "./../../../interfaces/ILamaPay.sol";
 contract MemeRushStrategy is BaseStrategy {
     using SafeERC20 for IERC20;
 
+    struct Stream {
+        address lamaPayInstance;
+        address payer;
+        uint216 amountPerSec;
+        address token;
+    }
+
     address internal immutable token0;
     address internal immutable token1;
 
     uint256 public staked;
 
-    ILamaPay public lamaPay;
-    address public payer;
-    uint216 public amountPerSec;
-    bool public streaming;
+    Stream[] public streams;
+
+    event AddStream(address lamaPayInstance, address payer, uint216 amountPerSec, address token);
+    event RemoveStream(address lamaPayInstance, address payer, uint216 amountPerSec, address token);
 
     constructor(BaseStrategySettings memory _baseStrategySettings, StrategySettings memory _strategySettings)
         BaseStrategy(_baseStrategySettings, _strategySettings)
@@ -26,12 +33,40 @@ contract MemeRushStrategy is BaseStrategy {
         token1 = IPair(address(depositToken)).token1();
     }
 
-    function updateLamaPay(address _lamaPay, address _payer, uint216 _amountPerSec) external onlyDev {
+    function addStream(address _lamaPayInstance, address _payer, uint216 _amountPerSec) external onlyDev {
+        if (_lamaPayInstance > address(0) && _payer > address(0) && _amountPerSec > 0) {
+            (, bool found) = findStream(_lamaPayInstance, _payer, _amountPerSec);
+            require(!found, "MemeRushStrategy::Stream already configured!");
+            address token = ILamaPay(_lamaPayInstance).token();
+            streams.push(
+                Stream({lamaPayInstance: _lamaPayInstance, payer: _payer, amountPerSec: _amountPerSec, token: token})
+            );
+            emit AddStream(_lamaPayInstance, _payer, _amountPerSec, token);
+        }
+    }
+
+    function removeStream(address _lamaPayInstance, address _payer, uint216 _amountPerSec) external onlyDev {
+        (uint256 index, bool found) = findStream(_lamaPayInstance, _payer, _amountPerSec);
+        require(found, "MemeRushStrategy::Stream not configured!");
         _getRewards();
-        lamaPay = ILamaPay(_lamaPay);
-        payer = _payer;
-        amountPerSec = _amountPerSec;
-        streaming = _lamaPay > address(0) && _payer > address(0) && _amountPerSec > 0;
+        streams[index] = streams[streams.length - 1];
+        streams.pop();
+        emit RemoveStream(_lamaPayInstance, _payer, _amountPerSec, ILamaPay(_lamaPayInstance).token());
+    }
+
+    function findStream(address _lamaPayInstance, address _payer, uint216 _amountPerSec)
+        internal
+        returns (uint256 index, bool found)
+    {
+        for (uint256 i = 0; i < streams.length; i++) {
+            if (
+                _lamaPayInstance == streams[i].lamaPayInstance && _payer == streams[i].payer
+                    && _amountPerSec == streams[i].amountPerSec
+            ) {
+                found = true;
+                index = i;
+            }
+        }
     }
 
     function _depositToStakingContract(uint256 _amount, uint256) internal override {
@@ -44,17 +79,19 @@ contract MemeRushStrategy is BaseStrategy {
     }
 
     function _pendingRewards() internal view virtual override returns (Reward[] memory) {
-        if (!streaming) return new Reward[](0);
-
-        (uint256 withdrawableAmount,,) = lamaPay.withdrawable(payer, address(this), amountPerSec);
-        Reward[] memory rewards = new Reward[](1);
-        rewards[0] = Reward({reward: lamaPay.token(), amount: withdrawableAmount});
+        Reward[] memory rewards = new Reward[](streams.length);
+        for (uint256 i = 0; i < streams.length; i++) {
+            (uint256 withdrawableAmount,,) = ILamaPay(streams[i].lamaPayInstance).withdrawable(
+                streams[i].payer, address(this), streams[i].amountPerSec
+            );
+            rewards[i] = Reward({reward: streams[i].token, amount: withdrawableAmount});
+        }
         return rewards;
     }
 
     function _getRewards() internal virtual override {
-        if (streaming) {
-            lamaPay.withdraw(payer, address(this), amountPerSec);
+        for (uint256 i = 0; i < streams.length; i++) {
+            ILamaPay(streams[i].lamaPayInstance).withdraw(streams[i].payer, address(this), streams[i].amountPerSec);
         }
     }
 
