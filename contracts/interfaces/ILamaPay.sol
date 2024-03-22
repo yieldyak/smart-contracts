@@ -10,4 +10,5 @@ interface ILamaPay {
         view
         returns (uint256 withdrawableAmount, uint256 lastUpdate, uint256 owed);
     function withdraw(address from, address to, uint216 amountPerSec) external;
+    function modifyStream(address oldTo, uint216 oldAmountPerSec, address to, uint216 amountPerSec) external;
 }
