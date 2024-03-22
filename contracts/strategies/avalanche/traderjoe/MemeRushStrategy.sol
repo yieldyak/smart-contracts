@@ -25,6 +25,7 @@ contract MemeRushStrategy is BaseStrategy {
 
     event AddStream(address lamaPayInstance, address payer, uint216 amountPerSec, address token);
     event RemoveStream(address lamaPayInstance, address payer, uint216 amountPerSec, address token);
+    event BorkedStream(address lamaPayInstance, address payer, uint216 amountPerSec, address token);
 
     constructor(BaseStrategySettings memory _baseStrategySettings, StrategySettings memory _strategySettings)
         BaseStrategy(_baseStrategySettings, _strategySettings)
@@ -48,7 +49,6 @@ contract MemeRushStrategy is BaseStrategy {
     function removeStream(address _lamaPayInstance, address _payer, uint216 _amountPerSec) external onlyDev {
         (uint256 index, bool found) = findStream(_lamaPayInstance, _payer, _amountPerSec);
         require(found, "MemeRushStrategy::Stream not configured!");
-        _getRewards();
         streams[index] = streams[streams.length - 1];
         streams.pop();
         emit RemoveStream(_lamaPayInstance, _payer, _amountPerSec, ILamaPay(_lamaPayInstance).token());
@@ -56,6 +56,7 @@ contract MemeRushStrategy is BaseStrategy {
 
     function findStream(address _lamaPayInstance, address _payer, uint216 _amountPerSec)
         internal
+        view
         returns (uint256 index, bool found)
     {
         for (uint256 i = 0; i < streams.length; i++) {
@@ -81,17 +82,25 @@ contract MemeRushStrategy is BaseStrategy {
     function _pendingRewards() internal view virtual override returns (Reward[] memory) {
         Reward[] memory rewards = new Reward[](streams.length);
         for (uint256 i = 0; i < streams.length; i++) {
-            (uint256 withdrawableAmount,,) = ILamaPay(streams[i].lamaPayInstance).withdrawable(
+            try ILamaPay(streams[i].lamaPayInstance).withdrawable(
                 streams[i].payer, address(this), streams[i].amountPerSec
-            );
-            rewards[i] = Reward({reward: streams[i].token, amount: withdrawableAmount});
+            ) returns (uint256 withdrawableAmount, uint256, uint256) {
+                rewards[i] = Reward({reward: streams[i].token, amount: withdrawableAmount});
+            } catch {
+                rewards[i] = Reward({reward: streams[i].token, amount: 0});
+            }
         }
         return rewards;
     }
 
     function _getRewards() internal virtual override {
         for (uint256 i = 0; i < streams.length; i++) {
-            ILamaPay(streams[i].lamaPayInstance).withdraw(streams[i].payer, address(this), streams[i].amountPerSec);
+            try ILamaPay(streams[i].lamaPayInstance).withdraw(streams[i].payer, address(this), streams[i].amountPerSec)
+            {} catch {
+                emit BorkedStream(
+                    streams[i].lamaPayInstance, streams[i].payer, streams[i].amountPerSec, streams[i].token
+                );
+            }
         }
     }
 
