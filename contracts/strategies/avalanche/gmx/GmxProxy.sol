@@ -50,7 +50,8 @@ contract GmxProxy is IGmxProxy {
     address internal immutable vaultUtils;
     address internal immutable usdg;
 
-    ISimpleRouter simpleRouter;
+    ISimpleRouter internal immutable simpleRouter;
+    uint256 internal immutable MAX_WAVAX_SWAP_AMOUNT;
 
     modifier onlyDev() {
         require(msg.sender == devAddr, "GmxProxy::onlyDev");
@@ -79,6 +80,7 @@ contract GmxProxy is IGmxProxy {
         address _gmxRewardRouter,
         address _gmxRewardRouterV2,
         address _simpleRouter,
+        uint256 _maxWavaxSwapAmount,
         address _devAddr
     ) {
         require(_gmxDepositor > address(0), "GmxProxy::Invalid depositor address provided");
@@ -94,6 +96,7 @@ contract GmxProxy is IGmxProxy {
         usdg = IGmxVault(vault).usdg();
         vaultUtils = address(IGmxVault(vault).vaultUtils());
         simpleRouter = ISimpleRouter(_simpleRouter);
+        MAX_WAVAX_SWAP_AMOUNT = _maxWavaxSwapAmount;
     }
 
     function updateDevAddr(address newValue) public onlyDev {
@@ -122,24 +125,26 @@ contract GmxProxy is IGmxProxy {
     function buyAndStakeGlp(uint256 _amount) external override onlyGLPStrategy returns (uint256) {
         address tokenIn = WAVAX;
 
-        uint256 price = IGmxVault(vault).getMinPrice(WAVAX);
-        uint256 usdgAmount = (_amount * price) / USDG_PRICE_PRECISION;
-        uint256 feeBasisPoints = type(uint256).max;
-        uint256 allWhiteListedTokensLength = IGmxVault(vault).allWhitelistedTokensLength();
-        for (uint256 i = 0; i < allWhiteListedTokensLength; i++) {
-            address whitelistedToken = IGmxVault(vault).allWhitelistedTokens(i);
-            uint256 currentFeeBasisPoints =
-                IGmxVaultUtils(vaultUtils).getBuyUsdgFeeBasisPoints(whitelistedToken, usdgAmount);
-            if (currentFeeBasisPoints < feeBasisPoints) {
-                feeBasisPoints = currentFeeBasisPoints;
-                tokenIn = whitelistedToken;
+        if (_amount < MAX_WAVAX_SWAP_AMOUNT) {
+            uint256 price = IGmxVault(vault).getMinPrice(WAVAX);
+            uint256 usdgAmount = (_amount * price) / USDG_PRICE_PRECISION;
+            uint256 feeBasisPoints = type(uint256).max;
+            uint256 allWhiteListedTokensLength = IGmxVault(vault).allWhitelistedTokensLength();
+            for (uint256 i = 0; i < allWhiteListedTokensLength; i++) {
+                address whitelistedToken = IGmxVault(vault).allWhitelistedTokens(i);
+                uint256 currentFeeBasisPoints =
+                    IGmxVaultUtils(vaultUtils).getBuyUsdgFeeBasisPoints(whitelistedToken, usdgAmount);
+                if (currentFeeBasisPoints < feeBasisPoints) {
+                    feeBasisPoints = currentFeeBasisPoints;
+                    tokenIn = whitelistedToken;
+                }
             }
-        }
 
-        if (tokenIn != WAVAX) {
-            FormattedOffer memory offer = simpleRouter.query(_amount, WAVAX, tokenIn);
-            IERC20(WAVAX).approve(address(simpleRouter), _amount);
-            _amount = simpleRouter.swap(offer);
+            if (tokenIn != WAVAX) {
+                FormattedOffer memory offer = simpleRouter.query(_amount, WAVAX, tokenIn);
+                IERC20(WAVAX).approve(address(simpleRouter), _amount);
+                _amount = simpleRouter.swap(offer);
+            }
         }
 
         IERC20(tokenIn).safeTransfer(address(gmxDepositor), _amount);
