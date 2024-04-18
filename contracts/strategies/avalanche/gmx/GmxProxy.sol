@@ -51,7 +51,8 @@ contract GmxProxy is IGmxProxy {
     address internal immutable usdg;
 
     ISimpleRouter internal immutable simpleRouter;
-    uint256 internal immutable MAX_WAVAX_SWAP_AMOUNT;
+    uint256 public maxWavaxSwapAmount;
+    uint256 public minFeeDifference;
 
     modifier onlyDev() {
         require(msg.sender == devAddr, "GmxProxy::onlyDev");
@@ -81,6 +82,7 @@ contract GmxProxy is IGmxProxy {
         address _gmxRewardRouterV2,
         address _simpleRouter,
         uint256 _maxWavaxSwapAmount,
+        uint256 _minFeeDifference,
         address _devAddr
     ) {
         require(_gmxDepositor > address(0), "GmxProxy::Invalid depositor address provided");
@@ -96,7 +98,8 @@ contract GmxProxy is IGmxProxy {
         usdg = IGmxVault(vault).usdg();
         vaultUtils = address(IGmxVault(vault).vaultUtils());
         simpleRouter = ISimpleRouter(_simpleRouter);
-        MAX_WAVAX_SWAP_AMOUNT = _maxWavaxSwapAmount;
+        maxWavaxSwapAmount = _maxWavaxSwapAmount;
+        minFeeDifference = _minFeeDifference;
     }
 
     function updateDevAddr(address newValue) public onlyDev {
@@ -108,6 +111,14 @@ contract GmxProxy is IGmxProxy {
         address depositToken = IYakStrategy(_strategy).depositToken();
         require(approvedStrategies[depositToken] == address(0), "GmxProxy::Strategy for deposit token already added");
         approvedStrategies[depositToken] = _strategy;
+    }
+
+    function updateMaxWavaxSwapAmount(uint256 _maxWavaxSwapAmount) external onlyDev {
+        maxWavaxSwapAmount = _maxWavaxSwapAmount;
+    }
+
+    function updateMinFeeDifference(uint256 _minFeeDifference) external onlyDev {
+        minFeeDifference = _minFeeDifference;
     }
 
     function stakeESGMX() external onlyDev {
@@ -122,19 +133,31 @@ contract GmxProxy is IGmxProxy {
         return IGmxRewardTracker(gmxRewardTracker).depositBalances(address(gmxDepositor), esGMX);
     }
 
+    function vaultHasCapacity(address _token, uint256 _amountIn) internal view returns (bool) {
+        uint256 price = IGmxVault(vault).getMinPrice(_token);
+        uint256 usdgAmount = (_amountIn * price) / USDG_PRICE_PRECISION;
+        usdgAmount = IGmxVault(vault).adjustForDecimals(usdgAmount, _token, usdg);
+        uint256 vaultUsdgAmount = IGmxVault(vault).usdgAmounts(_token);
+        uint256 maxUsdgAmount = IGmxVault(vault).maxUsdgAmounts(_token);
+        return maxUsdgAmount == 0 || vaultUsdgAmount + usdgAmount < maxUsdgAmount;
+    }
+
     function buyAndStakeGlp(uint256 _amount) external override onlyGLPStrategy returns (uint256) {
         address tokenIn = WAVAX;
 
-        if (_amount < MAX_WAVAX_SWAP_AMOUNT) {
+        if (_amount < maxWavaxSwapAmount) {
             uint256 price = IGmxVault(vault).getMinPrice(WAVAX);
             uint256 usdgAmount = (_amount * price) / USDG_PRICE_PRECISION;
-            uint256 feeBasisPoints = type(uint256).max;
+            uint256 feeBasisPoints = vaultHasCapacity(WAVAX, _amount)
+                ? IGmxVaultUtils(vaultUtils).getBuyUsdgFeeBasisPoints(WAVAX, usdgAmount)
+                : type(uint256).max;
+
             uint256 allWhiteListedTokensLength = IGmxVault(vault).allWhitelistedTokensLength();
             for (uint256 i = 0; i < allWhiteListedTokensLength; i++) {
                 address whitelistedToken = IGmxVault(vault).allWhitelistedTokens(i);
                 uint256 currentFeeBasisPoints =
                     IGmxVaultUtils(vaultUtils).getBuyUsdgFeeBasisPoints(whitelistedToken, usdgAmount);
-                if (currentFeeBasisPoints < feeBasisPoints) {
+                if (currentFeeBasisPoints + minFeeDifference < feeBasisPoints) {
                     feeBasisPoints = currentFeeBasisPoints;
                     tokenIn = whitelistedToken;
                 }
