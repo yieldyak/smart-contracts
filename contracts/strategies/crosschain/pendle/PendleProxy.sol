@@ -8,6 +8,7 @@ import "./../../../lib/SafeERC20.sol";
 import "./interfaces/IPendleVoter.sol";
 import "./interfaces/IPendleRouter.sol";
 import "./interfaces/IPendleMarketLP.sol";
+import "./interfaces/IPendleGaugeController.sol";
 import "./lib/PMath.sol";
 
 library SafeProxy {
@@ -39,6 +40,7 @@ contract PendleProxy {
     address public devAddr;
     IPendleVoter public immutable voter;
     address public immutable pendleRouter;
+    address public immutable pendleGaugeController;
 
     // deposit token => strategy
     mapping(address => address) public approvedStrategies;
@@ -59,9 +61,9 @@ contract PendleProxy {
         address _voter,
         address _devAddr,
         address _pendleRouter,
+        address _pendleGaugeController,
         uint256 _boostFeeBips,
-        address _boostFeeReceiver,
-        address _pendle
+        address _boostFeeReceiver
     ) {
         require(_devAddr > address(0), "PendleProxy::Invalid dev address provided");
         devAddr = _devAddr;
@@ -69,7 +71,8 @@ contract PendleProxy {
         pendleRouter = _pendleRouter;
         boostFeeBips = _boostFeeBips;
         boostFeeReceiver = _boostFeeReceiver;
-        PENDLE = _pendle;
+        PENDLE = IPendleGaugeController(_pendleGaugeController).pendle();
+        pendleGaugeController = _pendleGaugeController;
     }
 
     /**
@@ -101,30 +104,33 @@ contract PendleProxy {
         boostFeeBips = _boostFeeBips;
     }
 
-    function depositToStakingContract(address _token, uint256 _amount) external onlyStrategy(_token) {
-        IERC20(_token).safeTransferFrom(msg.sender, address(voter), _amount);
+    function depositToStakingContract(address _market, uint256 _amount) external onlyStrategy(_market) {
+        IERC20(_market).safeTransferFrom(msg.sender, address(voter), _amount);
     }
 
-    function withdrawFromStakingContract(address _token, uint256 _amount) external onlyStrategy(_token) {
-        voter.safeExecute(_token, 0, abi.encodeWithSelector(IERC20.transfer.selector, msg.sender, _amount));
+    function withdrawFromStakingContract(address _market, uint256 _amount) external onlyStrategy(_market) {
+        voter.safeExecute(_market, 0, abi.encodeWithSelector(IERC20.transfer.selector, msg.sender, _amount));
     }
 
-    function pendingRewards(address _token) public view returns (Reward[] memory) {
-        address[] memory rewardTokens = IPendleMarketLP(_token).getRewardTokens();
+    function pendingRewards(address _market) public view returns (Reward[] memory) {
+        address[] memory rewardTokens = IPendleMarketLP(_market).getRewardTokens();
         Reward[] memory rewards = new Reward[](rewardTokens.length);
         if (rewardTokens.length == 0) return rewards;
 
-        uint256 totalShares = IPendleMarketLP(_token).totalActiveSupply();
+        uint256 totalShares = IPendleMarketLP(_market).totalActiveSupply();
 
         for (uint256 i = 0; i < rewardTokens.length; ++i) {
             address token = rewardTokens[i];
-            (uint256 index, uint256 lastBalance) = IPendleMarketLP(_token).rewardState(token);
-            uint256 totalAccrued = IERC20(token).balanceOf(_token) - lastBalance;
+            (uint256 index, uint256 lastBalance) = IPendleMarketLP(_market).rewardState(token);
+            uint256 totalAccrued = IERC20(token).balanceOf(_market) - lastBalance;
+            if (token == PENDLE) {
+                totalAccrued += _getUpdatedMarketReward(_market);
+            }
 
             if (index == 0) index = INITIAL_REWARD_INDEX;
             if (totalShares != 0) index += totalAccrued.divDown(totalShares);
 
-            (uint128 userIndex, uint128 accrued) = IPendleMarketLP(_token).userReward(token, address(voter));
+            (uint128 userIndex, uint128 accrued) = IPendleMarketLP(_market).userReward(token, address(voter));
 
             if (userIndex == 0) {
                 userIndex = INITIAL_REWARD_INDEX;
@@ -132,7 +138,7 @@ contract PendleProxy {
             if (userIndex == index) {
                 rewards[i] = Reward({reward: token, amount: 0});
             } else {
-                uint256 userShares = IPendleMarketLP(_token).activeBalance(address(voter));
+                uint256 userShares = IPendleMarketLP(_market).activeBalance(address(voter));
                 uint256 deltaIndex = index - userIndex;
                 uint256 rewardDelta = userShares.mulDown(deltaIndex);
                 uint256 rewardAccrued = accrued + rewardDelta;
@@ -143,16 +149,23 @@ contract PendleProxy {
         return rewards;
     }
 
-    function getRewards(address _token) public onlyStrategy(_token) {
-        voter.safeExecute(_token, 0, abi.encodeWithSelector(IPendleMarketLP.redeemRewards.selector, address(voter)));
-        address[] memory rewardTokens = IPendleMarketLP(_token).getRewardTokens();
+    function _getUpdatedMarketReward(address _market) internal view returns (uint256 marketPendingPendle) {
+        IPendleGaugeController.MarketRewardData memory rwd =
+            IPendleGaugeController(pendleGaugeController).rewardData(_market);
+        uint128 newLastUpdated = uint128(PMath.min(uint128(block.timestamp), rwd.incentiveEndsAt));
+        return rwd.accumulatedPendle + (rwd.pendlePerSec * (newLastUpdated - rwd.lastUpdated));
+    }
+
+    function getRewards(address _market) public onlyStrategy(_market) {
+        voter.safeExecute(_market, 0, abi.encodeWithSelector(IPendleMarketLP.redeemRewards.selector, address(voter)));
+        address[] memory rewardTokens = IPendleMarketLP(_market).getRewardTokens();
         for (uint256 i; i < rewardTokens.length; i++) {
             uint256 amount = IERC20(rewardTokens[i]).balanceOf(address(voter));
 
             uint256 boostFee = _calculateBoostFee(rewardTokens[i], amount);
             if (rewardTokens[i] == PENDLE) {
                 voter.safeExecute(
-                    rewardTokens[i], 0, abi.encodeWithSelector(IERC20.transfer.selector, msg.sender, boostFee)
+                    rewardTokens[i], 0, abi.encodeWithSelector(IERC20.transfer.selector, boostFeeReceiver, boostFee)
                 );
             }
 
@@ -168,15 +181,15 @@ contract PendleProxy {
         }
     }
 
-    function totalDeposits(address _token) external view returns (uint256) {
-        return IERC20(_token).balanceOf(address(voter));
+    function totalDeposits(address _market) external view returns (uint256) {
+        return IERC20(_market).balanceOf(address(voter));
     }
 
-    function emergencyWithdraw(address _token) external onlyStrategy(_token) {
+    function emergencyWithdraw(address _market) external onlyStrategy(_market) {
         voter.safeExecute(
-            _token,
+            _market,
             0,
-            abi.encodeWithSelector(IERC20.transfer.selector, msg.sender, IERC20(_token).balanceOf(address(voter)))
+            abi.encodeWithSelector(IERC20.transfer.selector, msg.sender, IERC20(_market).balanceOf(address(voter)))
         );
     }
 }

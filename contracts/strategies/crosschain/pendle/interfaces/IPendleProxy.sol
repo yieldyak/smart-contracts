@@ -5,10 +5,10 @@ import "./../../../BaseStrategy.sol";
 
 interface IPendleProxy {
     function voter() external view returns (address);
-    function depositToStakingContract(address _token, uint256 _amount) external;
-    function withdrawFromStakingContract(address _token, uint256 _amount) external;
-    function emergencyWithdraw(address _token) external;
-    function pendingRewards(address _token) external view returns (BaseStrategy.Reward[] memory);
-    function getRewards(address _token) external;
-    function totalDeposits(address _token) external view returns (uint256);
+    function depositToStakingContract(address _market, uint256 _amount) external;
+    function withdrawFromStakingContract(address _market, uint256 _amount) external;
+    function emergencyWithdraw(address _market) external;
+    function pendingRewards(address _market) external view returns (BaseStrategy.Reward[] memory);
+    function getRewards(address _market) external;
+    function totalDeposits(address _market) external view returns (uint256);
 }
