@@ -116,10 +116,8 @@ contract GmxProxyArbitrum is IGmxProxy {
         return IGmxRewardTracker(gmxRewardTracker).depositBalances(address(gmxDepositor), esGMX);
     }
 
-    function vaultHasCapacity(address _token, uint256 _amountIn) internal view returns (bool) {
-        uint256 price = IGmxVault(vault).getMinPrice(_token);
-        uint256 usdgAmount = (_amountIn * price) / USDG_PRICE_PRECISION;
-        usdgAmount = IGmxVault(vault).adjustForDecimals(usdgAmount, _token, usdg);
+    function vaultHasCapacity(address _token, uint256 _usdgAmount) internal view returns (bool) {
+        uint256 usdgAmount = IGmxVault(vault).adjustForDecimals(_usdgAmount, _token, usdg);
         uint256 vaultUsdgAmount = IGmxVault(vault).usdgAmounts(_token);
         uint256 maxUsdgAmount = IGmxVault(vault).maxUsdgAmounts(_token);
         return maxUsdgAmount == 0 || vaultUsdgAmount + usdgAmount < maxUsdgAmount;
@@ -133,13 +131,14 @@ contract GmxProxyArbitrum is IGmxProxy {
             uint256 usdgAmount = (_amount * price) / USDG_PRICE_PRECISION;
             uint256 mintFeeBasisPoints = IGmxVault(vault).mintBurnFeeBasisPoints();
             uint256 taxBasisPoints = IGmxVault(vault).taxBasisPoints();
-            uint256 feeBasisPoints = vaultHasCapacity(WETH, _amount)
+            uint256 feeBasisPoints = vaultHasCapacity(WETH, usdgAmount)
                 ? IGmxVault(vault).getFeeBasisPoints(WETH, usdgAmount, mintFeeBasisPoints, taxBasisPoints, true)
                 : type(uint256).max;
 
             uint256 allWhiteListedTokensLength = IGmxVault(vault).allWhitelistedTokensLength();
             for (uint256 i = 0; i < allWhiteListedTokensLength; i++) {
                 address whitelistedToken = IGmxVault(vault).allWhitelistedTokens(i);
+                if (!vaultHasCapacity(whitelistedToken, usdgAmount)) continue;
                 uint256 currentFeeBasisPoints = IGmxVault(vault).getFeeBasisPoints(
                     whitelistedToken, usdgAmount, mintFeeBasisPoints, taxBasisPoints, true
                 );
