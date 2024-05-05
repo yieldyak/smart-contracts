@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "../../BaseStrategy.sol";
+import "./../lamapay/LamaPayStrategyBase.sol";
 
 import "./interfaces/IPendleProxy.sol";
 import "./interfaces/IPendleRouter.sol";
 import "./interfaces/IPendleMarketLP.sol";
 import "./interfaces/ISy.sol";
 
-contract PendleStrategy is BaseStrategy {
+contract BoostedPendleStrategy is LamaPayStrategyBase {
     using SafeERC20 for IERC20;
 
     IPendleProxy public proxy;
@@ -28,7 +28,7 @@ contract PendleStrategy is BaseStrategy {
         address _pendleRouter,
         BaseStrategySettings memory baseStrategySettings,
         StrategySettings memory _strategySettings
-    ) BaseStrategy(baseStrategySettings, _strategySettings) {
+    ) LamaPayStrategyBase(baseStrategySettings, _strategySettings) {
         proxy = IPendleProxy(_proxy);
         pendleRouter = IPendleRouter(_pendleRouter);
         (address sy,,) = IPendleMarketLP(address(depositToken)).readTokens();
@@ -49,10 +49,23 @@ contract PendleStrategy is BaseStrategy {
     }
 
     function _pendingRewards() internal view override returns (Reward[] memory) {
-        return proxy.pendingRewards(address(depositToken));
+        Reward[] memory rewardsProxy = proxy.pendingRewards(address(depositToken));
+
+        uint256 length = rewardsProxy.length + streams.length;
+
+        Reward[] memory rewards = new Reward[](length);
+        uint256 i;
+        for (i; i < streams.length; i++) {
+            rewards[i] = _readStream(streams[i]);
+        }
+        for (uint256 j; j < rewardsProxy.length; j++) {
+            rewards[i + j] = rewardsProxy[j];
+        }
+        return rewards;
     }
 
     function _getRewards() internal override {
+        super._getRewards();
         proxy.getRewards(address(depositToken));
     }
 

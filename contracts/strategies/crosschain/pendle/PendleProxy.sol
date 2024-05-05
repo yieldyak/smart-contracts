@@ -163,7 +163,7 @@ contract PendleProxy {
             uint256 amount = IERC20(rewardTokens[i]).balanceOf(address(voter));
 
             uint256 boostFee = _calculateBoostFee(rewardTokens[i], amount);
-            if (rewardTokens[i] == PENDLE) {
+            if (rewardTokens[i] == PENDLE && boostFee > 0 && boostFeeReceiver > address(0)) {
                 voter.safeExecute(
                     rewardTokens[i], 0, abi.encodeWithSelector(IERC20.transfer.selector, boostFeeReceiver, boostFee)
                 );
