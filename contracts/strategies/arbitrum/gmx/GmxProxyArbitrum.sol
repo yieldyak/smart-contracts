@@ -4,6 +4,7 @@ pragma solidity 0.8.13;
 import "../../../interfaces/IYakStrategy.sol";
 import "../../../lib/SafeERC20.sol";
 import "../../../lib/DexLibrary.sol";
+import "./../../../interfaces/ISimpleRouter.sol";
 
 import "./interfaces/IGmxDepositor.sol";
 import "./interfaces/IGmxRewardRouter.sol";
@@ -30,7 +31,6 @@ contract GmxProxyArbitrum is IGmxProxy {
     uint256 internal constant BIPS_DIVISOR = 10000;
 
     address internal constant WETH = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
-    address internal constant USDC = 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8;
     address internal constant GMX = 0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a;
     address internal constant sGLP = 0x5402B5F40310bDED796c7D0F3FF6683f5C0cFfdf;
     address internal constant esGMX = 0xf42Ae1D54fd613C9bb14810b0588FaAa09a426cA;
@@ -38,18 +38,19 @@ contract GmxProxyArbitrum is IGmxProxy {
 
     address public devAddr;
     address public approvedStrategy;
+    uint256 public maxEthSwapAmount;
+    uint256 public minFeeDifference;
 
     IGmxDepositor public immutable override gmxDepositor;
     address public immutable override gmxRewardRouter;
     address public immutable glpMinter;
+    ISimpleRouter internal immutable simpleRouter;
 
     address internal immutable gmxRewardTracker;
     address internal immutable glpRewardTracker;
     address internal immutable glpManager;
     address internal immutable vault;
     address internal immutable usdg;
-    address internal immutable wethUsdcPair;
-    uint256 internal immutable swapFee;
 
     modifier onlyDev() {
         require(msg.sender == devAddr, "GmxProxy::onlyDev");
@@ -65,8 +66,9 @@ contract GmxProxyArbitrum is IGmxProxy {
         address _gmxDepositor,
         address _gmxRewardRouter,
         address _gmxRewardRouterV2,
-        address _wethUsdcPair,
-        uint256 _swapFee,
+        address _simpleRouter,
+        uint256 _maxEthSwapAmount,
+        uint256 _minFeeDifference,
         address _devAddr
     ) {
         require(_devAddr > address(0), "GmxProxy::Invalid dev address provided");
@@ -79,8 +81,9 @@ contract GmxProxyArbitrum is IGmxProxy {
         glpManager = IGmxRewardRouter(_gmxRewardRouterV2).glpManager();
         vault = IGlpManager(glpManager).vault();
         usdg = IGmxVault(vault).usdg();
-        wethUsdcPair = _wethUsdcPair;
-        swapFee = _swapFee;
+        simpleRouter = ISimpleRouter(_simpleRouter);
+        maxEthSwapAmount = _maxEthSwapAmount;
+        minFeeDifference = _minFeeDifference;
     }
 
     function updateDevAddr(address newValue) public onlyDev {
@@ -91,6 +94,14 @@ contract GmxProxyArbitrum is IGmxProxy {
     function approveStrategy(address _strategy) external onlyDev {
         require(approvedStrategy == address(0), "GmxProxy::Strategy already defined");
         approvedStrategy = _strategy;
+    }
+
+    function updateMaxEthSwapAmount(uint256 _maxEthSwapAmount) external onlyDev {
+        maxEthSwapAmount = _maxEthSwapAmount;
+    }
+
+    function updateMinFeeDifference(uint256 _minFeeDifference) external onlyDev {
+        minFeeDifference = _minFeeDifference;
     }
 
     function stakeESGMX() external onlyDev {
@@ -105,32 +116,54 @@ contract GmxProxyArbitrum is IGmxProxy {
         return IGmxRewardTracker(gmxRewardTracker).depositBalances(address(gmxDepositor), esGMX);
     }
 
-    function vaultHasEthCapacity(uint256 _amountIn) internal view returns (bool) {
-        uint256 price = IGmxVault(vault).getMinPrice(WETH);
+    function vaultHasCapacity(address _token, uint256 _amountIn) internal view returns (bool) {
+        uint256 price = IGmxVault(vault).getMinPrice(_token);
         uint256 usdgAmount = (_amountIn * price) / USDG_PRICE_PRECISION;
-        usdgAmount = IGmxVault(vault).adjustForDecimals(usdgAmount, WETH, usdg);
-        uint256 vaultUsdgAmount = IGmxVault(vault).usdgAmounts(WETH);
-        uint256 maxUsdgAmount = IGmxVault(vault).maxUsdgAmounts(WETH);
+        usdgAmount = IGmxVault(vault).adjustForDecimals(usdgAmount, _token, usdg);
+        uint256 vaultUsdgAmount = IGmxVault(vault).usdgAmounts(_token);
+        uint256 maxUsdgAmount = IGmxVault(vault).maxUsdgAmounts(_token);
         return maxUsdgAmount == 0 || vaultUsdgAmount + usdgAmount < maxUsdgAmount;
     }
 
-    function swapToUSDC(uint256 _amount) internal returns (uint256) {
-        return DexLibrary.swap(_amount, WETH, USDC, IPair(wethUsdcPair), swapFee);
-    }
-
     function buyAndStakeGlp(uint256 _amount) external override onlyStrategy returns (uint256) {
-        bool sufficientEthCapacity = vaultHasEthCapacity(_amount);
-        address token = sufficientEthCapacity ? WETH : USDC;
-        _amount = sufficientEthCapacity ? _amount : swapToUSDC(_amount);
+        address tokenIn = WETH;
 
-        IERC20(token).transfer(address(gmxDepositor), _amount);
+        if (_amount < maxEthSwapAmount) {
+            uint256 price = IGmxVault(vault).getMinPrice(WETH);
+            uint256 usdgAmount = (_amount * price) / USDG_PRICE_PRECISION;
+            uint256 mintFeeBasisPoints = IGmxVault(vault).mintBurnFeeBasisPoints();
+            uint256 taxBasisPoints = IGmxVault(vault).taxBasisPoints();
+            uint256 feeBasisPoints = vaultHasCapacity(WETH, _amount)
+                ? IGmxVault(vault).getFeeBasisPoints(WETH, usdgAmount, mintFeeBasisPoints, taxBasisPoints, true)
+                : type(uint256).max;
 
-        gmxDepositor.safeExecute(token, 0, abi.encodeWithSignature("approve(address,uint256)", glpManager, _amount));
+            uint256 allWhiteListedTokensLength = IGmxVault(vault).allWhitelistedTokensLength();
+            for (uint256 i = 0; i < allWhiteListedTokensLength; i++) {
+                address whitelistedToken = IGmxVault(vault).allWhitelistedTokens(i);
+                uint256 currentFeeBasisPoints = IGmxVault(vault).getFeeBasisPoints(
+                    whitelistedToken, usdgAmount, mintFeeBasisPoints, taxBasisPoints, true
+                );
+                if (currentFeeBasisPoints + minFeeDifference < feeBasisPoints) {
+                    feeBasisPoints = currentFeeBasisPoints;
+                    tokenIn = whitelistedToken;
+                }
+            }
+
+            if (tokenIn != WETH) {
+                FormattedOffer memory offer = simpleRouter.query(_amount, WETH, tokenIn);
+                IERC20(WETH).approve(address(simpleRouter), _amount);
+                _amount = simpleRouter.swap(offer);
+            }
+        }
+
+        IERC20(tokenIn).safeTransfer(address(gmxDepositor), _amount);
+        gmxDepositor.safeExecute(tokenIn, 0, abi.encodeWithSignature("approve(address,uint256)", glpManager, _amount));
         bytes memory result = gmxDepositor.safeExecute(
             glpMinter,
             0,
-            abi.encodeWithSignature("mintAndStakeGlp(address,uint256,uint256,uint256)", token, _amount, 0, 0)
+            abi.encodeWithSignature("mintAndStakeGlp(address,uint256,uint256,uint256)", tokenIn, _amount, 0, 0)
         );
+        gmxDepositor.safeExecute(tokenIn, 0, abi.encodeWithSignature("approve(address,uint256)", glpManager, 0));
         return toUint256(result, 0);
     }
 
