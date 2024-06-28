@@ -18,12 +18,14 @@ contract StrategyMigrator is Ownable {
         WGAS = _wgas;
     }
 
-    function migrate(address _fromStrategy, address _toStrategy, uint256 _fromShares, uint256 _minAmountOut) external {
-        address depositToken = IYakStrategy(_fromStrategy).depositToken();
-        address depositTokenTo = IYakStrategy(_toStrategy).depositToken();
-        bool migrateFromNative = depositToken == address(0);
+    function migrate(address _fromStrategy, address _toStrategy, uint256 _fromShares, uint256 _minDepositTokenAmount)
+        external
+    {
+        address fromDepositToken = IYakStrategy(_fromStrategy).depositToken();
+        address toDepositToken = IYakStrategy(_toStrategy).depositToken();
+        bool migrateFromNative = fromDepositToken == address(0);
         require(
-            (migrateFromNative && depositTokenTo == WGAS) || depositToken == depositTokenTo,
+            (migrateFromNative && toDepositToken == WGAS) || fromDepositToken == toDepositToken,
             "StrategyMigrator::Migration impossible"
         );
         // Transfer shares
@@ -34,18 +36,24 @@ contract StrategyMigrator is Ownable {
 
         // Withdraw
         uint256 balanceBefore =
-            migrateFromNative ? address(this).balance : IERC20(depositToken).balanceOf(address(this));
+            migrateFromNative ? address(this).balance : IERC20(fromDepositToken).balanceOf(address(this));
         IYakStrategy(_fromStrategy).withdraw(_fromShares);
-        uint256 balanceAfter = migrateFromNative ? address(this).balance : IERC20(depositToken).balanceOf(address(this));
+        uint256 balanceAfter =
+            migrateFromNative ? address(this).balance : IERC20(fromDepositToken).balanceOf(address(this));
         uint256 amountOut = balanceAfter - balanceBefore;
-        require(amountOut >= _minAmountOut, "StrategyMigrator::amountOut too low");
+        require(amountOut >= _minDepositTokenAmount, "StrategyMigrator::amountOut too low");
 
         // Deposit
         if (migrateFromNative) {
             IWGAS(WGAS).deposit{value: amountOut}();
         }
-        IERC20(depositTokenTo).approve(_toStrategy, amountOut);
+        IERC20(toDepositToken).approve(_toStrategy, amountOut);
         IYakStrategy(_toStrategy).depositFor(msg.sender, amountOut);
+        require(
+            IYakStrategy(_toStrategy).getDepositTokensForShares(IERC20(_toStrategy).balanceOf(msg.sender))
+                >= _minDepositTokenAmount,
+            "StrategyMigrator::migrated deposit token amount too low"
+        );
     }
 
     receive() external payable {}

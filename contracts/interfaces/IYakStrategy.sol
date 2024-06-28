@@ -7,4 +7,6 @@ interface IYakStrategy {
     function depositFor(address account, uint256 amount) external;
 
     function withdraw(uint256 _amount) external;
+
+    function getDepositTokensForShares(uint256 amount) external view returns (uint256);
 }
