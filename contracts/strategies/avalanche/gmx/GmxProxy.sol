@@ -220,11 +220,17 @@ contract GmxProxy is IGmxProxy {
             gmxRewardRouter,
             0,
             abi.encodeWithSignature(
-                "handleRewards(bool,bool,bool,bool,bool,bool,bool)", false, false, true, true, true, true, false
+                "handleRewards(bool,bool,bool,bool,bool,bool,bool)", true, false, true, true, true, true, false
             )
         );
-        uint256 reward = IERC20(WAVAX).balanceOf(address(gmxDepositor));
-        gmxDepositor.safeExecute(WAVAX, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, reward));
+        uint gmxReward = IERC20(GMX).balanceOf(address(gmxDepositor));
+        FormattedOffer memory offer = simpleRouter.query(gmxReward, GMX, WAVAX);
+        if (offer.amounts.length > 0 && offer.amounts[offer.amounts.length - 1] > 0) {
+            gmxDepositor.safeExecute(GMX, 0, abi.encodeWithSignature("approve(address,uint256)", address(simpleRouter), gmxReward));
+            gmxDepositor.safeExecute(address(simpleRouter), 0, abi.encodeWithSignature("swap((uint256[],address[],address[],uint256))", offer));
+        }
+        uint256 wavaxReward = IERC20(WAVAX).balanceOf(address(gmxDepositor));
+        gmxDepositor.safeExecute(WAVAX, 0, abi.encodeWithSignature("transfer(address,uint256)", msg.sender, wavaxReward));
     }
 
     function totalDeposits(address _rewardTracker) external view override returns (uint256) {
