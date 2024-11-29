@@ -31,12 +31,9 @@ interface IBenqiERC20Delegator is IERC20 {
     function getAccountSnapshot(address account)
         external
         view
-        returns (
-            uint256 error,
-            uint256 balance,
-            uint256 borrow,
-            uint256 mantissa
-        );
+        returns (uint256 error, uint256 balance, uint256 borrow, uint256 mantissa);
 
     function getCash() external returns (uint256);
+
+    function accrueInterest() external returns (uint256);
 }
