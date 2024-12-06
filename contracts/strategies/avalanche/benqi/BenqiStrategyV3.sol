@@ -8,6 +8,7 @@ import "../../../lib/DexLibrary.sol";
 import "./interfaces/IBenqiUnitroller.sol";
 import "./interfaces/IBenqiERC20Delegator.sol";
 import "./lib/BenqiLibrary.sol";
+import "./../../../lib/SafeMath.sol";
 
 contract BenqiStrategyV3 is YakStrategyV2 {
     using SafeMath for uint256;
@@ -65,9 +66,8 @@ contract BenqiStrategyV3 is YakStrategyV2 {
     }
 
     function totalDeposits() public view override returns (uint256) {
-        (, uint256 internalBalance, uint256 borrow, uint256 exchangeRate) = tokenDelegator.getAccountSnapshot(
-            address(this)
-        );
+        (, uint256 internalBalance, uint256 borrow, uint256 exchangeRate) =
+            tokenDelegator.getAccountSnapshot(address(this));
         return internalBalance.mul(exchangeRate).div(1e18).sub(borrow);
     }
 
@@ -83,21 +83,18 @@ contract BenqiStrategyV3 is YakStrategyV2 {
         rewardController.enterMarkets(tokens);
     }
 
-    function _updateLeverage(
-        uint256 _leverageLevel,
-        uint256 _leverageBips,
-        uint256 _redeemLimitSafetyMargin
-    ) internal {
+    function _updateLeverage(uint256 _leverageLevel, uint256 _leverageBips, uint256 _redeemLimitSafetyMargin)
+        internal
+    {
         leverageLevel = _leverageLevel;
         leverageBips = _leverageBips;
         redeemLimitSafetyMargin = _redeemLimitSafetyMargin;
     }
 
-    function updateLeverage(
-        uint256 _leverageLevel,
-        uint256 _leverageBips,
-        uint256 _redeemLimitSafetyMargin
-    ) external onlyDev {
+    function updateLeverage(uint256 _leverageLevel, uint256 _leverageBips, uint256 _redeemLimitSafetyMargin)
+        external
+        onlyDev
+    {
         _updateLeverage(_leverageLevel, _leverageBips, _redeemLimitSafetyMargin);
         uint256 borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
         uint256 balance = tokenDelegator.balanceOfUnderlying(address(this));
@@ -117,26 +114,26 @@ contract BenqiStrategyV3 is YakStrategyV2 {
         require(_swapPairToken1 > address(0), "Swap pair 1 is necessary but not supplied");
 
         require(
-            address(rewardToken0) == IPair(address(_swapPairToken0)).token0() ||
-                address(rewardToken0) == IPair(address(_swapPairToken0)).token1(),
+            address(rewardToken0) == IPair(address(_swapPairToken0)).token0()
+                || address(rewardToken0) == IPair(address(_swapPairToken0)).token1(),
             "Swap pair 0 does not match rewardToken0"
         );
 
         require(
-            address(rewardToken1) == IPair(address(_swapPairToken0)).token0() ||
-                address(rewardToken1) == IPair(address(_swapPairToken0)).token1(),
+            address(rewardToken1) == IPair(address(_swapPairToken0)).token0()
+                || address(rewardToken1) == IPair(address(_swapPairToken0)).token1(),
             "Swap pair 0 does not match rewardToken1"
         );
 
         require(
-            address(depositToken) == IPair(address(_swapPairToken1)).token0() ||
-                address(depositToken) == IPair(address(_swapPairToken1)).token1(),
+            address(depositToken) == IPair(address(_swapPairToken1)).token0()
+                || address(depositToken) == IPair(address(_swapPairToken1)).token1(),
             "Swap pair 1 does not match depositToken"
         );
 
         require(
-            address(rewardToken1) == IPair(address(_swapPairToken1)).token0() ||
-                address(rewardToken1) == IPair(address(_swapPairToken1)).token1(),
+            address(rewardToken1) == IPair(address(_swapPairToken1)).token0()
+                || address(rewardToken1) == IPair(address(_swapPairToken1)).token1(),
             "Swap pair 1 does not match rewardToken1"
         );
 
@@ -148,13 +145,7 @@ contract BenqiStrategyV3 is YakStrategyV2 {
         _deposit(msg.sender, amount);
     }
 
-    function depositWithPermit(
-        uint256 amount,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external override {
+    function depositWithPermit(uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external override {
         depositToken.permit(msg.sender, address(this), amount, deadline, v, r, s);
         _deposit(msg.sender, amount);
     }
@@ -239,10 +230,7 @@ contract BenqiStrategyV3 is YakStrategyV2 {
         }
 
         uint256 depositTokenAmount = DexLibrary.swap(
-            amount.sub(devFee).sub(reinvestFee),
-            address(rewardToken),
-            address(depositToken),
-            swapPairToken1
+            amount.sub(devFee).sub(reinvestFee), address(rewardToken), address(depositToken), swapPairToken1
         );
 
         _stakeDepositTokens(depositTokenAmount);
@@ -273,21 +261,19 @@ contract BenqiStrategyV3 is YakStrategyV2 {
         depositToken.approve(address(tokenDelegator), 0);
     }
 
-    function _getRedeemable(
-        uint256 balance,
-        uint256 borrowed,
-        uint256 borrowLimit,
-        uint256 bips
-    ) internal view returns (uint256) {
+    function _getRedeemable(uint256 balance, uint256 borrowed, uint256 borrowLimit, uint256 bips)
+        internal
+        view
+        returns (uint256)
+    {
         return balance.sub(borrowed.mul(bips).div(borrowLimit)).mul(redeemLimitSafetyMargin).div(leverageBips);
     }
 
-    function _getBorrowable(
-        uint256 balance,
-        uint256 borrowed,
-        uint256 borrowLimit,
-        uint256 bips
-    ) internal pure returns (uint256) {
+    function _getBorrowable(uint256 balance, uint256 borrowed, uint256 borrowLimit, uint256 bips)
+        internal
+        pure
+        returns (uint256)
+    {
         return balance.mul(borrowLimit).div(bips).sub(borrowed);
     }
 
@@ -339,11 +325,7 @@ contract BenqiStrategyV3 is YakStrategyV2 {
      * @param to recipient address
      * @param value amount
      */
-    function _safeTransfer(
-        address token,
-        address to,
-        uint256 value
-    ) private {
+    function _safeTransfer(address token, address to, uint256 value) private {
         require(IERC20(token).transfer(to, value), "BenqiStrategyV3::TRANSFER_FROM_FAILED");
     }
 
@@ -352,18 +334,14 @@ contract BenqiStrategyV3 is YakStrategyV2 {
         uint256 avaxRewards = BenqiLibrary.calculateReward(rewardController, tokenDelegator, 1, address(this));
 
         uint256 qiAsWavax = DexLibrary.estimateConversionThroughPair(
-            qiRewards,
-            address(rewardToken0),
-            address(rewardToken1),
-            swapPairToken0
+            qiRewards, address(rewardToken0), address(rewardToken1), swapPairToken0
         );
         return avaxRewards.add(qiAsWavax);
     }
 
     function getActualLeverage() public view returns (uint256) {
-        (, uint256 internalBalance, uint256 borrow, uint256 exchangeRate) = tokenDelegator.getAccountSnapshot(
-            address(this)
-        );
+        (, uint256 internalBalance, uint256 borrow, uint256 exchangeRate) =
+            tokenDelegator.getAccountSnapshot(address(this));
         uint256 balance = internalBalance.mul(exchangeRate).div(1e18);
         return balance.mul(1e18).div(balance.sub(borrow));
     }
@@ -372,10 +350,11 @@ contract BenqiStrategyV3 is YakStrategyV2 {
         return totalDeposits();
     }
 
-    function rescueDeployedFunds(
-        uint256 minReturnAmountAccepted,
-        bool /*disableDeposits*/
-    ) external override onlyOwner {
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool /*disableDeposits*/ )
+        external
+        override
+        onlyOwner
+    {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         uint256 borrowed = tokenDelegator.borrowBalanceCurrent(address(this));
         uint256 balance = tokenDelegator.balanceOfUnderlying(address(this));

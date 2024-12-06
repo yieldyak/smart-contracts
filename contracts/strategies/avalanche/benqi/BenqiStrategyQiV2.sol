@@ -5,6 +5,7 @@ import "../../VariableRewardsStrategyForSA.sol";
 import "./lib/BenqiLibrary.sol";
 import "./interfaces/IBenqiUnitroller.sol";
 import "./interfaces/IBenqiERC20Delegator.sol";
+import "./../../../lib/SafeMath.sol";
 
 contract BenqiStrategyQiV2 is VariableRewardsStrategyForSA {
     using SafeMath for uint256;
@@ -54,10 +55,7 @@ contract BenqiStrategyQiV2 is VariableRewardsStrategyForSA {
     function _pendingRewards() internal view override returns (Reward[] memory) {
         Reward[] memory pendingRewards = new Reward[](rewardCount);
         for (uint256 i = 0; i < rewardCount; i++) {
-            pendingRewards[i] = Reward({
-                reward: supportedRewards[i],
-                amount: _calculateReward(uint8(i), address(this))
-            });
+            pendingRewards[i] = Reward({reward: supportedRewards[i], amount: _calculateReward(uint8(i), address(this))});
         }
         return pendingRewards;
     }
@@ -71,7 +69,7 @@ contract BenqiStrategyQiV2 is VariableRewardsStrategyForSA {
     }
 
     function totalDeposits() public view override returns (uint256) {
-        (, uint256 internalBalance, , uint256 exchangeRate) = tokenDelegator.getAccountSnapshot(address(this));
+        (, uint256 internalBalance,, uint256 exchangeRate) = tokenDelegator.getAccountSnapshot(address(this));
         return internalBalance.mul(exchangeRate).div(1e18);
     }
 

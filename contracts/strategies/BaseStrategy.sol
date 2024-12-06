@@ -116,6 +116,7 @@ abstract contract BaseStrategy is YakStrategyV3 {
 
     function _deposit(address _account, uint256 _amount) internal {
         require(DEPOSITS_ENABLED == true, "BaseStrategy::Deposits disabled");
+        beforeDeposit();
         _reinvest(true);
         require(
             depositToken.transferFrom(msg.sender, address(this), _amount), "BaseStrategy::Deposit token transfer failed"
@@ -125,6 +126,8 @@ abstract contract BaseStrategy is YakStrategyV3 {
         _stakeDepositTokens(_amount, depositFee);
         emit Deposit(_account, _amount);
     }
+
+    function beforeDeposit() internal virtual {}
 
     /**
      * @notice Deposit fee bips from underlying farm
@@ -143,6 +146,7 @@ abstract contract BaseStrategy is YakStrategyV3 {
     }
 
     function withdraw(uint256 _amount) external override {
+        beforeWithdraw();
         uint256 depositTokenAmount = getDepositTokensForShares(_amount);
         require(depositTokenAmount > 0, "BaseStrategy::Withdraw amount too low");
         uint256 withdrawAmount = _withdrawFromStakingContract(depositTokenAmount);
@@ -151,6 +155,8 @@ abstract contract BaseStrategy is YakStrategyV3 {
         _burn(msg.sender, _amount);
         emit Withdraw(msg.sender, depositTokenAmount);
     }
+
+    function beforeWithdraw() internal virtual {}
 
     /**
      * @notice Withdraw fee bips from underlying farm
