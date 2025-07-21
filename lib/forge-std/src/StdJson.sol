@@ -19,8 +19,8 @@ import {VmSafe} from "./Vm.sol";
 // Contract contract = new Contract();
 // json.serialize("contractAddress", address(contract));
 // json = json.serialize("deploymentTimes", uint(1));
-// // store the stringified JSON to the 'json' variable we have been using as a key
-// // as we won't need it any longer
+// store the stringified JSON to the 'json' variable we have been using as a key
+// as we won't need it any longer
 // string memory json2 = "finalArtifact";
 // string memory final = json2.serialize("depArtifact", json);
 // final.write("<some_path>");
