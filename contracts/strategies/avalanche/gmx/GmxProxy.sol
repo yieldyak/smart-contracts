@@ -129,6 +129,23 @@ contract GmxProxy is IGmxProxy {
         );
     }
 
+    function claimRewards() external onlyDev {
+        gmxDepositor.safeExecute(
+            gmxRewardRouter,
+            0,
+            abi.encodeWithSignature("handleRewards(bool,bool,bool,bool,bool,bool,bool)", true, false, true, true, true, true, false)
+        );
+    }
+
+    function sweep(address _token) external onlyDev {
+        require(_token != fsGLP, "GmxProxy::Invalid token address provided");
+        gmxDepositor.safeExecute(
+            _token,
+            0,
+            abi.encodeWithSignature("transfer(address,uint256)", msg.sender, IERC20(_token).balanceOf(address(gmxDepositor)))
+        );
+    }
+
     function stakedESGMX() public view returns (uint256) {
         return IGmxRewardTracker(gmxRewardTracker).depositBalances(address(gmxDepositor), esGMX);
     }
