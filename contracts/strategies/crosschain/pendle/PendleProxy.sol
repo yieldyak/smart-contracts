@@ -96,7 +96,7 @@ contract PendleProxy {
     }
 
     /**
-     * @notice Update optional boost fee settins
+     * @notice Update optional boost fee settings
      * @param _boostFeeBips Boost fee bips, check BIPS_DIVISOR
      */
     function updateBoostFee(uint256 _boostFeeBips) external onlyDev {

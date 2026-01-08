@@ -101,7 +101,7 @@ contract WombatProxy {
     }
 
     /**
-     * @notice Update additional/optional boost fee settins
+     * @notice Update additional/optional boost fee settings
      * @param _boostFeeBips Boost fee bips, check BIPS_DIVISOR
      * @param _minBoostAmount Minimum amount of WOM to create a new lock position
      */
