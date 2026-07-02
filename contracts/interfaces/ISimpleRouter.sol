@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "./../router/interfaces/IYakRouter.sol";
+import "./IYakRouter.sol";
 
 interface ISimpleRouter {
     error UnsupportedSwap(address _tokenIn, address _tokenOut);

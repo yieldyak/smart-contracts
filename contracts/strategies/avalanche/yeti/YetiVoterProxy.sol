@@ -2,7 +2,6 @@
 pragma solidity 0.8.13;
 
 import "../../../lib/SafeERC20.sol";
-import "../../../lib/SafeMath.sol";
 
 import "./interfaces/IYetiVoter.sol";
 import "./interfaces/IYetiVoterProxy.sol";
@@ -30,7 +29,6 @@ library SafeProxy {
  * use a new proxy.
  */
 contract YetiVoterProxy is IYetiVoterProxy {
-    using SafeMath for uint256;
     using SafeProxy for IYetiVoter;
     using SafeERC20 for IERC20;
 
@@ -160,7 +158,7 @@ contract YetiVoterProxy is IYetiVoterProxy {
      */
     function pendingRewards(address _stakingContract) external view override returns (uint256 pendingYETI) {
         pendingYETI = IYetiFarm(_stakingContract).pendingTokens(address(voter));
-        pendingYETI = pendingYETI.sub(_calculateBoostFee(pendingYETI));
+        pendingYETI = pendingYETI - _calculateBoostFee(pendingYETI);
     }
 
     /**
@@ -181,7 +179,7 @@ contract YetiVoterProxy is IYetiVoterProxy {
         uint256 claimedYETI = YETI.balanceOf(address(voter));
         if (claimedYETI > 0) {
             uint256 boostFee = _calculateBoostFee(claimedYETI);
-            uint256 reward = claimedYETI.sub(boostFee);
+            uint256 reward = claimedYETI - boostFee;
             voter.safeExecute(
                 address(YETI),
                 0,
@@ -196,7 +194,7 @@ contract YetiVoterProxy is IYetiVoterProxy {
 
     function _calculateBoostFee(uint256 amount) private view returns (uint256 boostFee) {
         if (boosterFeeReceiver > address(0) && voter.depositsEnabled()) {
-            boostFee = amount.mul(boosterFee).div(BIPS_DIVISOR);
+            boostFee = (amount * boosterFee) / BIPS_DIVISOR;
         }
     }
 }

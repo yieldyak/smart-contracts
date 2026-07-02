@@ -1,58 +1,55 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "./lib/SafeMath.sol";
-import "./lib/Ownable.sol";
-import "./lib/Permissioned.sol";
-import "./interfaces/IERC20.sol";
 import "./YakERC20.sol";
+import "./lib/Ownable.sol";
+import "./lib/SafeERC20.sol";
+import "./lib/ReentrancyGuard.sol";
+import "./interfaces/IERC20.sol";
 
 /**
  * @notice YakStrategy should be inherited by new strategies
  */
-abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
-    using SafeMath for uint256;
+abstract contract YakStrategy is YakERC20, Ownable, ReentrancyGuard {
+    using SafeERC20 for IERC20;
 
     struct StrategySettings {
+        string name;
+        address owner;
+        address dev;
+        address feeCollector;
+        address depositToken;
+        address rewardToken;
         uint256 minTokensToReinvest;
         uint256 devFeeBips;
         uint256 reinvestRewardBips;
     }
 
-    uint256 public totalDeposits;
+    IERC20 public immutable depositToken;
+    IERC20 public immutable rewardToken;
 
-    IERC20 public depositToken;
-    IERC20 public rewardToken;
     address public devAddr;
+    address public feeCollector;
 
     uint256 public MIN_TOKENS_TO_REINVEST;
-    uint256 public MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST;
     bool public DEPOSITS_ENABLED;
 
-    uint256 public ADMIN_FEE_BIPS;
     uint256 public REINVEST_REWARD_BIPS;
     uint256 public DEV_FEE_BIPS;
 
     uint256 internal constant BIPS_DIVISOR = 10000;
-    uint256 internal constant MAX_UINT = type(uint256).max;
 
     event Deposit(address indexed account, uint256 amount);
     event Withdraw(address indexed account, uint256 amount);
     event Reinvest(uint256 newTotalDeposits, uint256 newTotalSupply);
     event Recovered(address token, uint256 amount);
-    event UpdateAdminFee(uint256 oldValue, uint256 newValue);
     event UpdateDevFee(uint256 oldValue, uint256 newValue);
     event UpdateReinvestReward(uint256 oldValue, uint256 newValue);
     event UpdateMinTokensToReinvest(uint256 oldValue, uint256 newValue);
     event UpdateMaxTokensToDepositWithoutReinvest(uint256 oldValue, uint256 newValue);
     event UpdateDevAddr(address oldValue, address newValue);
+    event UpdateFeeCollector(address oldValue, address newValue);
     event DepositsEnabled(bool newValue);
-
-    constructor(StrategySettings memory _strategySettings) {
-        updateMinTokensToReinvest(_strategySettings.minTokensToReinvest);
-        updateDevFee(_strategySettings.devFeeBips);
-        updateReinvestReward(_strategySettings.reinvestRewardBips);
-    }
 
     /**
      * @notice Throws if called by smart contract
@@ -70,13 +67,20 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
         _;
     }
 
-    /**
-     * @notice Revoke token allowance
-     * @param token address
-     * @param spender address
-     */
-    function revokeAllowance(address token, address spender) external onlyOwner {
-        require(IERC20(token).approve(spender, 0));
+    constructor(StrategySettings memory _strategySettings) {
+        name = _strategySettings.name;
+        depositToken = IERC20(_strategySettings.depositToken);
+        rewardToken = IERC20(_strategySettings.rewardToken);
+
+        devAddr = msg.sender;
+        updateMinTokensToReinvest(_strategySettings.minTokensToReinvest);
+        updateDevFee(_strategySettings.devFeeBips);
+        updateReinvestReward(_strategySettings.reinvestRewardBips);
+        updateFeeCollector(_strategySettings.feeCollector);
+        updateDevAddr(_strategySettings.dev);
+
+        enableDeposits();
+        transferOwnership(_strategySettings.owner);
     }
 
     /**
@@ -95,13 +99,7 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
      * @param r Half of the ECDSA signature pair
      * @param s Half of the ECDSA signature pair
      */
-    function depositWithPermit(
-        uint256 amount,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external virtual;
+    function depositWithPermit(uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external virtual;
 
     /**
      * @notice Deposit on behalf of another account
@@ -129,29 +127,28 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
     function estimateReinvestReward() external view returns (uint256) {
         uint256 unclaimedRewards = checkReward();
         if (unclaimedRewards >= MIN_TOKENS_TO_REINVEST) {
-            return unclaimedRewards.mul(REINVEST_REWARD_BIPS).div(BIPS_DIVISOR);
+            return (unclaimedRewards * REINVEST_REWARD_BIPS) / BIPS_DIVISOR;
         }
         return 0;
     }
 
     /**
-     * @notice Reward tokens avialable to strategy, including balance
+     * @notice Reward tokens available to strategy, including balance
      * @return reward tokens
      */
     function checkReward() public view virtual returns (uint256);
 
     /**
-     * @notice Estimated deposit token balance deployed by strategy, excluding balance
-     * @return deposit tokens
-     */
-    function estimateDeployedBalance() external view virtual returns (uint256);
-
-    /**
      * @notice Rescue all available deployed deposit tokens back to Strategy
      * @param minReturnAmountAccepted min deposit tokens to receive
-     * @param disableDeposits bool
      */
-    function rescueDeployedFunds(uint256 minReturnAmountAccepted, bool disableDeposits) external virtual;
+    function rescueDeployedFunds(uint256 minReturnAmountAccepted) external virtual;
+
+    /**
+     * @notice This function returns a snapshot of last available quotes
+     * @return total deposits available on the contract
+     */
+    function totalDeposits() public view virtual returns (uint256);
 
     /**
      * @notice Calculate receipt tokens for a given amount of deposit tokens
@@ -161,10 +158,12 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
      * @return receipt tokens
      */
     function getSharesForDepositTokens(uint256 amount) public view returns (uint256) {
-        if (totalSupply.mul(totalDeposits) == 0) {
+        uint256 tDeposits = totalDeposits();
+        uint256 tSupply = totalSupply;
+        if (tSupply == 0 || tDeposits == 0) {
             return amount;
         }
-        return amount.mul(totalSupply).div(totalDeposits);
+        return (amount * tSupply) / tDeposits;
     }
 
     /**
@@ -173,78 +172,90 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
      * @return deposit tokens
      */
     function getDepositTokensForShares(uint256 amount) public view returns (uint256) {
-        if (totalSupply.mul(totalDeposits) == 0) {
+        uint256 tDeposits = totalDeposits();
+        uint256 tSupply = totalSupply;
+        if (tSupply == 0 || tDeposits == 0) {
             return 0;
         }
-        return amount.mul(totalDeposits).div(totalSupply);
+        return (amount * tDeposits) / tSupply;
+    }
+
+    // Dev protected
+
+    /**
+     * @notice Revoke token allowance
+     * @param token address
+     * @param spender address
+     */
+    function revokeAllowance(address token, address spender) external onlyDev {
+        require(IERC20(token).approve(spender, 0));
+    }
+
+    /**
+     * @notice Disable deposits
+     */
+    function disableDeposits() public onlyDev {
+        require(DEPOSITS_ENABLED);
+        DEPOSITS_ENABLED = false;
+        emit DepositsEnabled(false);
     }
 
     /**
      * @notice Update reinvest min threshold
      * @param newValue threshold
      */
-    function updateMinTokensToReinvest(uint256 newValue) public onlyOwner {
+    function updateMinTokensToReinvest(uint256 newValue) public onlyDev {
         emit UpdateMinTokensToReinvest(MIN_TOKENS_TO_REINVEST, newValue);
         MIN_TOKENS_TO_REINVEST = newValue;
-    }
-
-    /**
-     * @notice Update reinvest max threshold before a deposit
-     * @param newValue threshold
-     */
-    function updateMaxTokensToDepositWithoutReinvest(uint256 newValue) public onlyOwner {
-        emit UpdateMaxTokensToDepositWithoutReinvest(MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST, newValue);
-        MAX_TOKENS_TO_DEPOSIT_WITHOUT_REINVEST = newValue;
     }
 
     /**
      * @notice Update developer fee
      * @param newValue fee in BIPS
      */
-    function updateDevFee(uint256 newValue) public onlyOwner {
-        require(newValue.add(REINVEST_REWARD_BIPS) <= BIPS_DIVISOR);
+    function updateDevFee(uint256 newValue) public onlyDev {
+        require(newValue + REINVEST_REWARD_BIPS <= BIPS_DIVISOR);
         emit UpdateDevFee(DEV_FEE_BIPS, newValue);
         DEV_FEE_BIPS = newValue;
-    }
-
-    /**
-     * @notice Update admin fee
-     * @dev Deprecated; Kept for compatibility
-     * @param newValue fee in BIPS; required to be 0
-     */
-    function updateAdminFee(uint256 newValue) public onlyOwner {
-        require(newValue == 0);
-        emit UpdateAdminFee(ADMIN_FEE_BIPS, newValue);
-        ADMIN_FEE_BIPS = newValue;
     }
 
     /**
      * @notice Update reinvest reward
      * @param newValue fee in BIPS
      */
-    function updateReinvestReward(uint256 newValue) public onlyOwner {
-        require(newValue.add(DEV_FEE_BIPS) <= BIPS_DIVISOR);
+    function updateReinvestReward(uint256 newValue) public onlyDev {
+        require(newValue + DEV_FEE_BIPS <= BIPS_DIVISOR);
         emit UpdateReinvestReward(REINVEST_REWARD_BIPS, newValue);
         REINVEST_REWARD_BIPS = newValue;
     }
 
+    // Owner protected
+
     /**
-     * @notice Enable/disable deposits
-     * @param newValue bool
+     * @notice Enable deposits
      */
-    function updateDepositsEnabled(bool newValue) public onlyOwner {
-        require(DEPOSITS_ENABLED != newValue);
-        DEPOSITS_ENABLED = newValue;
-        emit DepositsEnabled(newValue);
+    function enableDeposits() public onlyOwner {
+        require(!DEPOSITS_ENABLED);
+        DEPOSITS_ENABLED = true;
+        emit DepositsEnabled(true);
     }
 
     /**
      * @notice Update devAddr
      * @param newValue address
      */
-    function updateDevAddr(address newValue) public onlyDev {
+    function updateDevAddr(address newValue) public onlyOwner {
         emit UpdateDevAddr(devAddr, newValue);
         devAddr = newValue;
+    }
+
+    /**
+     * @notice Update feeCollector
+     * @param newValue address
+     */
+    function updateFeeCollector(address newValue) public onlyOwner {
+        emit UpdateFeeCollector(feeCollector, newValue);
+        feeCollector = newValue;
     }
 
     /**
@@ -254,15 +265,15 @@ abstract contract YakStrategy is YakERC20, Ownable, Permissioned {
      */
     function recoverERC20(address tokenAddress, uint256 tokenAmount) external onlyOwner {
         require(tokenAmount > 0);
-        require(IERC20(tokenAddress).transfer(msg.sender, tokenAmount));
+        IERC20(tokenAddress).safeTransfer(msg.sender, tokenAmount);
         emit Recovered(tokenAddress, tokenAmount);
     }
 
     /**
-     * @notice Recover AVAX from contract
+     * @notice Recover GAS from contract
      * @param amount amount
      */
-    function recoverAVAX(uint256 amount) external onlyOwner {
+    function recoverGas(uint256 amount) external onlyOwner {
         require(amount > 0);
         payable(msg.sender).transfer(amount);
         emit Recovered(address(0), amount);

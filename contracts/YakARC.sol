@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "./lib/SafeMath.sol";
 import "./lib/AccessControl.sol";
 import "./timelocks/YakFeeCollectorV1.sol";
 import "./interfaces/IWAVAX.sol";
@@ -12,8 +11,6 @@ import "./interfaces/IWAVAX.sol";
  * @dev Epochs are used to stagger distributions
  */
 contract YakARC is AccessControl {
-    using SafeMath for uint256;
-
     /// @notice Role to sweep funds from this contract (excluding AVAX/WAVAX)
     bytes32 public constant TOKEN_SWEEPER_ROLE = keccak256("TOKEN_SWEEPER_ROLE");
 
@@ -74,7 +71,7 @@ contract YakARC is AccessControl {
      * @return number of current epoch
      */
     function currentEpoch() public view returns (uint256) {
-        return block.timestamp.sub(startTimestamp).div(epochLength);
+        return (block.timestamp - startTimestamp) / epochLength;
     }
 
     /**
@@ -82,7 +79,7 @@ contract YakARC is AccessControl {
      * @return timestamp of next epoch
      */
     function nextEpoch() public view returns (uint256) {
-        return startTimestamp.add(lastPaymentEpoch.add(1).mul(epochLength));
+        return startTimestamp + ((lastPaymentEpoch + 1) * epochLength);
     }
 
     /**
@@ -90,7 +87,7 @@ contract YakARC is AccessControl {
      * @return balance
      */
     function currentBalance() external view returns (uint256) {
-        return WAVAX.balanceOf(address(feeCollector)).add(address(feeCollector).balance);
+        return WAVAX.balanceOf(address(feeCollector)) + address(feeCollector).balance;
     }
 
     function _sweepWAVAX() internal {
@@ -120,9 +117,9 @@ contract YakARC is AccessControl {
         uint256 balance = address(this).balance;
         uint256 totalPaid;
         for (uint256 i; i < distributionAddresses.length; i++) {
-            uint256 amount = balance.mul(distributionRatios[i]).div(10000);
+            uint256 amount = (balance * distributionRatios[i]) / 10000;
             if (amount > 0) {
-                totalPaid = totalPaid.add(amount);
+                totalPaid = totalPaid + amount;
                 (bool success, ) = distributionAddresses[i].call{value: amount}("");
                 require(success == true, "distribute::transfer failed");
                 emit Paid(currentEpoch(), distributionAddresses[i], amount);
@@ -155,7 +152,7 @@ contract YakARC is AccessControl {
         require(addresses.length == ratioBips.length, "_updateDistributions::different lengths");
         uint256 sum;
         for (uint256 i; i < addresses.length; i++) {
-            sum = sum.add(ratioBips[i]);
+            sum = sum + ratioBips[i];
         }
         require(sum == 10000, "_updateDistributions::invalid ratioBips");
         distributionAddresses = addresses;

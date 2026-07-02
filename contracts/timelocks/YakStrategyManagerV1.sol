@@ -2,7 +2,6 @@
 pragma solidity 0.8.13;
 
 import "../lib/AccessControl.sol";
-import "../lib/SafeMath.sol";
 
 interface IERC20 {
     function transfer(address recipient, uint256 amount) external returns (bool);
@@ -51,8 +50,6 @@ interface IStrategy {
  * @dev YakStrategyManager may be used as `owner` on YakStrategy contracts
  */
 contract YakStrategyManagerV1 is AccessControl {
-    using SafeMath for uint256;
-
     uint256 public constant timelockLengthForOwnershipTransfer = 14 days;
 
     /// @notice Sets a global maximum for fee changes using bips (100 bips = 1%)
@@ -131,7 +128,7 @@ contract YakStrategyManagerV1 is AccessControl {
      */
     function proposeOwner(address strategy, address newOwner) external {
         require(hasRole(STRATEGY_OWNER_SETTER_ROLE, msg.sender), "proposeOwner::auth");
-        pendingOwnersTimelock[strategy] = block.timestamp.add(timelockLengthForOwnershipTransfer);
+        pendingOwnersTimelock[strategy] = block.timestamp + timelockLengthForOwnershipTransfer;
         pendingOwners[strategy] = newOwner;
         emit ProposeOwner(strategy, newOwner);
     }
@@ -165,7 +162,7 @@ contract YakStrategyManagerV1 is AccessControl {
         uint256 reinvestRewardBips
     ) external {
         require(hasRole(FEE_SETTER_ROLE, msg.sender), "setFees::auth");
-        require(adminFeeBips.add(devFeeBips).add(reinvestRewardBips) <= maxFeeBips, "setFees::Fees too high");
+        require(adminFeeBips + devFeeBips + reinvestRewardBips <= maxFeeBips, "setFees::Fees too high");
         if (adminFeeBips != IStrategy(strategy).ADMIN_FEE_BIPS()) {
             IStrategy(strategy).updateAdminFee(adminFeeBips);
         }

@@ -2,7 +2,6 @@
 pragma solidity 0.8.13;
 
 import "../lib/Ownable.sol";
-import "../lib/SafeMath.sol";
 import "../lib/SafeERC20.sol";
 
 interface IStrategy {
@@ -19,7 +18,6 @@ interface IStrategy {
  * the contract may run out of redemption tokens too soon.
  */
 contract YrtRedeemer is Ownable {
-    using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     /// @notice Redemption token
@@ -126,7 +124,7 @@ contract YrtRedeemer is Ownable {
         if (totalShares == 0 || totalRedemptionBalance == 0) {
             return 0;
         }
-        return amount.mul(totalRedemptionBalance).div(totalShares);
+        return (amount * totalRedemptionBalance) / totalShares;
     }
 
     /**

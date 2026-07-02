@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.13;
 
-import "../YakStrategyV3.sol";
+import "../YakStrategy.sol";
 import "../interfaces/IWGAS.sol";
 import "../lib/SafeERC20.sol";
 import "./../interfaces/ISimpleRouter.sol";
@@ -9,7 +9,7 @@ import "./../interfaces/ISimpleRouter.sol";
 /**
  * @notice BaseStrategy
  */
-abstract contract BaseStrategy is YakStrategyV3 {
+abstract contract BaseStrategy is YakStrategy {
     using SafeERC20 for IERC20;
 
     IWGAS internal immutable WGAS;
@@ -33,7 +33,7 @@ abstract contract BaseStrategy is YakStrategyV3 {
     event UpdateRouter(address oldRouter, address newRouter);
 
     constructor(BaseStrategySettings memory _settings, StrategySettings memory _strategySettings)
-        YakStrategyV3(_strategySettings)
+        YakStrategy(_strategySettings)
     {
         WGAS = IWGAS(_settings.gasToken);
 
@@ -92,7 +92,7 @@ abstract contract BaseStrategy is YakStrategyV3 {
      * @notice Deposit tokens to receive receipt tokens
      * @param _amount Amount of tokens to deposit
      */
-    function deposit(uint256 _amount) external override {
+    function deposit(uint256 _amount) external override nonReentrant {
         _deposit(msg.sender, _amount);
     }
 
@@ -107,12 +107,13 @@ abstract contract BaseStrategy is YakStrategyV3 {
     function depositWithPermit(uint256 _amount, uint256 _deadline, uint8 _v, bytes32 _r, bytes32 _s)
         external
         override
+        nonReentrant
     {
         depositToken.permit(msg.sender, address(this), _amount, _deadline, _v, _r, _s);
         _deposit(msg.sender, _amount);
     }
 
-    function depositFor(address _account, uint256 _amount) external override {
+    function depositFor(address _account, uint256 _amount) external override nonReentrant {
         _deposit(_account, _amount);
     }
 
@@ -147,7 +148,7 @@ abstract contract BaseStrategy is YakStrategyV3 {
         return (_amount * depositFeeBips) / _bip();
     }
 
-    function withdraw(uint256 _amount) external override {
+    function withdraw(uint256 _amount) external override nonReentrant {
         beforeWithdraw();
         uint256 depositTokenAmount = getDepositTokensForShares(_amount);
         require(depositTokenAmount > 0, "BaseStrategy::Withdraw amount too low");
@@ -178,7 +179,7 @@ abstract contract BaseStrategy is YakStrategyV3 {
         return (_amount * withdrawFeeBips) / _bip();
     }
 
-    function reinvest() external override onlyEOA {
+    function reinvest() external override onlyEOA nonReentrant {
         _reinvest(false);
     }
 
@@ -275,7 +276,7 @@ abstract contract BaseStrategy is YakStrategyV3 {
         return estimatedTotalReward;
     }
 
-    function rescueDeployedFunds(uint256 _minReturnAmountAccepted) external override onlyOwner {
+    function rescueDeployedFunds(uint256 _minReturnAmountAccepted) external override onlyOwner nonReentrant {
         uint256 balanceBefore = depositToken.balanceOf(address(this));
         _emergencyWithdraw();
         uint256 balanceAfter = depositToken.balanceOf(address(this));

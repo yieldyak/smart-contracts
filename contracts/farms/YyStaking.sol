@@ -2,7 +2,6 @@
 pragma solidity 0.8.13;
 
 import "../lib/Ownable.sol";
-import "../lib/SafeMath.sol";
 import "../lib/SafeERC20.sol";
 
 /**
@@ -16,7 +15,6 @@ import "../lib/SafeERC20.sol";
  * currently staking inside this contract, and they can claim it using `withdraw(0)`
  */
 contract YyStaking is Ownable {
-    using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     /// @notice Info of each user
@@ -150,11 +148,11 @@ contract YyStaking is Ownable {
     function _deposit(address _account, uint256 _amount) internal {
         UserInfo storage user = userInfo[_account];
 
-        uint256 _fee = _amount.mul(depositFeePercent).div(DEPOSIT_FEE_PERCENT_PRECISION);
-        uint256 _amountMinusFee = _amount.sub(_fee);
+        uint256 _fee = (_amount * depositFeePercent) / DEPOSIT_FEE_PERCENT_PRECISION;
+        uint256 _amountMinusFee = _amount - _fee;
 
         uint256 _previousAmount = user.amount;
-        uint256 _newAmount = user.amount.add(_amountMinusFee);
+        uint256 _newAmount = user.amount + _amountMinusFee;
         user.amount = _newAmount;
 
         uint256 _len = rewardTokens.length;
@@ -163,13 +161,14 @@ contract YyStaking is Ownable {
             updateReward(_token);
 
             uint256 _previousRewardDebt = user.rewardDebt[_token];
-            user.rewardDebt[_token] = _newAmount.mul(accRewardPerShare[_token]).div(ACC_REWARD_PER_SHARE_PRECISION);
+            user.rewardDebt[_token] =
+                (_newAmount * accRewardPerShare[_token]) /
+                ACC_REWARD_PER_SHARE_PRECISION;
 
             if (_previousAmount != 0) {
-                uint256 _pending = _previousAmount
-                    .mul(accRewardPerShare[_token])
-                    .div(ACC_REWARD_PER_SHARE_PRECISION)
-                    .sub(_previousRewardDebt);
+                uint256 _pending =
+                    ((_previousAmount * accRewardPerShare[_token]) / ACC_REWARD_PER_SHARE_PRECISION) -
+                        _previousRewardDebt;
                 if (_pending != 0) {
                     safeTokenTransfer(_token, _account, _pending);
                     emit ClaimReward(_account, address(_token), _pending);
@@ -177,7 +176,7 @@ contract YyStaking is Ownable {
             }
         }
 
-        internalBalance = internalBalance.add(_amountMinusFee);
+        internalBalance = internalBalance + _amountMinusFee;
         depositToken.safeTransferFrom(msg.sender, feeCollector, _fee);
         depositToken.safeTransferFrom(msg.sender, address(this), _amountMinusFee);
         emit Deposit(_account, _amountMinusFee, _fee);
@@ -267,17 +266,16 @@ contract YyStaking is Ownable {
 
         uint256 _currRewardBalance = _token.balanceOf(address(this));
         uint256 _rewardBalance = _token == depositToken
-            ? _currRewardBalance.sub(_totalDepositTokens)
+            ? _currRewardBalance - _totalDepositTokens
             : _currRewardBalance;
 
         if (_rewardBalance != lastRewardBalance[_token] && _totalDepositTokens != 0) {
-            uint256 _accruedReward = _rewardBalance.sub(lastRewardBalance[_token]);
-            _accRewardTokenPerShare = _accRewardTokenPerShare.add(
-                _accruedReward.mul(ACC_REWARD_PER_SHARE_PRECISION).div(_totalDepositTokens)
-            );
+            uint256 _accruedReward = _rewardBalance - lastRewardBalance[_token];
+            _accRewardTokenPerShare = _accRewardTokenPerShare +
+                ((_accruedReward * ACC_REWARD_PER_SHARE_PRECISION) / _totalDepositTokens);
         }
         return
-            user.amount.mul(_accRewardTokenPerShare).div(ACC_REWARD_PER_SHARE_PRECISION).sub(user.rewardDebt[_token]);
+            ((user.amount * _accRewardTokenPerShare) / ACC_REWARD_PER_SHARE_PRECISION) - user.rewardDebt[_token];
     }
 
     /**
@@ -288,7 +286,7 @@ contract YyStaking is Ownable {
         UserInfo storage user = userInfo[msg.sender];
         uint256 _previousAmount = user.amount;
         require(_amount <= _previousAmount, "YyStaking::withdraw amount exceeds balance");
-        uint256 _newAmount = user.amount.sub(_amount);
+        uint256 _newAmount = user.amount - _amount;
         user.amount = _newAmount;
 
         uint256 _len = rewardTokens.length;
@@ -297,11 +295,12 @@ contract YyStaking is Ownable {
                 IERC20 _token = rewardTokens[i];
                 updateReward(_token);
 
-                uint256 _pending = _previousAmount
-                    .mul(accRewardPerShare[_token])
-                    .div(ACC_REWARD_PER_SHARE_PRECISION)
-                    .sub(user.rewardDebt[_token]);
-                user.rewardDebt[_token] = _newAmount.mul(accRewardPerShare[_token]).div(ACC_REWARD_PER_SHARE_PRECISION);
+                uint256 _pending =
+                    ((_previousAmount * accRewardPerShare[_token]) / ACC_REWARD_PER_SHARE_PRECISION) -
+                        user.rewardDebt[_token];
+                user.rewardDebt[_token] =
+                    (_newAmount * accRewardPerShare[_token]) /
+                    ACC_REWARD_PER_SHARE_PRECISION;
 
                 if (_pending != 0) {
                     safeTokenTransfer(_token, msg.sender, _pending);
@@ -310,7 +309,7 @@ contract YyStaking is Ownable {
             }
         }
 
-        internalBalance = internalBalance.sub(_amount);
+        internalBalance = internalBalance - _amount;
         depositToken.safeTransfer(msg.sender, _amount);
         emit Withdraw(msg.sender, _amount);
     }
@@ -328,7 +327,7 @@ contract YyStaking is Ownable {
             IERC20 _token = rewardTokens[i];
             user.rewardDebt[_token] = 0;
         }
-        internalBalance = internalBalance.sub(_amount);
+        internalBalance = internalBalance - _amount;
         depositToken.safeTransfer(msg.sender, _amount);
         emit EmergencyWithdraw(msg.sender, _amount);
     }
@@ -345,7 +344,7 @@ contract YyStaking is Ownable {
 
         uint256 _currRewardBalance = _token.balanceOf(address(this));
         uint256 _rewardBalance = _token == depositToken
-            ? _currRewardBalance.sub(_totalDepositTokens)
+            ? _currRewardBalance - _totalDepositTokens
             : _currRewardBalance;
 
         // Did YyStaking receive any token
@@ -353,11 +352,10 @@ contract YyStaking is Ownable {
             return;
         }
 
-        uint256 _accruedReward = _rewardBalance.sub(lastRewardBalance[_token]);
+        uint256 _accruedReward = _rewardBalance - lastRewardBalance[_token];
 
-        accRewardPerShare[_token] = accRewardPerShare[_token].add(
-            _accruedReward.mul(ACC_REWARD_PER_SHARE_PRECISION).div(_totalDepositTokens)
-        );
+        accRewardPerShare[_token] = accRewardPerShare[_token] +
+            ((_accruedReward * ACC_REWARD_PER_SHARE_PRECISION) / _totalDepositTokens);
         lastRewardBalance[_token] = _rewardBalance;
     }
 
@@ -384,13 +382,13 @@ contract YyStaking is Ownable {
         uint256 _amount
     ) internal {
         uint256 _currRewardBalance = _token.balanceOf(address(this));
-        uint256 _rewardBalance = _token == depositToken ? _currRewardBalance.sub(internalBalance) : _currRewardBalance;
+        uint256 _rewardBalance = _token == depositToken ? _currRewardBalance - internalBalance : _currRewardBalance;
 
         if (_amount > _rewardBalance) {
-            lastRewardBalance[_token] = lastRewardBalance[_token].sub(_rewardBalance);
+            lastRewardBalance[_token] = lastRewardBalance[_token] - _rewardBalance;
             _token.safeTransfer(_to, _rewardBalance);
         } else {
-            lastRewardBalance[_token] = lastRewardBalance[_token].sub(_amount);
+            lastRewardBalance[_token] = lastRewardBalance[_token] - _amount;
             _token.safeTransfer(_to, _amount);
         }
     }
